@@ -128,7 +128,10 @@ function detectSubjectBoundingBox(
 
       // Non-transparent or non-pure-white background pixel detection
       const isTransparent = a < 20;
-      const isPureWhite = r > 248 && g > 248 && b > 248;
+      const brightness = (r + g + b) / 3;
+      const colorDiff = Math.max(r, g, b) - Math.min(r, g, b);
+
+      const isPureWhite = brightness > 245 && colorDiff < 10;
 
       if (!isTransparent && !isPureWhite) {
         if (x < minX) minX = x;
@@ -169,20 +172,8 @@ function classifyOrientation(aspectRatio: number): ImageOrientation {
   return "landscape";
 }
 
-function computeAdaptivePadding(
-  orientation: ImageOrientation,
-  aspect: number,
-  targetKB: number,
-): number {
-  if (orientation === "portrait") {
-    return 0.18;
-  }
-
-  if (orientation === "landscape") {
-    return 0.16;
-  }
-
-  return 0.15;
+function computeAdaptivePadding(): number {
+  return 0.1;
 }
 
 // ---------------------------------------------------------------------------
@@ -213,28 +204,31 @@ async function prepareMaster(file: File): Promise<MasterContext> {
   const bbox = detectSubjectBoundingBox(nctx, srcW, srcH);
   const bboxAspect = bbox.width / bbox.height;
   const orientation = classifyOrientation(bboxAspect);
+  const coverage = (bbox.width * bbox.height) / (srcW * srcH);
 
   const masterSize = computeMasterSize(srcW, srcH);
-  const padRatio = computeAdaptivePadding(orientation, bboxAspect, 20);
+  const padRatio = computeAdaptivePadding();
   const padPixels = Math.round(masterSize * padRatio);
   const innerSize = masterSize - padPixels * 2;
 
   // Scale subject to fit inside master inner canvas while maintaining aspect ratio
-  let fillRatio = 0.7;
+  let fillRatio = 0.72;
 
-  if (orientation === "portrait") {
-    fillRatio = 0.62;
-  } else if (orientation === "landscape") {
-    fillRatio = 0.66;
+  if (coverage > 0.75) {
+    fillRatio = 0.72;
+  } else if (coverage > 0.55) {
+    fillRatio = 0.8;
+  } else if (coverage > 0.35) {
+    fillRatio = 0.88;
   } else {
-    fillRatio = 0.7;
+    fillRatio = 0.94;
   }
 
-  const scale = Math.min(
-    (innerSize * fillRatio) / bbox.width,
-    (innerSize * fillRatio) / bbox.height,
-    1,
-  );
+  const longestSide = Math.max(bbox.width, bbox.height);
+
+  const desiredSize = innerSize * fillRatio;
+
+  const scale = Math.min(desiredSize / longestSide, 1);
   const targetW = Math.max(1, Math.round(bbox.width * scale));
   const targetH = Math.max(1, Math.round(bbox.height * scale));
 
