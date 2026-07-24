@@ -41,7 +41,8 @@
   --color-brand-glow: var(--brand-glow);
 
   --shadow-glow: 0 0 60px -12px color-mix(in oklab, var(--brand) 55%, transparent);
-  --shadow-elevated: 0 20px 60px -20px color-mix(in oklab, var(--brand) 25%, transparent),
+  --shadow-elevated:
+    0 20px 60px -20px color-mix(in oklab, var(--brand) 25%, transparent),
     0 8px 24px -12px oklch(0 0 0 / 0.35);
 }
 
@@ -88,7 +89,8 @@
     color-mix(in oklab, var(--brand) 35%, transparent),
     transparent
   );
-  --gradient-mesh: radial-gradient(
+  --gradient-mesh:
+    radial-gradient(
       circle at 20% 10%,
       color-mix(in oklab, var(--brand) 25%, transparent),
       transparent 45%
@@ -135,7 +137,10 @@
     background-image: var(--gradient-mesh);
     background-attachment: fixed;
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     letter-spacing: -0.02em;
   }
 }
@@ -162,12 +167,23 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @utility animate-float {
   animation: float 6s ease-in-out infinite;

@@ -14,11 +14,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import {
-  optimizeAllSizes,
-  validateImageFile,
-  type OptimizedResult,
-} from "@/lib/image-optimizer";
+import { optimizeAllSizes, validateImageFile, type OptimizedResult } from "@/lib/image-optimizer";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -85,17 +81,20 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onFile = useCallback((f: File) => {
-    const v = validateImageFile(f);
-    if (!v.ok) {
-      toast.error(v.error);
-      return;
-    }
-    setFile(f);
-    setResults([]);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(URL.createObjectURL(f));
-  }, [previewUrl]);
+  const onFile = useCallback(
+    (f: File) => {
+      const v = validateImageFile(f);
+      if (!v.ok) {
+        toast.error(v.error);
+        return;
+      }
+      setFile(f);
+      setResults([]);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(f));
+    },
+    [previewUrl],
+  );
 
   async function handleGenerate() {
     if (!file) return;
@@ -203,11 +202,10 @@ function Dashboard() {
         {/* Main column */}
         <div className="space-y-8">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Optimize a product image
-            </h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Optimize a product image</h1>
             <p className="mt-1 text-muted-foreground text-sm">
-              Drop a photo below. We'll generate 10 marketplace-ready variants — square, white background, and precise file sizes.
+              Drop a photo below. We'll generate 10 marketplace-ready variants — square, white
+              background, and precise file sizes.
             </p>
           </div>
 
@@ -237,9 +235,7 @@ function Dashboard() {
                 <Upload className="h-6 w-6 text-brand-foreground" />
               </div>
               <h3 className="mt-5 text-lg font-semibold">Drag & drop your product image</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                JPG, PNG, or WEBP · up to 20 MB
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">JPG, PNG, or WEBP · up to 20 MB</p>
               <button
                 type="button"
                 className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground"
@@ -270,7 +266,8 @@ function Dashboard() {
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{file.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {(file.size / 1024).toFixed(1)} KB · {file.type.replace("image/", "").toUpperCase()}
+                        {(file.size / 1024).toFixed(1)} KB ·{" "}
+                        {file.type.replace("image/", "").toUpperCase()}
                       </div>
                     </div>
                     <button
@@ -334,14 +331,12 @@ function Dashboard() {
             <div>
               <h2 className="text-lg font-semibold">Generated variants</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Every variant is square, white-background, and marketplace-ready. Click download to save.
+                Every variant is square, white-background, and marketplace-ready. Click download to
+                save.
               </p>
               <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 {results.map((r) => (
-                  <div
-                    key={r.targetKB}
-                    className="rounded-xl surface overflow-hidden group"
-                  >
+                  <div key={r.targetKB} className="rounded-xl surface overflow-hidden group">
                     <div className="aspect-square bg-white">
                       <img
                         src={r.url}
@@ -352,9 +347,7 @@ function Dashboard() {
                     <div className="p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-sm font-semibold text-gradient">
-                            {r.targetKB} KB
-                          </div>
+                          <div className="text-sm font-semibold text-gradient">{r.targetKB} KB</div>
                           <div className="text-[10px] text-muted-foreground">
                             {r.width}×{r.height} · JPG · {r.sizeKB} KB · −{r.compressionPct}%
                           </div>
@@ -418,9 +411,7 @@ function Dashboard() {
                         {h.variants.map((v) => (
                           <button
                             key={v.targetKB}
-                            onClick={() =>
-                              downloadResult(v.url, v.targetKB, h.filename)
-                            }
+                            onClick={() => downloadResult(v.url, v.targetKB, h.filename)}
                             className="rounded-md border border-border bg-background/60 px-1.5 py-0.5 text-[10px] hover:border-brand/50"
                           >
                             {v.targetKB} KB

@@ -35,34 +35,100 @@ const NAV = [
 ];
 
 const FEATURES = [
-  { icon: Zap, title: "Instant optimization", body: "Drop a photo and get 10 marketplace-ready variants in under 8 seconds — powered by a modular AI pipeline." },
-  { icon: LayoutGrid, title: "Precise size targets", body: "Every generation hits exact file sizes from 5 KB up to 50 KB so you always fall under Meesho's shipping thresholds." },
-  { icon: ImageIcon, title: "Studio-clean output", body: "Pure white background, correct product padding, perfect square ratio — every image looks like a paid shoot." },
-  { icon: Shield, title: "Quality preserved", body: "Perceptual compression keeps edges sharp and colors true, even at aggressive 5 KB targets." },
-  { icon: History, title: "Full history", body: "Every upload and variant is saved to your library. Re-download anything, anytime." },
-  { icon: Sparkles, title: "Built for sellers", body: "Bulk uploads, priority queue, and a workflow shaped by hundreds of Meesho catalogs." },
+  {
+    icon: Zap,
+    title: "Instant optimization",
+    body: "Drop a photo and get 10 marketplace-ready variants in under 8 seconds — powered by a modular AI pipeline.",
+  },
+  {
+    icon: LayoutGrid,
+    title: "Precise size targets",
+    body: "Every generation hits exact file sizes from 5 KB up to 50 KB so you always fall under Meesho's shipping thresholds.",
+  },
+  {
+    icon: ImageIcon,
+    title: "Studio-clean output",
+    body: "Pure white background, correct product padding, perfect square ratio — every image looks like a paid shoot.",
+  },
+  {
+    icon: Shield,
+    title: "Quality preserved",
+    body: "Perceptual compression keeps edges sharp and colors true, even at aggressive 5 KB targets.",
+  },
+  {
+    icon: History,
+    title: "Full history",
+    body: "Every upload and variant is saved to your library. Re-download anything, anytime.",
+  },
+  {
+    icon: Sparkles,
+    title: "Built for sellers",
+    body: "Bulk uploads, priority queue, and a workflow shaped by hundreds of Meesho catalogs.",
+  },
 ];
 
 const STEPS = [
-  { n: "01", title: "Upload", body: "Drag & drop JPG, PNG, or WEBP up to 20 MB. Batch uploads supported on Premium." },
-  { n: "02", title: "Process", body: "Our pipeline removes clutter, centers your product, and renders it on a pure white square." },
-  { n: "03", title: "Download", body: "Pick any size from 5 KB to 50 KB. One click to download, always saved to your history." },
+  {
+    n: "01",
+    title: "Upload",
+    body: "Drag & drop JPG, PNG, or WEBP up to 20 MB. Batch uploads supported on Premium.",
+  },
+  {
+    n: "02",
+    title: "Process",
+    body: "Our pipeline removes clutter, centers your product, and renders it on a pure white square.",
+  },
+  {
+    n: "03",
+    title: "Download",
+    body: "Pick any size from 5 KB to 50 KB. One click to download, always saved to your history.",
+  },
 ];
 
 const SIZES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 
 const TESTIMONIALS = [
-  { quote: "Our shipping costs dropped 22% in the first month. The images look better than what our old studio was producing.", name: "Priya S.", role: "Home decor seller, Jaipur" },
-  { quote: "I used to spend two hours a day resizing product photos. Now I run a batch and get back to sourcing.", name: "Rahul M.", role: "Fashion catalog, Surat" },
-  { quote: "The 10 KB output looks indistinguishable from the original. Meesho approved every single listing.", name: "Anjali K.", role: "Kitchen accessories, Delhi" },
+  {
+    quote:
+      "Our shipping costs dropped 22% in the first month. The images look better than what our old studio was producing.",
+    name: "Priya S.",
+    role: "Home decor seller, Jaipur",
+  },
+  {
+    quote:
+      "I used to spend two hours a day resizing product photos. Now I run a batch and get back to sourcing.",
+    name: "Rahul M.",
+    role: "Fashion catalog, Surat",
+  },
+  {
+    quote:
+      "The 10 KB output looks indistinguishable from the original. Meesho approved every single listing.",
+    name: "Anjali K.",
+    role: "Kitchen accessories, Delhi",
+  },
 ];
 
 const FAQS = [
-  { q: "How does Ship Smart reduce Meesho shipping charges?", a: "Meesho weighs your listing image size into certain shipping tiers. Delivering perfectly-sized images (5–50 KB) under those thresholds keeps you in the lowest tier without sacrificing catalog quality." },
-  { q: "Will the compressed images look pixelated?", a: "No. We use perceptual compression tuned for product photography — edges stay sharp and colors true, even at 5 KB." },
-  { q: "What formats do you support?", a: "JPG, PNG, and WEBP up to 20 MB per upload. Output is always JPG optimized for marketplace CDNs." },
-  { q: "Can I cancel anytime?", a: "Yes. Premium is month-to-month. Cancel from your dashboard and keep access until the end of the billing period." },
-  { q: "Do you offer bulk uploads?", a: "Bulk uploads and priority processing are included with Premium." },
+  {
+    q: "How does Ship Smart reduce Meesho shipping charges?",
+    a: "Meesho weighs your listing image size into certain shipping tiers. Delivering perfectly-sized images (5–50 KB) under those thresholds keeps you in the lowest tier without sacrificing catalog quality.",
+  },
+  {
+    q: "Will the compressed images look pixelated?",
+    a: "No. We use perceptual compression tuned for product photography — edges stay sharp and colors true, even at 5 KB.",
+  },
+  {
+    q: "What formats do you support?",
+    a: "JPG, PNG, and WEBP up to 20 MB per upload. Output is always JPG optimized for marketplace CDNs.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. Premium is month-to-month. Cancel from your dashboard and keep access until the end of the billing period.",
+  },
+  {
+    q: "Do you offer bulk uploads?",
+    a: "Bulk uploads and priority processing are included with Premium.",
+  },
 ];
 
 function Landing() {
@@ -226,11 +292,12 @@ function Hero() {
             </div>
             <h1 className="mt-6 text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.05]">
               Cut shipping costs with{" "}
-              <span className="text-gradient font-display italic">perfect</span>{" "}
-              product images.
+              <span className="text-gradient font-display italic">perfect</span> product images.
             </h1>
             <p className="mt-6 max-w-xl text-lg text-muted-foreground leading-relaxed">
-              Drop a photo. Get 10 marketplace-ready variants with a pure white background, square ratio, and precise file sizes from 5 KB to 50 KB. Approved by Meesho, loved by sellers.
+              Drop a photo. Get 10 marketplace-ready variants with a pure white background, square
+              ratio, and precise file sizes from 5 KB to 50 KB. Approved by Meesho, loved by
+              sellers.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <button
@@ -248,9 +315,15 @@ function Hero() {
               </a>
             </div>
             <div className="mt-10 flex flex-wrap gap-6 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-brand" /> No credit card</span>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-brand" /> 25 free generations</span>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-brand" /> Cancel anytime</span>
+              <span className="flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-brand" /> No credit card
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-brand" /> 25 free generations
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-brand" /> Cancel anytime
+              </span>
             </div>
           </div>
 
@@ -318,12 +391,16 @@ function Features() {
           Everything a Meesho seller needs.
         </h2>
         <p className="mt-4 text-muted-foreground">
-          A focused toolkit built around one job: shipping catalog images that pass every marketplace check while keeping you in the lowest shipping tier.
+          A focused toolkit built around one job: shipping catalog images that pass every
+          marketplace check while keeping you in the lowest shipping tier.
         </p>
       </div>
       <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f) => (
-          <div key={f.title} className="group relative rounded-2xl surface p-6 transition-colors hover:border-brand/40">
+          <div
+            key={f.title}
+            className="group relative rounded-2xl surface p-6 transition-colors hover:border-brand/40"
+          >
             <div className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-brand">
               <f.icon className="h-5 w-5 text-brand-foreground" />
             </div>
@@ -375,7 +452,8 @@ function Sizes() {
             Ten precise sizes. Zero guesswork.
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Every upload generates all ten variants in parallel. Pick whichever hits your shipping tier and download in a click.
+            Every upload generates all ten variants in parallel. Pick whichever hits your shipping
+            tier and download in a click.
           </p>
         </div>
         <div className="grid grid-cols-5 gap-3">
@@ -385,7 +463,9 @@ function Sizes() {
               className="aspect-square rounded-xl surface flex flex-col items-center justify-center transition-transform hover:scale-105 hover:border-brand/50"
             >
               <div className="text-2xl font-semibold text-gradient">{kb}</div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">KB</div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+                KB
+              </div>
             </div>
           ))}
         </div>
@@ -413,7 +493,12 @@ function Pricing() {
       price: "₹0",
       period: "for 14 days",
       tagline: "Kick the tires with a 2-week trial.",
-      features: ["Up to 25 generations", "All size targets (5–50 KB)", "Personal history", "Standard processing queue"],
+      features: [
+        "Up to 25 generations",
+        "All size targets (5–50 KB)",
+        "Personal history",
+        "Standard processing queue",
+      ],
       cta: isAuthed ? "Open dashboard" : "Start free trial",
       onClick: goStart,
       highlight: false,
@@ -423,7 +508,13 @@ function Pricing() {
       price: "₹999",
       period: "per month",
       tagline: "For serious Meesho sellers.",
-      features: ["Unlimited generations", "Priority processing queue", "Bulk uploads", "Advanced history & tagging", "Priority support"],
+      features: [
+        "Unlimited generations",
+        "Priority processing queue",
+        "Bulk uploads",
+        "Advanced history & tagging",
+        "Priority support",
+      ],
       cta: "Upgrade to Premium",
       onClick: handlePremium,
       highlight: true,
@@ -448,7 +539,9 @@ function Pricing() {
               key={p.name}
               className={
                 "relative rounded-2xl p-8 " +
-                (p.highlight ? "bg-gradient-brand text-brand-foreground shadow-elevated" : "surface")
+                (p.highlight
+                  ? "bg-gradient-brand text-brand-foreground shadow-elevated"
+                  : "surface")
               }
             >
               {p.highlight && (
@@ -457,19 +550,34 @@ function Pricing() {
                 </div>
               )}
               <h3 className="text-xl font-semibold">{p.name}</h3>
-              <p className={"mt-1 text-sm " + (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")}>
+              <p
+                className={
+                  "mt-1 text-sm " +
+                  (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")
+                }
+              >
                 {p.tagline}
               </p>
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="text-5xl font-semibold tracking-tight">{p.price}</span>
-                <span className={"text-sm " + (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")}>
+                <span
+                  className={
+                    "text-sm " +
+                    (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")
+                  }
+                >
                   {p.period}
                 </span>
               </div>
               <ul className="mt-8 space-y-3">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm">
-                    <Check className={"h-4 w-4 mt-0.5 shrink-0 " + (p.highlight ? "text-brand-foreground" : "text-brand")} />
+                    <Check
+                      className={
+                        "h-4 w-4 mt-0.5 shrink-0 " +
+                        (p.highlight ? "text-brand-foreground" : "text-brand")
+                      }
+                    />
                     {f}
                   </li>
                 ))}
@@ -478,7 +586,9 @@ function Pricing() {
                 onClick={p.onClick}
                 className={
                   "mt-8 w-full rounded-lg px-4 py-3 text-sm font-medium transition-opacity hover:opacity-90 " +
-                  (p.highlight ? "bg-background text-foreground" : "bg-gradient-brand text-brand-foreground")
+                  (p.highlight
+                    ? "bg-background text-foreground"
+                    : "bg-gradient-brand text-brand-foreground")
                 }
               >
                 {p.cta}
@@ -539,10 +649,18 @@ function FAQ() {
                   onClick={() => setOpen(isOpen ? null : i)}
                 >
                   <span className="font-medium">{f.q}</span>
-                  <span className={"text-muted-foreground transition-transform " + (isOpen ? "rotate-45" : "")}>+</span>
+                  <span
+                    className={
+                      "text-muted-foreground transition-transform " + (isOpen ? "rotate-45" : "")
+                    }
+                  >
+                    +
+                  </span>
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-5 text-sm text-muted-foreground leading-relaxed">{f.a}</div>
+                  <div className="px-5 pb-5 text-sm text-muted-foreground leading-relaxed">
+                    {f.a}
+                  </div>
                 )}
               </div>
             );
@@ -568,7 +686,8 @@ function Contact() {
             Talk to the team.
           </h2>
           <p className="mt-3 text-muted-foreground max-w-xl">
-            Questions about bulk pricing, integrations, or feature requests? Send a note — we reply within one business day.
+            Questions about bulk pricing, integrations, or feature requests? Send a note — we reply
+            within one business day.
           </p>
           {sent ? (
             <div className="mt-8 rounded-xl border border-brand/40 bg-brand/10 p-6 text-sm">
@@ -583,14 +702,30 @@ function Contact() {
               }}
               className="mt-8 grid gap-4 md:grid-cols-2"
             >
-              <input required maxLength={100} placeholder="Name"
-                className="rounded-lg border border-input bg-background/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              <input required type="email" maxLength={255} placeholder="Email"
-                className="rounded-lg border border-input bg-background/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              <textarea required maxLength={1000} placeholder="How can we help?" rows={4}
-                className="md:col-span-2 rounded-lg border border-input bg-background/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              <button type="submit"
-                className="md:col-span-2 justify-self-start inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-5 py-3 text-sm font-medium text-brand-foreground transition-transform hover:scale-[1.02]">
+              <input
+                required
+                maxLength={100}
+                placeholder="Name"
+                className="rounded-lg border border-input bg-background/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <input
+                required
+                type="email"
+                maxLength={255}
+                placeholder="Email"
+                className="rounded-lg border border-input bg-background/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <textarea
+                required
+                maxLength={1000}
+                placeholder="How can we help?"
+                rows={4}
+                className="md:col-span-2 rounded-lg border border-input bg-background/60 px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                type="submit"
+                className="md:col-span-2 justify-self-start inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-5 py-3 text-sm font-medium text-brand-foreground transition-transform hover:scale-[1.02]"
+              >
                 Send message <ArrowRight className="h-4 w-4" />
               </button>
             </form>
@@ -621,25 +756,55 @@ function Footer() {
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground">Product</div>
               <ul className="mt-3 space-y-2">
-                <li><a href="#features" className="hover:text-foreground text-muted-foreground">Features</a></li>
-                <li><a href="#pricing" className="hover:text-foreground text-muted-foreground">Pricing</a></li>
-                <li><a href="#faq" className="hover:text-foreground text-muted-foreground">FAQ</a></li>
+                <li>
+                  <a href="#features" className="hover:text-foreground text-muted-foreground">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#pricing" className="hover:text-foreground text-muted-foreground">
+                    Pricing
+                  </a>
+                </li>
+                <li>
+                  <a href="#faq" className="hover:text-foreground text-muted-foreground">
+                    FAQ
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground">Company</div>
               <ul className="mt-3 space-y-2">
-                <li><a href="#contact" className="hover:text-foreground text-muted-foreground">Contact</a></li>
-                <li><a href="#" className="hover:text-foreground text-muted-foreground">Privacy</a></li>
-                <li><a href="#" className="hover:text-foreground text-muted-foreground">Terms</a></li>
+                <li>
+                  <a href="#contact" className="hover:text-foreground text-muted-foreground">
+                    Contact
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground text-muted-foreground">
+                    Privacy
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground text-muted-foreground">
+                    Terms
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground">Social</div>
               <div className="mt-3 flex gap-3">
-                <a href="#" className="text-muted-foreground hover:text-foreground"><Twitter className="h-4 w-4" /></a>
-                <a href="#" className="text-muted-foreground hover:text-foreground"><Github className="h-4 w-4" /></a>
-                <a href="#" className="text-muted-foreground hover:text-foreground"><Linkedin className="h-4 w-4" /></a>
+                <a href="#" className="text-muted-foreground hover:text-foreground">
+                  <Twitter className="h-4 w-4" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-foreground">
+                  <Github className="h-4 w-4" />
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-foreground">
+                  <Linkedin className="h-4 w-4" />
+                </a>
               </div>
             </div>
           </div>
