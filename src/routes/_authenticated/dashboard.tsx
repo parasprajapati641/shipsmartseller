@@ -15,8 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
-  optimizeToTarget,
-  TARGET_SIZES,
+  optimizeAllSizes,
   validateImageFile,
   type OptimizedResult,
 } from "@/lib/image-optimizer";
@@ -103,16 +102,12 @@ function Dashboard() {
     setProcessing(true);
     setProgress(0);
     setResults([]);
-    const out: OptimizedResult[] = [];
     try {
-      for (let i = 0; i < TARGET_SIZES.length; i++) {
-        const kb = TARGET_SIZES[i];
-        const r = await optimizeToTarget(file, kb);
-        out.push(r);
-        setResults([...out]);
-        setProgress(Math.round(((i + 1) / TARGET_SIZES.length) * 100));
-      }
-      toast.success("Generated 10 optimized variants");
+      const out = await optimizeAllSizes(file, (pct) => {
+        setProgress(pct);
+      });
+      setResults(out);
+      toast.success(`Generated ${out.length} optimized variants`);
 
       // Save to history
       const thumb = await blobToDataUrl(out[out.length - 1].blob);
