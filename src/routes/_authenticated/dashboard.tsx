@@ -60,7 +60,7 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 function Dashboard() {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -150,11 +150,18 @@ function Dashboard() {
     setResults([]);
   }
 
-  async function handleSignOut() {
-    await signOut();
-    toast.success("Signed out");
-    navigate({ to: "/", replace: true });
-  }
+  function handleSignOut() {
+
+  logout();
+
+  toast.success("Signed out");
+
+  navigate({
+    to: "/auth",
+    replace: true
+  });
+
+}
 
   function clearHistory() {
     setHistory([]);
