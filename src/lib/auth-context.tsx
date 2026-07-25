@@ -1,51 +1,124 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
+type UserType = {
+  id?: string;
+  name?: string;
+  email: string;
+};
 
 type AuthCtx = {
-  session: Session | null;
-  user: User | null;
+  user: UserType | null;
+  token: string | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  login: (data: any) => void;
+  logout: () => void;
 };
 
 const Ctx = createContext<AuthCtx>({
-  session: null,
   user: null,
+  token: null,
   loading: true,
-  signOut: async () => {},
+  login: () => {},
+  logout: () => {},
 });
 
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+
+  const [user, setUser] = useState<UserType | null>(null);
+
+  const [token, setToken] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setLoading(false);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    if (typeof window !== "undefined") {
+
+      const savedToken = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
+
+
+      if(savedToken){
+        setToken(savedToken);
+      }
+
+
+      if(savedUser){
+        setUser(JSON.parse(savedUser));
+      }
+
+    }
+
+
+    setLoading(false);
+
   }, []);
+
+
+  const login = (data:any) => {
+
+    if (typeof window !== "undefined") {
+
+      localStorage.setItem(
+        "token",
+        data.token
+      );
+
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify(data.user)
+      );
+
+    }
+
+
+    setToken(data.token);
+    setUser(data.user);
+
+  };
+
+
+
+  const logout = () => {
+
+    if (typeof window !== "undefined") {
+
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+    }
+
+
+    setToken(null);
+    setUser(null);
+
+  };
+
+
 
   return (
     <Ctx.Provider
       value={{
-        session,
-        user: session?.user ?? null,
+        user,
+        token,
         loading,
-        signOut: async () => {
-          await supabase.auth.signOut();
-        },
+        login,
+        logout,
       }}
     >
       {children}
     </Ctx.Provider>
   );
 }
+
 
 export const useAuth = () => useContext(Ctx);
