@@ -246,7 +246,7 @@ function AuthPage() {
                   className="text-foreground font-medium hover:underline"
                 >
                   Create an account
-                </button>
+                </button> 
               </>
             )}
             {mode === "signup" && (
