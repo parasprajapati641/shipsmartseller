@@ -1,0 +1,228 @@
+[
+  {
+    "url": "https://supplier.meesho.com/",
+    "title": "Meesho Supplier: Sell online on Meesho at 0% commission",
+    "inputs": [],
+    "fileInputs": [],
+    "links": [
+      {
+        "text": "",
+        "href": "https://supplier.meesho.com/"
+      },
+      {
+        "text": "Sell Online",
+        "href": "https://supplier.meesho.com/panel/v3/new/auth/signup?ref=supplier_website"
+      },
+      {
+        "text": "How it works",
+        "href": "how-it-works"
+      },
+      {
+        "text": "Pricing & Commission",
+        "href": "pricing"
+      },
+      {
+        "text": "Shipping & Returns",
+        "href": "shipping"
+      },
+      {
+        "text": "Grow Business",
+        "href": "grow-your-business"
+      },
+      {
+        "text": "Don’t have GST?",
+        "href": "dont-have-gst"
+      },
+      {
+        "text": "Login",
+        "href": "https://supplier.meesho.com/panel/v3/new/root/login"
+      },
+      {
+        "text": "Login",
+        "href": "https://supplier.meesho.com/panel/v3/new/root/login"
+      },
+      {
+        "text": "Start Selling",
+        "href": "https://supplier.meesho.com/panel/v3/new/auth/signup?ref=supplier_website"
+      },
+      {
+        "text": "Know more",
+        "href": "dont-have-gst"
+      },
+      {
+        "text": "Start Selling",
+        "href": "https://supplier.meesho.com/panel/v3/new/auth/signup?ref=supplier_website"
+      },
+      {
+        "text": "{\n  \"items\": [\n    {\n      \"url\": \"https://www.youtube.com/w",
+        "href": "#"
+      },
+      {
+        "text": "{\n  \"items\": [\n    {\n      \"url\": \"https://www.youtube.com/w",
+        "href": "#"
+      },
+      {
+        "text": "{\n  \"items\": [\n    {\n      \"url\": \"https://www.youtube.com/w",
+        "href": "#"
+      },
+      {
+        "text": "Visit Learning Hub",
+        "href": "https://supplier.meesho.com/learning-hub/"
+      },
+      {
+        "text": "Meesho Ads",
+        "href": "ads"
+      },
+      {
+        "text": "Sell Sarees Online",
+        "href": "sell-online/sarees"
+      },
+      {
+        "text": "Sell Jewellery Online",
+        "href": "sell-online/jewellery"
+      },
+      {
+        "text": "Sell Tshirts Online",
+        "href": "sell-online/tshirts"
+      },
+      {
+        "text": "Sell Shirts Online",
+        "href": "sell-online/shirts"
+      },
+      {
+        "text": "Sell Watches Online",
+        "href": "sell-online/watches"
+      },
+      {
+        "text": "Sell Electronics Online",
+        "href": "sell-online/electronics"
+      },
+      {
+        "text": "Sell Clothes Online",
+        "href": "sell-online/clothes"
+      },
+      {
+        "text": "Sell Socks Online",
+        "href": "sell-online/socks"
+      },
+      {
+        "text": "Sell Bags Online",
+        "href": "sell-online/bags"
+      },
+      {
+        "text": "Sell Rings Online",
+        "href": "sell-online/rings"
+      },
+      {
+        "text": "Sell Makeup Online",
+        "href": "sell-online/makeup"
+      },
+      {
+        "text": "Sell Toys Online",
+        "href": "sell-online/toys"
+      },
+      {
+        "text": "Sell Footwear Online",
+        "href": "sell-online/footwear"
+      }
+    ],
+    "shippingTexts": [
+      {
+        "tag": "a",
+        "text": "Shipping & Returns",
+        "className": "nav-link-2 w-nav-link",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "0 Penalty Charges",
+        "className": "block-v5-title",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "Sell online without the fear of order cancellation charges with 0 Penalty for late dispatch or order cancellations.",
+        "className": "block-v5-text",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "Lowest Cost Shipping",
+        "className": "block-v5-text",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "7-Day Payment Cycle from the delivery date",
+        "className": "block-v5-text",
+        "id": null
+      },
+      {
+        "tag": "h5",
+        "text": "Free catalog visibility of ₹600",
+        "className": "block-v3-title",
+        "id": null
+      },
+      {
+        "tag": "h5",
+        "text": "No Order Cancellation Charges",
+        "className": "block-v3-title",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "Affordable Shipping",
+        "className": "block-v4-titlle",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "Enjoy affordable shipping to customers across India",
+        "className": "block-v4-text",
+        "id": null
+      },
+      {
+        "tag": "div",
+        "text": "Payments are deposited directly to your bank account following a 7-day payment cycle from order delivery.",
+        "className": "block-v4-text",
+        "id": null
+      },
+      {
+        "tag": "h5",
+        "text": "Efficient & Affordable Shipping",
+        "className": "block-v3-title",
+        "id": null
+      },
+      {
+        "tag": "p",
+        "text": "Sell your products across India to over 28,000+ pincodes with affordable shipping solutions.",
+        "className": "block-v3-text",
+        "id": null
+      },
+      {
+        "tag": "h5",
+        "text": "Next Day Dispatch Program",
+        "className": "block-v3-title",
+        "id": null
+      },
+      {
+        "tag": "p",
+        "text": "The Next Day Dispatch (NDD) Program supports faster shipping timelines for eligible sellers, with access to a dedicated account manager.",
+        "className": "block-v3-text",
+        "id": null
+      },
+      {
+        "tag": "a",
+        "text": "Shipping & Returns",
+        "className": "footer-link",
+        "id": null
+      }
+    ],
+    "status": 200,
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\headed_1785043189604.png"
+  },
+  {
+    "url": "https://supplier.meesho.com/panel/v3/new/cataloguing/single/add",
+    "error": "Error: page.evaluate: Execution context was destroyed, most likely because of a navigation."
+  }
+]

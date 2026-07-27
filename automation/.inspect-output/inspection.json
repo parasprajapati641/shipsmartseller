@@ -1,0 +1,101 @@
+[
+  {
+    "label": "https://supplier.meesho.com/",
+    "url": "https://supplier.meesho.com/",
+    "title": "Access Denied",
+    "inputs": [],
+    "fileInputs": [],
+    "shippingTexts": [
+      {
+        "tag": "p",
+        "text": "https://errors.edgesuite.net/18.96a46a2a.1785043051.9cf91b9",
+        "className": "",
+        "id": null,
+        "dataTestId": null
+      }
+    ],
+    "headings": [
+      {
+        "tag": "h1",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "className": "",
+        "text": "Access Denied",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "status": 403,
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\https_supplier_meesho_com_.png"
+  },
+  {
+    "label": "https://supplier.meesho.com/panel/v3/new/cataloguing/single/add",
+    "url": "https://supplier.meesho.com/panel/v3/new/cataloguing/single/add",
+    "title": "Access Denied",
+    "inputs": [],
+    "fileInputs": [],
+    "shippingTexts": [
+      {
+        "tag": "p",
+        "text": "https://errors.edgesuite.net/18.86a46a2a.1785043051.905fcd6",
+        "className": "",
+        "id": null,
+        "dataTestId": null
+      }
+    ],
+    "headings": [
+      {
+        "tag": "h1",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "className": "",
+        "text": "Access Denied",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "status": 403,
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\https_supplier_meesho_com_panel_v3_new_cataloguing_single_add.png"
+  },
+  {
+    "label": "https://supplier.meesho.com/panel/v3/home",
+    "url": "https://supplier.meesho.com/panel/v3/home",
+    "title": "Access Denied",
+    "inputs": [],
+    "fileInputs": [],
+    "shippingTexts": [
+      {
+        "tag": "p",
+        "text": "https://errors.edgesuite.net/18.86a46a2a.1785043058.90609c9",
+        "className": "",
+        "id": null,
+        "dataTestId": null
+      }
+    ],
+    "headings": [
+      {
+        "tag": "h1",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "className": "",
+        "text": "Access Denied",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "status": 403,
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\https_supplier_meesho_com_panel_v3_home.png"
+  }
+]

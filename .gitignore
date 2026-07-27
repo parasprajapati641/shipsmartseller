@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Meesho automation artifacts
+automation/.session/
+automation/.screenshots/

@@ -1,0 +1,280 @@
+[
+  {
+    "url": "https://supplier.meesho.com/panel/v3/new/root/login",
+    "title": "Meesho Seller Login | Login to Meesho Supplier Panel",
+    "allInputs": [
+      {
+        "tag": "input",
+        "id": "NaYeo6TJvWEPBwFEjG_1C",
+        "name": "emailOrPhone",
+        "type": "text",
+        "placeholder": "",
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "peer flex-1 bg-transparent border-none text-lg [font-family:inherit] transition-all duration-200 ease-in-out rounded-sm outline-none min-h-[2.75rem] px-4 z-1 disabled:cursor-not-al",
+        "text": "",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "input",
+        "id": "IU-Q54QUyLKOkw5QOBZDN",
+        "name": "password",
+        "type": "password",
+        "placeholder": "",
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "peer flex-1 bg-transparent border-none text-lg [font-family:inherit] transition-all duration-200 ease-in-out rounded-sm outline-none min-h-[2.75rem] px-4 z-1 disabled:cursor-not-al",
+        "text": "",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "button",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button border-none cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touc",
+        "text": "Show",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "button",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button border-none cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touc",
+        "text": "Forgot password?",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "submit",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button border-none cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touc",
+        "text": "Log in",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "button",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touch-none activ",
+        "text": "Create your supplier account",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "fileInputs": [],
+    "labels": [
+      {
+        "tag": "label",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "absolute font-medium font-body whitespace-nowrap overflow-hidden text-ellipsis h-5 max-w-[80%] items-center transition-all duration-200 ease-out cursor-text z-1 px-4 peer-[:not(:pl",
+        "text": "Email Id or mobile number",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "label",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "absolute font-medium font-body whitespace-nowrap overflow-hidden text-ellipsis h-5 max-w-[80%] items-center transition-all duration-200 ease-out cursor-text z-1 px-4 peer-[:not(:pl",
+        "text": "Password",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "shippingTexts": [],
+    "bodySnippet": "Login to your supplier panel\nEmail Id or mobile number\nEmail Id or mobile number\nShow\nPassword\nPassword\nForgot password?\nLog in\n\nNew to Meesho?\n\nCreate your supplier account",
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\login.png",
+    "label": "login"
+  },
+  {
+    "url": "https://supplier.meesho.com/panel/v3/new/root/login?redirect=%2Fpanel%2Fv3%2Fnew%2Fcataloguing%2Fsingle%2Fadd",
+    "title": "Meesho Seller Login | Login to Meesho Supplier Panel",
+    "allInputs": [
+      {
+        "tag": "input",
+        "id": "2P2elIQV3BPR5T4axBAOV",
+        "name": "emailOrPhone",
+        "type": "text",
+        "placeholder": "",
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "peer flex-1 bg-transparent border-none text-lg [font-family:inherit] transition-all duration-200 ease-in-out rounded-sm outline-none min-h-[2.75rem] px-4 z-1 disabled:cursor-not-al",
+        "text": "",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "input",
+        "id": "Ac1EfH0iVG12SLOxSznng",
+        "name": "password",
+        "type": "password",
+        "placeholder": "",
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "peer flex-1 bg-transparent border-none text-lg [font-family:inherit] transition-all duration-200 ease-in-out rounded-sm outline-none min-h-[2.75rem] px-4 z-1 disabled:cursor-not-al",
+        "text": "",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "button",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button border-none cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touc",
+        "text": "Show",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "button",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button border-none cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touc",
+        "text": "Forgot password?",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "submit",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button border-none cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touc",
+        "text": "Log in",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "button",
+        "id": null,
+        "name": null,
+        "type": "button",
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "rounded-sm font-button cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:touch-none activ",
+        "text": "Create your supplier account",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "fileInputs": [],
+    "labels": [
+      {
+        "tag": "label",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "absolute font-medium font-body whitespace-nowrap overflow-hidden text-ellipsis h-5 max-w-[80%] items-center transition-all duration-200 ease-out cursor-text z-1 px-4 peer-[:not(:pl",
+        "text": "Email Id or mobile number",
+        "accept": null,
+        "href": null
+      },
+      {
+        "tag": "label",
+        "id": null,
+        "name": null,
+        "type": null,
+        "placeholder": null,
+        "ariaLabel": null,
+        "dataTestId": null,
+        "role": null,
+        "className": "absolute font-medium font-body whitespace-nowrap overflow-hidden text-ellipsis h-5 max-w-[80%] items-center transition-all duration-200 ease-out cursor-text z-1 px-4 peer-[:not(:pl",
+        "text": "Password",
+        "accept": null,
+        "href": null
+      }
+    ],
+    "shippingTexts": [],
+    "bodySnippet": "Login to your supplier panel\nEmail Id or mobile number\nEmail Id or mobile number\nShow\nPassword\nPassword\nForgot password?\nLog in\n\nNew to Meesho?\n\nCreate your supplier account",
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\product_add.png",
+    "label": "product_add"
+  },
+  {
+    "url": "https://supplier.meesho.com/panel/v3/home",
+    "title": "Not Found",
+    "allInputs": [],
+    "fileInputs": [],
+    "labels": [],
+    "shippingTexts": [
+      {
+        "tag": "a",
+        "text": "Shipping & Returns",
+        "className": "nav-link-2 w-nav-link",
+        "id": null,
+        "dataTestId": null,
+        "ariaLabel": null
+      },
+      {
+        "tag": "a",
+        "text": "Shipping & Returns",
+        "className": "footer-link",
+        "id": null,
+        "dataTestId": null,
+        "ariaLabel": null
+      }
+    ],
+    "bodySnippet": "Sell Online How it works Pricing & Commission Shipping & Returns Grow Business Login\nLogin\nStart Selling\nPage Not Found\nThe page you are looking for doesn't exist or has been moved\n\nSell your products to crores of customers on Meesho at 0% commission\n\nStart Selling\nSell on Meesho\nSell Online Pricing & Commission How it works Shipping & Returns Grow Your Business Learning Hub Meesho Ads Shop Online on Meesho\nContact Us\nsell@meesho.com\n  \n\n© 2015-22 Meesho Inc. All Rights Reserved.",
+    "screenshot": "E:\\upwork-project\\shipsmartseller\\automation\\.inspect-output\\dashboard.png",
+    "label": "dashboard"
+  }
+]
