@@ -5,8 +5,8 @@ import {
   getMeeshoStatus,
   compareSingleImage,
   compareImageVariants,
-} from "../server/meesho";
-import type { VariantInput } from "../../automation/types";
+} from "../server/meesho.js";
+import type { VariantInput } from "../../automation/types.js";
 
 export const getMeeshoStatusFn = createServerFn({ method: "GET" }).handler(async () => {
   try {
@@ -31,6 +31,8 @@ export const connectMeeshoFn = createServerFn({ method: "POST" })
       return {
         success: false,
         message: `Connection failed: ${message}`,
+        error: message,
+        step: "connect_handler",
         status: { connected: false },
       };
     }
@@ -40,7 +42,8 @@ export const disconnectMeeshoFn = createServerFn({ method: "POST" }).handler(asy
   try {
     return await disconnectMeesho();
   } catch (error) {
-    return { success: false, message: "Disconnect failed" };
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, message: "Disconnect failed", error: message, step: "disconnect_handler" };
   }
 });
 
@@ -59,6 +62,7 @@ export const compareSingleImageFn = createServerFn({ method: "POST" })
         suppliers: [],
         processingTimeMs: 0,
         error: message,
+        step: "compare_single_handler",
       };
     }
   });
@@ -76,6 +80,7 @@ export const compareVariantsFn = createServerFn({ method: "POST" })
         variants: [],
         totalProcessingTimeMs: 0,
         error: message,
+        step: "compare_variants_handler",
       };
     }
   });
