@@ -11,11 +11,6 @@ import type { AutomationOptions, ParsedShippingCharge } from "./types.js";
 
 /**
  * Wait for Meesho to finish calculating shipping charge after image upload.
- *
- * Flow:
- *   1. Optionally click "Calculate shipping" if present
- *   2. Wait for loading indicator to disappear
- *   3. Read charge from dedicated selector or page text
  */
 export async function waitForShippingCalculation(
   page: Page,
@@ -29,19 +24,19 @@ export async function waitForShippingCalculation(
   const calcBtn = resolveSelector(page, shippingChargeSelectors.calculateButton);
   const calcVisible = await calcBtn
     .first()
-    .isVisible({ timeout: 3_000 })
+    .isVisible({ timeout: 2_000 })
     .catch(() => false);
 
   if (calcVisible) {
     logger.debug("Clicking calculate shipping button");
-    await calcBtn.first().click();
+    await calcBtn.first().click().catch(() => undefined);
   }
 
-  // Wait for loading to finish
+  // Wait for loading indicator to finish
   const loading = resolveSelector(page, shippingChargeSelectors.loadingIndicator);
   const loadingVisible = await loading
     .first()
-    .isVisible({ timeout: 2_000 })
+    .isVisible({ timeout: 1_500 })
     .catch(() => false);
 
   if (loadingVisible) {
@@ -63,18 +58,6 @@ export async function waitForShippingCalculation(
       return charge;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-
-      // Check for error message on page
-      const errorEl = resolveSelector(page, shippingChargeSelectors.errorMessage);
-      const errorVisible = await errorEl
-        .first()
-        .isVisible({ timeout: 500 })
-        .catch(() => false);
-      if (errorVisible) {
-        const errorText = await errorEl.first().innerText();
-        throw new ShippingCalculationError(`Meesho shipping calculation error: ${errorText}`);
-      }
-
       await page.waitForTimeout(1_000);
     }
   }
@@ -98,7 +81,7 @@ export async function readShippingCharge(page: Page): Promise<ParsedShippingChar
 
   // Try dedicated shipping section first
   const section = resolveSelector(page, shippingChargeSelectors.shippingSection);
-  const sectionCount = await section.count();
+  const sectionCount = await section.count().catch(() => 0);
   if (sectionCount > 0) {
     for (let i = 0; i < Math.min(sectionCount, 3); i++) {
       const text = await section.nth(i).innerText().catch(() => "");
@@ -108,7 +91,7 @@ export async function readShippingCharge(page: Page): Promise<ParsedShippingChar
 
   // Try dedicated charge amount selector
   const amountEl = resolveSelector(page, shippingChargeSelectors.chargeAmount);
-  const amountCount = await amountEl.count();
+  const amountCount = await amountEl.count().catch(() => 0);
   if (amountCount > 0) {
     for (let i = 0; i < Math.min(amountCount, 3); i++) {
       const text = await amountEl.nth(i).innerText().catch(() => "");
@@ -119,7 +102,6 @@ export async function readShippingCharge(page: Page): Promise<ParsedShippingChar
   // Fallback: scan visible page text for INR amounts near shipping keywords
   if (texts.length === 0) {
     const bodyText = await page.locator("body").innerText().catch(() => "");
-    // Extract lines mentioning shipping/logistics
     const relevantLines = bodyText
       .split("\n")
       .filter((line) => /shipping|logistic|delivery|charge|fee|₹|rs\./i.test(line));

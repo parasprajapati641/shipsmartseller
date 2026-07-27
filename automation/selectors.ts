@@ -48,7 +48,7 @@ export const productCreationSelectors: SelectorCategory = {
 /** Image upload — file input is the primary target on Meesho cataloguing forms. */
 export const imageUploadSelectors: SelectorCategory = {
   fileInput: 'input[type="file"][accept*="image"], input[type="file"]',
-  uploadZone: '[class*="upload"], [class*="dropzone"], [class*="image"] label, text=/upload.*image|add.*image|drag.*drop/i',
+  uploadZone: '[class*="upload"], [class*="dropzone"], [class*="image"] label, label[for*="file"]',
   imagePreview:
     '[class*="preview"] img, [class*="thumbnail"] img, img[src*="blob:"], img[src*="data:"], [class*="uploaded"] img',
   removeImageButton: { role: "button", name: /remove|delete|clear|close|×|✕/i },

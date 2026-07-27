@@ -1,10 +1,11 @@
+import fs from "node:fs/promises";
 import path from "node:path";
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
+import { createBrowserContext, launchBrowser } from "./browser.js";
 import { DEFAULT_TIMEOUTS, ENV, MEESHO_URLS, PATHS } from "./config/constants.js";
-import { loginSelectors, productCreationSelectors } from "./config/selectors.js";
+import { productCreationSelectors } from "./config/selectors.js";
 import { LoginError } from "./lib/errors.js";
 import { logger } from "./lib/logger.js";
-import { withRetry } from "./lib/retry.js";
 import { resolveSelector } from "./lib/selectors.js";
 import {
   clearSession,
@@ -15,7 +16,7 @@ import {
   saveSession,
   sessionExists,
 } from "./session.js";
-import type { AutomationOptions, MeeshoCredentials } from "./types.js";
+import type { AutomationOptions, DiagnosticDetail, MeeshoCredentials } from "./types.js";
 
 export type LoginResult = {
   browser: Browser;
@@ -23,6 +24,8 @@ export type LoginResult = {
   page: Page;
   sessionPath: string;
 };
+
+const STEP_TIMEOUT = 15_000; // 15 seconds max per step
 
 /** Read credentials from environment variables or custom options. */
 export function getCredentialsFromEnv(): MeeshoCredentials | null {
@@ -62,99 +65,255 @@ export async function fillMinimalProductFields(
   }
 }
 
+/** Find the first visible locator from a list of candidate locators. */
+async function findFirstVisibleLocator(
+  locators: Locator[],
+  timeoutMs = 2_000,
+): Promise<Locator | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const loc of locators) {
+      const visible = await loc
+        .first()
+        .isVisible({ timeout: 400 })
+        .catch(() => false);
+      if (visible) return loc.first();
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return null;
+}
+
+/** Log live DOM state for diagnostic logging on failure. */
+async function captureFullDiagnostics(
+  page: Page,
+  stepName: string,
+  screenshotsDir?: string,
+): Promise<DiagnosticDetail> {
+  const url = page.url();
+  const title = await page.title().catch(() => "unknown");
+  const screenshot = await captureFailureScreenshot(page, `login_${stepName}_failure`, screenshotsDir);
+
+  const debugDir = path.join(PATHS.automationRoot ?? "automation", ".debug");
+  await fs.mkdir(debugDir, { recursive: true });
+  const htmlDumpPath = path.join(debugDir, `login_${stepName}.html`);
+  const domDumpPath = path.join(debugDir, `login_${stepName}_dom.json`);
+
+  const html = await page.content().catch(() => "");
+  await fs.writeFile(htmlDumpPath, html, "utf8").catch(() => undefined);
+
+  const domDump = await page
+    .evaluate(() => {
+      return Array.from(document.querySelectorAll("form, input, button, a")).map((el) => ({
+        tag: el.tagName,
+        type: el.getAttribute("type"),
+        name: el.getAttribute("name"),
+        id: el.getAttribute("id"),
+        text: el.textContent?.trim().slice(0, 40),
+      }));
+    })
+    .catch(() => []);
+  await fs.writeFile(domDumpPath, JSON.stringify(domDump, null, 2), "utf8").catch(() => undefined);
+
+  return {
+    step: stepName,
+    url,
+    title,
+    screenshot,
+    htmlDump: htmlDumpPath,
+    domDump: domDumpPath,
+  };
+}
+
 /**
- * Perform interactive login when credentials are not in env.
- * Opens a headed browser and waits for the user to complete login manually.
+ * Handle interactive OTP by launching a headed browser, bringing it to front,
+ * and waiting until the user submits the OTP manually. Encrypts and saves session once complete.
  */
-export async function interactiveLogin(page: Page, timeoutMs: number): Promise<void> {
-  logger.info("Interactive login mode — complete login in the browser window");
+export async function handleOtpInteractively(
+  email: string,
+  password?: string,
+  sessionPath?: string,
+  timeoutMs = 120_000,
+): Promise<LoginResult> {
+  logger.info("OTP required — launching headed browser window for manual OTP entry", { email });
+
+  const browser = await launchBrowser(false); // Headed mode
+  const context = await createBrowserContext(browser);
+  const page = await context.newPage();
+  await page.bringToFront().catch(() => undefined);
+
   await page.goto(MEESHO_URLS.login, { waitUntil: "domcontentloaded" });
+
+  const emailInput = page.locator('input[name="emailOrPhone"], input[name="email"]').first();
+  if (await emailInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await emailInput.fill(email);
+    const passInput = page.locator('input[name="password"]').first();
+    if (password && (await passInput.isVisible({ timeout: 2_000 }).catch(() => false))) {
+      await passInput.fill(password);
+    }
+    const submitBtn = page.getByRole("button", { name: /log in|login|submit/i }).first();
+    if (await submitBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await submitBtn.click().catch(() => undefined);
+    }
+  }
+
+  logger.info("Headed browser window open — waiting for user to complete OTP entry");
 
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const url = page.url();
     if (
+      (url.includes("/panel/v3/new/") || url.includes("/dashboard") || url.includes("/cataloguing")) &&
       !url.includes("login") &&
-      !url.includes("signin") &&
-      !url.includes("auth") &&
-      url.includes("meesho.com")
+      !url.includes("otp") &&
+      !url.includes("auth")
     ) {
-      logger.info("Interactive login detected as complete", { url });
-      return;
+      logger.info("OTP verification complete — logged in successfully!");
+      const savedPath = await saveSession(context, sessionPath);
+      return { browser, context, page, sessionPath: savedPath };
     }
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(1_500);
   }
 
-  throw new LoginError("Interactive login timed out. Complete login within the allotted time.");
+  await captureFailureScreenshot(page, "otp_timeout");
+  await context.close().catch(() => undefined);
+  await browser.close().catch(() => undefined);
+  throw new LoginError("OTP verification timed out after 120 seconds.");
 }
 
 /**
- * Automated login using email/password from env or credentials argument.
+ * Dynamic production-grade automated login with OTP auto-fallback.
  */
 export async function automatedLogin(
   page: Page,
   credentials: MeeshoCredentials,
-  timeoutMs: number,
-): Promise<void> {
-  logger.info("Starting automated login", { email: credentials.email });
+  timeoutMs: number = STEP_TIMEOUT,
+): Promise<{ requiresOtp?: boolean }> {
+  logger.info("Starting production automated login", { email: credentials.email });
+  page.setDefaultTimeout(STEP_TIMEOUT);
 
-  await withRetry(
-    () => page.goto(MEESHO_URLS.login, { waitUntil: "domcontentloaded", timeout: timeoutMs }),
-    { label: "login-navigation" },
-  );
-
-  // Email step
-  const emailInput = resolveSelector(page, loginSelectors.emailInput);
-  await emailInput.first().waitFor({ state: "visible", timeout: timeoutMs });
-  await emailInput.first().fill(credentials.email);
-
-  const submitBtn = resolveSelector(page, loginSelectors.submitButton);
-  await submitBtn.first().click();
-
-  // Password step (may appear on same or next screen)
-  const passwordInput = resolveSelector(page, loginSelectors.passwordInput);
-  const passwordVisible = await passwordInput
-    .first()
-    .isVisible({ timeout: 10_000 })
-    .catch(() => false);
-
-  if (passwordVisible) {
-    await passwordInput.first().fill(credentials.password);
-    await submitBtn.first().click();
+  try {
+    await page.goto(MEESHO_URLS.login, { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT });
+  } catch {
+    await page.goto("https://supplier.meesho.com/", { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT });
   }
 
-  // OTP step — if detected, wait for user in headed mode or fail in headless
-  const otpInput = resolveSelector(page, loginSelectors.otpInput);
-  const otpVisible = await otpInput
-    .first()
-    .isVisible({ timeout: 5_000 })
-    .catch(() => false);
+  const loginLink = page.getByRole("link", { name: /login/i }).or(page.locator('a[href*="login"]'));
+  if (await loginLink.first().isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await loginLink.first().click().catch(() => undefined);
+    await page.waitForTimeout(2_000);
+  }
 
-  if (otpVisible) {
-    logger.warn("OTP required — set MEESHO_HEADED=1 and complete OTP manually, or use interactive login");
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const url = page.url();
-      if (!url.includes("login") && !url.includes("otp") && url.includes("meesho.com/panel")) {
-        logger.info("OTP login completed");
-        return;
+  const otpLocators = [
+    page.locator('input[name="otp"]'),
+    page.locator('input[inputmode="numeric"]'),
+    page.getByPlaceholder(/otp/i),
+  ];
+  const initialOtp = await findFirstVisibleLocator(otpLocators, 1_500);
+  if (initialOtp) {
+    logger.warn("OTP required before login submission");
+    return { requiresOtp: true };
+  }
+
+  const emailCandidateLocators = [
+    page.locator('input[name="emailOrPhone"]'),
+    page.locator('input[name="email"]'),
+    page.locator('input[name="phone"]'),
+    page.locator('input[name="mobile"]'),
+    page.getByPlaceholder(/email|phone|mobile/i),
+    page.getByLabel(/email|phone|mobile/i),
+    page.locator('input[type="text"], input[type="email"], input[type="tel"]').first(),
+  ];
+
+  const emailInput = await findFirstVisibleLocator(emailCandidateLocators, 10_000);
+
+  if (!emailInput) {
+    const diag = await captureFullDiagnostics(page, "email_input_missing");
+    throw new LoginError(`Could not locate email/phone input. URL: ${diag.url} | Title: "${diag.title}" | Screenshot: ${diag.screenshot}`);
+  }
+
+  await emailInput.fill(credentials.email);
+
+  const passwordCandidateLocators = [
+    page.locator('input[name="password"]'),
+    page.getByPlaceholder(/password/i),
+    page.getByLabel(/password/i),
+    page.locator('input[type="password"]').first(),
+  ];
+
+  const passwordInput = await findFirstVisibleLocator(passwordCandidateLocators, 3_000);
+
+  if (passwordInput) {
+    await passwordInput.fill(credentials.password);
+  }
+
+  const submitCandidateLocators = [
+    page.getByRole("button", { name: /log in|login|sign in|continue|next|submit/i }),
+    page.locator('button[type="submit"]'),
+    page.locator('button:has-text("Log in"), button:has-text("Login")'),
+  ];
+
+  const submitBtn = await findFirstVisibleLocator(submitCandidateLocators, 3_000);
+
+  if (submitBtn) {
+    const isEnabled = await submitBtn.isEnabled({ timeout: 1_000 }).catch(() => false);
+    if (isEnabled) {
+      await submitBtn.click();
+    } else {
+      if (passwordInput) {
+        await passwordInput.press("Enter").catch(() => undefined);
+      } else {
+        await emailInput.press("Enter").catch(() => undefined);
       }
-      await page.waitForTimeout(2_000);
     }
-    throw new LoginError("OTP login timed out.");
   }
 
-  // Wait for redirect to dashboard
-  await page.waitForURL(/meesho\.com\/(panel|dashboard)/, { timeout: timeoutMs }).catch(async () => {
-    const indicator = resolveSelector(page, loginSelectors.loggedInIndicator);
-    await indicator.first().waitFor({ state: "visible", timeout: 15_000 });
-  });
+  if (!passwordInput) {
+    const nextPasswordInput = await findFirstVisibleLocator(passwordCandidateLocators, 4_000);
+    if (nextPasswordInput) {
+      await nextPasswordInput.fill(credentials.password);
+      const nextSubmitBtn = await findFirstVisibleLocator(submitCandidateLocators, 3_000);
+      if (nextSubmitBtn) {
+        await nextSubmitBtn.click().catch(() => nextPasswordInput.press("Enter"));
+      }
+    }
+  }
 
-  logger.info("Automated login successful", { url: page.url() });
+  const postSubmitOtp = await findFirstVisibleLocator(otpLocators, 3_000);
+  if (postSubmitOtp) {
+    logger.warn("OTP screen detected post-submission");
+    return { requiresOtp: true };
+  }
+
+  const deadline = Date.now() + STEP_TIMEOUT;
+  while (Date.now() < deadline) {
+    const url = page.url();
+    if (
+      (url.includes("/panel/v3/new/") || url.includes("/dashboard") || url.includes("/cataloguing")) &&
+      !url.includes("login") &&
+      !url.includes("auth")
+    ) {
+      logger.info("Automated login verified — redirected to panel", { url });
+      return { requiresOtp: false };
+    }
+    await page.waitForTimeout(1_000);
+  }
+
+  const loggedInIndicator = page.locator('a[href*="/panel/v3/new/"], nav, [class*="sidebar"]');
+  const loggedIn = await loggedInIndicator.first().isVisible({ timeout: 3_000 }).catch(() => false);
+
+  if (loggedIn) {
+    logger.info("Automated login verified via panel indicator");
+    return { requiresOtp: false };
+  }
+
+  const diag = await captureFullDiagnostics(page, "login_redirect_timeout");
+  throw new LoginError(`Login timed out — stayed at URL: ${diag.url} | Title: "${diag.title}" | Screenshot: ${diag.screenshot}`);
 }
 
 /**
  * Launch browser, perform login (or reuse session), and return authenticated context.
+ * Automatically handles OTP in a headed browser window if required.
  */
 export async function login(
   options: AutomationOptions & { credentials?: MeeshoCredentials } = {},
@@ -162,28 +321,28 @@ export async function login(
   await ensureAutomationDirs();
 
   const headless = options.headless ?? process.env[ENV.headed] !== "1";
-  const timeouts = { ...DEFAULT_TIMEOUTS, ...options.timeouts };
   const sessionPath = options.sessionPath;
+  const credentials = options.credentials ?? getCredentialsFromEnv();
+
+  if (!credentials) {
+    throw new LoginError("No credentials provided for Meesho login. Enter email and password in the dashboard.");
+  }
 
   logger.info("Launching browser for login", { headless });
 
-  const browser = await chromium.launch({ headless });
-  const context = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
-    locale: "en-IN",
-    timezoneId: "Asia/Kolkata",
-  });
+  const browser = await launchBrowser(headless);
+  const context = await createBrowserContext(browser);
   const page = await context.newPage();
-  page.setDefaultTimeout(timeouts.elementVisible);
+  page.setDefaultTimeout(STEP_TIMEOUT);
 
   try {
-    const credentials = options.credentials ?? getCredentialsFromEnv();
+    const { requiresOtp } = await automatedLogin(page, credentials, STEP_TIMEOUT);
 
-    if (credentials) {
-      await automatedLogin(page, credentials, timeouts.login);
-    } else {
-      logger.warn(`Env vars ${ENV.email} / ${ENV.password} not set — using interactive login`);
-      await interactiveLogin(page, timeouts.login);
+    if (requiresOtp) {
+      logger.info("Switching to interactive headed OTP handler");
+      await context.close().catch(() => undefined);
+      await browser.close().catch(() => undefined);
+      return await handleOtpInteractively(credentials.email, credentials.password, sessionPath);
     }
 
     const savedPath = await saveSession(context, sessionPath);
@@ -203,7 +362,7 @@ export async function login(
 
 /**
  * Create an authenticated browser context, reusing saved session when valid.
- * Falls back to login if session is missing or expired.
+ * Only logs in when required.
  */
 export async function createAuthenticatedContext(
   options: AutomationOptions & { credentials?: MeeshoCredentials } = {},
@@ -212,20 +371,19 @@ export async function createAuthenticatedContext(
 
   const headless = options.headless ?? process.env[ENV.headed] !== "1";
   const sessionPath = options.sessionPath;
-  const timeouts = { ...DEFAULT_TIMEOUTS, ...options.timeouts };
 
-  const browser = await chromium.launch({ headless });
+  const browser = await launchBrowser(headless);
 
   if (!options.forceLogin && (await sessionExists(sessionPath))) {
     const state = await loadSession(sessionPath);
-    const context = await browser.newContext({ storageState: state });
+    const context = await createBrowserContext(browser, state);
     const page = await context.newPage();
-    page.setDefaultTimeout(timeouts.elementVisible);
+    page.setDefaultTimeout(STEP_TIMEOUT);
 
-    const valid = await isSessionValid(page, timeouts.navigation);
+    const valid = await isSessionValid(page, STEP_TIMEOUT);
 
     if (valid) {
-      logger.info("Reusing valid persisted session");
+      logger.info("Reusing valid persisted session — skipping login");
       return { browser, context, page, sessionPath: getSessionPath(sessionPath) };
     }
 
@@ -234,7 +392,6 @@ export async function createAuthenticatedContext(
     await clearSession(sessionPath);
   }
 
-  // Need fresh login — close the browser we opened and delegate to login()
   await browser.close();
   return login({ ...options, forceLogin: true });
 }

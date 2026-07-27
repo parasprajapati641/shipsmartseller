@@ -5,9 +5,11 @@ export type VariantInput = {
   /** File size in kilobytes (from optimizer). */
   sizeKB: number;
   /** Absolute or relative path to the image file on disk. */
-  path: string;
+  path?: string;
   /** Optional human-readable label; defaults to `${sizeKB}kb`. */
   name?: string;
+  /** Base64 or data URL payload from client component. */
+  base64?: string;
 };
 
 /** Extracted info for a single supplier card on Meesho. */
@@ -17,6 +19,27 @@ export type SupplierResult = {
   deliveryDays?: string;
   rawText?: string;
   isLowest?: boolean;
+};
+
+/** Progress telemetry info. */
+export type ProgressInfo = {
+  stage: string;
+  variantIndex?: number;
+  totalVariants?: number;
+  variantName?: string;
+  message: string;
+};
+
+/** Failure diagnostic detail payload. */
+export type DiagnosticDetail = {
+  step?: string;
+  url?: string;
+  title?: string;
+  screenshot?: string;
+  htmlDump?: string;
+  domDump?: string;
+  selectorsTried?: string[];
+  reason?: string;
 };
 
 /** Result of testing a single variant for shipping charge. */
@@ -31,6 +54,7 @@ export type VariantShippingResult = {
   suppliers?: SupplierResult[];
   bestSupplier?: SupplierResult | null;
   error?: string;
+  diagnostics?: DiagnosticDetail;
 };
 
 /** Result of extracting supplier shipping charges for a single image. */
@@ -44,6 +68,7 @@ export type SingleImageComparisonResult = {
   screenshot?: string;
   processingTimeMs: number;
   error?: string;
+  diagnostics?: DiagnosticDetail;
 };
 
 /** Full comparison result across all variants. */
@@ -59,6 +84,7 @@ export type ShippingComparisonResult = {
   variants: VariantShippingResult[];
   totalProcessingTimeMs: number;
   error?: string;
+  diagnostics?: DiagnosticDetail;
 };
 
 /** Meesho connection status for dashboard / API. */
@@ -66,6 +92,8 @@ export type MeeshoConnectionStatus = {
   connected: boolean;
   expiresAt?: string;
   sessionExpired?: boolean;
+  requiresOtp?: boolean;
+  message?: string;
 };
 
 /** Browser launch and runtime options. */
@@ -80,6 +108,8 @@ export type AutomationOptions = {
   sessionPath?: string;
   /** Skip session reuse and force re-login. */
   forceLogin?: boolean;
+  /** Progress telemetry callback. */
+  onProgress?: (progress: ProgressInfo) => void;
 };
 
 export type AutomationTimeouts = {
@@ -87,8 +117,10 @@ export type AutomationTimeouts = {
   login: number;
   upload: number;
   shippingCalculation: number;
+  deleteImage: number;
   elementVisible: number;
   action: number;
+  overallVariant: number;
 };
 
 /** Parsed shipping charge from page content. */
@@ -103,4 +135,3 @@ export type MeeshoCredentials = {
   email: string;
   password: string;
 };
-

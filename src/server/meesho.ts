@@ -26,10 +26,21 @@ export async function getMeeshoStatus(): Promise<MeeshoConnectionStatus> {
 /** Authenticate and persist session for Meesho Seller portal. */
 export async function connectMeesho(
   credentials?: MeeshoCredentials,
-): Promise<{ success: boolean; message: string; status: MeeshoConnectionStatus }> {
+): Promise<{ success: boolean; requiresOtp?: boolean; message: string; status: MeeshoConnectionStatus }> {
   try {
-    const result = await login({ credentials });
+    // Check if session is already valid
+    const existingStatus = await getConnectionStatus();
+    if (existingStatus.connected && !existingStatus.sessionExpired) {
+      return {
+        success: true,
+        message: "Already authenticated with active Meesho seller session",
+        status: existingStatus,
+      };
+    }
+
+    await login({ credentials });
     const status = await getConnectionStatus();
+
     return {
       success: true,
       message: "Successfully authenticated with Meesho Seller portal",

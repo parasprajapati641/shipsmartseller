@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -63,6 +63,8 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
   const [allSuppliers, setAllSuppliers] = useState<SupplierCardInfo[]>([]);
   const [showDetails, setShowDetails] = useState(false);
 
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Check connection status
   const checkStatus = useCallback(async () => {
     setCheckingStatus(true);
@@ -104,7 +106,7 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
     }
   }
 
-  // Run full comparison
+  // Run full comparison with strict progress tracking & guaranteed cleanup
   async function handleRunComparison() {
     if (optimizedVariants.length === 0) {
       toast.error("Please generate image variants first");
@@ -112,34 +114,57 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
     }
 
     setComparing(true);
-    setComparisonProgress(10);
-    setCurrentStep("Initializing Playwright browser context...");
+    setComparisonProgress(5);
+    setCurrentStep("Preparing image variants...");
     setResults([]);
     setBestSupplier(null);
     setAllSuppliers([]);
 
-    try {
-      setComparisonProgress(30);
-      setCurrentStep("Uploading optimized variants & verifying Meesho selectors...");
+    // Clear any previous timer
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
 
+    // Smooth progress simulation during server function call
+    let currentPct = 10;
+    progressIntervalRef.current = setInterval(() => {
+      currentPct = Math.min(currentPct + 4, 90);
+      setComparisonProgress(currentPct);
+
+      if (currentPct < 25) {
+        setCurrentStep("Launching Playwright browser & verifying session...");
+      } else if (currentPct < 50) {
+        setCurrentStep(`Uploading variant images (1 of ${optimizedVariants.length})...`);
+      } else if (currentPct < 75) {
+        setCurrentStep("Extracting shipping rates from Meesho supplier cards...");
+      } else {
+        setCurrentStep("Finalizing comparison results...");
+      }
+    }, 1_200);
+
+    try {
       const { compareVariantsFn } = await import("@/lib/meesho-actions");
 
-      const inputs = optimizedVariants.map((v) => ({
-        sizeKB: v.targetKB,
-        name: `${filename?.replace(/\.[^.]+$/, "") ?? "image"}_${v.targetKB}kb`,
-        path: `./public/optimized_${v.targetKB}kb.jpg`,
-      }));
+      const inputs = await Promise.all(
+        optimizedVariants.map(async (v) => ({
+          sizeKB: v.targetKB,
+          name: `${filename?.replace(/\.[^.]+$/, "") ?? "image"}_${v.targetKB}kb`,
+          base64: await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(v.blob);
+          }),
+        })),
+      );
 
-      setComparisonProgress(60);
-      setCurrentStep("Extracting supplier charges across variants...");
+      const comparisonRes = await compareVariantsFn({ data: { variants: inputs } });
 
-      const comparisonRes = await compareVariantsFn({ data: { variants: inputs } }).catch((err) => {
-        console.warn("Server Playwright execution error, fallback to client simulation:", err);
-        return null;
-      });
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
 
-      setComparisonProgress(90);
-      setCurrentStep("Synthesizing supplier card results...");
+      setComparisonProgress(100);
 
       if (comparisonRes && comparisonRes.success) {
         const variantSummaries: VariantComparisonSummary[] = comparisonRes.variants.map((v) => ({
@@ -166,38 +191,19 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
           const best = flatSuppliers.find((s) => s.shippingCharge === minCharge) ?? flatSuppliers[0];
           setBestSupplier(best);
         }
+        toast.success("Shipping comparison complete!");
       } else {
-        // Build demonstration results from optimized variants
-        const mockSuppliers: SupplierCardInfo[] = [
-          { supplierName: "Shadowfax Logistics", shippingCharge: 42, deliveryDays: "2-3 days", isLowest: true },
-          { supplierName: "Delhivery Surface", shippingCharge: 49, deliveryDays: "3-4 days" },
-          { supplierName: "XpressBees Express", shippingCharge: 55, deliveryDays: "2 days" },
-          { supplierName: "Ecom Express", shippingCharge: 62, deliveryDays: "4-5 days" },
-        ];
-        setAllSuppliers(mockSuppliers);
-        setBestSupplier(mockSuppliers[0]);
-
-        const mockVariants: VariantComparisonSummary[] = optimizedVariants.map((v, i) => {
-          // Shipping charge decreases for smaller optimized images
-          const charge = 42 + Math.floor((v.targetKB / 50) * 15);
-          return {
-            sizeKB: v.targetKB,
-            variantName: `${v.targetKB}KB Variant`,
-            shippingCharge: charge,
-            status: "success",
-            processingTimeMs: 1200 + i * 400,
-            suppliers: mockSuppliers,
-          };
-        });
-        setResults(mockVariants);
+        toast.error(comparisonRes?.error ?? "Shipping charge comparison failed");
       }
-
-      setComparisonProgress(100);
-      toast.success("Shipping comparison complete!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Comparison failed");
     } finally {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
       setComparing(false);
+      setCurrentStep("");
     }
   }
 
@@ -358,7 +364,7 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
       {comparing && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{currentStep}</span>
+            <span>{currentStep || "Processing shipping comparison..."}</span>
             <span>{comparisonProgress}%</span>
           </div>
           <div className="h-2 w-full rounded-full bg-muted overflow-hidden">

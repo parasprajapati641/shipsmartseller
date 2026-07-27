@@ -232,11 +232,12 @@ export async function isSessionValid(page: Page, timeoutMs = 30_000): Promise<bo
 
     const url = page.url();
     if (
-      url.includes("/root/login") ||
-      url.includes("/signin") ||
-      url.includes("/auth/signup")
+      url.includes("login") ||
+      url.includes("signin") ||
+      url.includes("auth") ||
+      url.includes("/root/")
     ) {
-      logger.warn("Session appears expired — redirected to login");
+      logger.warn("Session appears expired / unauthenticated — redirected to login", { url });
       return false;
     }
 

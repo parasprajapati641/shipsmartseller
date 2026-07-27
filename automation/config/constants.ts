@@ -16,21 +16,23 @@ export const MEESHO_URLS = {
   dashboard: "https://supplier.meesho.com/panel/v3/new/",
 } as const;
 
-/** Default timeout values (milliseconds). Override via AutomationOptions.timeouts. */
+/** Bounded default timeout values (milliseconds) ensuring no step hangs indefinitely. */
 export const DEFAULT_TIMEOUTS = {
-  navigation: 60_000,
-  login: 180_000,
-  upload: 45_000,
-  shippingCalculation: 90_000,
-  elementVisible: 30_000,
-  action: 15_000,
+  navigation: 15_000,
+  login: 15_000,
+  upload: 20_000,
+  shippingCalculation: 20_000,
+  deleteImage: 10_000,
+  elementVisible: 10_000,
+  action: 10_000,
+  overallVariant: 60_000,
 } as const;
 
 /** Retry configuration for transient failures. */
 export const RETRY_CONFIG = {
-  maxAttempts: 3,
+  maxAttempts: 2,
   initialDelayMs: 1_000,
-  maxDelayMs: 8_000,
+  maxDelayMs: 4_000,
   backoffMultiplier: 2,
 } as const;
 

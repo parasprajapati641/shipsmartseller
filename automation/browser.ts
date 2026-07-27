@@ -31,12 +31,22 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
     sharedBrowser = undefined;
   }
 
-  logger.info("Launching Chromium browser", { headless: resolvedHeadless });
-
-  sharedBrowser = await chromium.launch({
+  const launchOptions = {
     headless: resolvedHeadless,
     args: ["--disable-blink-features=AutomationControlled", "--no-sandbox"],
-  });
+  };
+
+  try {
+    sharedBrowser = await chromium.launch(launchOptions);
+  } catch (err) {
+    logger.warn("Standard Playwright chromium launch failed, trying system Chrome channel...");
+    try {
+      sharedBrowser = await chromium.launch({ ...launchOptions, channel: "chrome" });
+    } catch {
+      logger.warn("Chrome channel launch failed, trying system Edge channel...");
+      sharedBrowser = await chromium.launch({ ...launchOptions, channel: "msedge" });
+    }
+  }
   sharedBrowserHeadless = resolvedHeadless;
 
   sharedBrowser.on("disconnected", () => {
