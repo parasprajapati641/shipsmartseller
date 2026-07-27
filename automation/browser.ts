@@ -1,5 +1,4 @@
 import type { Browser, BrowserContext } from "playwright";
-import { chromium } from "playwright";
 import { BROWSER_USER_AGENT, ENV, IS_SERVERLESS } from "./config/constants.js";
 import { logger } from "./logger.js";
 
@@ -11,6 +10,20 @@ let sharedBrowserHeadless: boolean | undefined;
 /** Whether automation is running in a Node.js environment. */
 export function isNodeRuntime(): boolean {
   return typeof process !== "undefined" && Boolean(process.versions?.node);
+}
+
+/** Safely resolve Playwright chromium launcher without top-level import crashes. */
+async function getChromium() {
+  try {
+    const pw = await import("playwright");
+    return pw.chromium;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Cannot find or load Playwright package in production: ${message}. ` +
+        `Set MEESHO_AUTOMATION_API_URL to point to a dedicated automation service (Render/Railway/VPS) or configure PLAYWRIGHT_WS_ENDPOINT.`,
+    );
+  }
 }
 
 /**
@@ -33,6 +46,8 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
     await sharedBrowser.close().catch(() => undefined);
     sharedBrowser = undefined;
   }
+
+  const chromium = await getChromium();
 
   // Strategy 1: Remote WebSocket Endpoint (Browserless.io, Render, Railway, EC2, VPS)
   const wsEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT || process.env.BROWSERLESS_WS_ENDPOINT;
@@ -91,7 +106,7 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
         logger.error("All browser launch strategies failed", { error: message });
         throw new Error(
           `Browser launch failed on server: Chromium binary not found. ` +
-            `When running in Vercel Serverless, set PLAYWRIGHT_WS_ENDPOINT to a Browserless/VPS endpoint or deploy to Render/Railway. Details: ${message}`,
+            `When running in Vercel Serverless, set MEESHO_AUTOMATION_API_URL to your Render/Railway service or set PLAYWRIGHT_WS_ENDPOINT to a Browserless/VPS endpoint. Details: ${message}`,
         );
       }
     }
