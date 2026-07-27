@@ -20,7 +20,16 @@ export const getMeeshoStatusFn = createServerFn({ method: "GET" }).handler(async
 });
 
 export const connectMeeshoFn = createServerFn({ method: "POST" })
-  .validator((data?: { email?: string; password?: string }) => data ?? {})
+  .validator((data: unknown) => {
+    try {
+      if (data && typeof data === "object") {
+        return data as { email?: string; password?: string };
+      }
+    } catch {
+      // safe fallback for malformed validator payload
+    }
+    return {};
+  })
   .handler(async ({ data }) => {
     try {
       return await connectMeesho(
@@ -48,7 +57,16 @@ export const disconnectMeeshoFn = createServerFn({ method: "POST" }).handler(asy
 });
 
 export const compareSingleImageFn = createServerFn({ method: "POST" })
-  .validator((data: { imagePath: string }) => data)
+  .validator((data: unknown) => {
+    try {
+      if (data && typeof data === "object" && "imagePath" in data) {
+        return data as { imagePath: string };
+      }
+    } catch {
+      // safe fallback
+    }
+    return { imagePath: "" };
+  })
   .handler(async ({ data }) => {
     try {
       return await compareSingleImage(data.imagePath);
@@ -68,7 +86,16 @@ export const compareSingleImageFn = createServerFn({ method: "POST" })
   });
 
 export const compareVariantsFn = createServerFn({ method: "POST" })
-  .validator((data: { variants: VariantInput[] }) => data)
+  .validator((data: unknown) => {
+    try {
+      if (data && typeof data === "object" && "variants" in data && Array.isArray((data as any).variants)) {
+        return data as { variants: VariantInput[] };
+      }
+    } catch {
+      // safe fallback
+    }
+    return { variants: [] };
+  })
   .handler(async ({ data }) => {
     try {
       return await compareImageVariants(data.variants);

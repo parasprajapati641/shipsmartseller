@@ -1,17 +1,17 @@
-import {
-  clearSession,
-  compareImageSuppliers,
-  getConnectionStatus,
-  login,
-  runShippingComparison,
-  type MeeshoConnectionStatus,
-  type MeeshoCredentials,
-  type ShippingComparisonResult,
-  type SingleImageComparisonResult,
-  type VariantInput,
-} from "../../automation/index.js";
+import type {
+  MeeshoConnectionStatus,
+  MeeshoCredentials,
+  ShippingComparisonResult,
+  SingleImageComparisonResult,
+  VariantInput,
+} from "../../automation/types.js";
 
 const AUTOMATION_API_URL = process.env.MEESHO_AUTOMATION_API_URL || process.env.AUTOMATION_API_URL;
+
+/** Lazy helper to dynamically load local automation module only when needed. */
+async function loadAutomationModule() {
+  return await import("../../automation/index.js");
+}
 
 /** Check Meesho session/connection status. */
 export async function getMeeshoStatus(): Promise<MeeshoConnectionStatus> {
@@ -26,6 +26,7 @@ export async function getMeeshoStatus(): Promise<MeeshoConnectionStatus> {
   }
 
   try {
+    const { getConnectionStatus } = await loadAutomationModule();
     return await getConnectionStatus();
   } catch (error) {
     return {
@@ -61,6 +62,7 @@ export async function connectMeesho(
   }
 
   try {
+    const { getConnectionStatus, login } = await loadAutomationModule();
     // Check if session is already valid
     const existingStatus = await getConnectionStatus().catch(() => ({ connected: false, sessionExpired: false }));
     if (existingStatus.connected && !existingStatus.sessionExpired) {
@@ -81,7 +83,13 @@ export async function connectMeesho(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = await getConnectionStatus().catch(() => ({ connected: false, sessionExpired: false }));
+    let status: MeeshoConnectionStatus = { connected: false };
+    try {
+      const { getConnectionStatus } = await loadAutomationModule();
+      status = await getConnectionStatus().catch(() => ({ connected: false }));
+    } catch {
+      // ignore status load errors
+    }
     return {
       success: false,
       message: `Meesho login failed: ${message}`,
@@ -104,6 +112,7 @@ export async function disconnectMeesho(): Promise<{ success: boolean; message: s
   }
 
   try {
+    const { clearSession } = await loadAutomationModule();
     await clearSession();
     return { success: true, message: "Meesho session disconnected" };
   } catch (error) {
@@ -116,6 +125,7 @@ export async function compareSingleImage(
   imagePath: string,
 ): Promise<SingleImageComparisonResult> {
   try {
+    const { compareImageSuppliers } = await loadAutomationModule();
     return await compareImageSuppliers(imagePath);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -156,6 +166,7 @@ export async function compareImageVariants(
   }
 
   try {
+    const { runShippingComparison } = await loadAutomationModule();
     return await runShippingComparison(variants);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
