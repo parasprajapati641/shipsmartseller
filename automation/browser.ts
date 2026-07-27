@@ -35,7 +35,13 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
     throw new Error("Playwright requires Node.js runtime environment");
   }
 
-  const resolvedHeadless = headless ?? process.env[ENV.headed] !== "1";
+  const isProductionLinux =
+    process.platform === "linux" ||
+    Boolean(process.env.RENDER) ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+    process.env.NODE_ENV === "production";
+
+  const resolvedHeadless = isProductionLinux ? true : (headless ?? process.env[ENV.headed] !== "1");
 
   if (sharedBrowser?.isConnected() && sharedBrowserHeadless === resolvedHeadless) {
     logger.debug("Reusing shared browser instance");
@@ -85,10 +91,46 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
     }
   }
 
-  // Strategy 3: Standard Local Chromium / Chrome / Edge Launch
+  // Strategy 3: Chromium Launch
+  const linuxArgs = [
+    "--disable-blink-features=AutomationControlled",
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--no-first-run",
+    "--no-zygote",
+  ];
+
+  // In Production / Linux (Render, Docker, Railway, EC2, VPS), use bundled Chromium without channel fallbacks
+  if (isProductionLinux) {
+    logger.info("Launching Playwright bundled Chromium in Linux/Production environment", {
+      headless: resolvedHeadless,
+    });
+    try {
+      sharedBrowser = await chromium.launch({
+        headless: resolvedHeadless,
+        args: linuxArgs,
+      });
+      sharedBrowserHeadless = resolvedHeadless;
+
+      sharedBrowser.on("disconnected", () => {
+        sharedBrowser = undefined;
+        sharedBrowserHeadless = undefined;
+      });
+
+      return sharedBrowser;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error("Failed to launch Playwright bundled Chromium in production Linux environment", { error: message });
+      throw new Error(`Production Linux Chromium launch failed: ${message}`);
+    }
+  }
+
+  // Local development fallbacks (Windows / Mac)
   const launchOptions = {
     headless: resolvedHeadless,
-    args: ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-setuid-sandbox"],
+    args: linuxArgs,
   };
 
   try {
@@ -104,10 +146,7 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
       } catch (finalErr) {
         const message = finalErr instanceof Error ? finalErr.message : String(finalErr);
         logger.error("All browser launch strategies failed", { error: message });
-        throw new Error(
-          `Browser launch failed on server: Chromium binary not found. ` +
-            `When running in Vercel Serverless, set MEESHO_AUTOMATION_API_URL to your Render/Railway service or set PLAYWRIGHT_WS_ENDPOINT to a Browserless/VPS endpoint. Details: ${message}`,
-        );
+        throw new Error(`Browser launch failed on local server: ${message}`);
       }
     }
   }
