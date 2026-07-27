@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: shipsmart-meesho-automation
+    env: docker
+    plan: starter
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: MEESHO_SESSION_SECRET
+        generateValue: true

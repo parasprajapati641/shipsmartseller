@@ -7,9 +7,16 @@ import type {
 } from "../../automation/types.js";
 
 const AUTOMATION_API_URL = process.env.MEESHO_AUTOMATION_API_URL || process.env.AUTOMATION_API_URL;
+const IS_VERCEL_RUNTIME = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
-/** Lazy helper to dynamically load local automation module only when needed. */
+/** Safely load local automation module when running in standard Node.js environment. */
 async function loadAutomationModule() {
+  if (IS_VERCEL_RUNTIME && !AUTOMATION_API_URL) {
+    throw new Error(
+      "Playwright browser automation requires a dedicated backend service in production (Render / Railway / Docker / EC2). " +
+        "Please deploy the automation service and configure MEESHO_AUTOMATION_API_URL in your Vercel project environment settings.",
+    );
+  }
   return await import("../../automation/index.js");
 }
 
