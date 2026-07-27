@@ -10,21 +10,52 @@ export type VariantInput = {
   name?: string;
 };
 
+/** Extracted info for a single supplier card on Meesho. */
+export type SupplierResult = {
+  supplierName: string;
+  shippingCharge: number;
+  deliveryDays?: string;
+  rawText?: string;
+  isLowest?: boolean;
+};
+
 /** Result of testing a single variant for shipping charge. */
 export type VariantShippingResult = {
   sizeKB: number;
+  variantName: string;
   shippingCharge: number;
   imagePath: string;
   screenshot: string;
   processingTimeMs: number;
   status: "success" | "failed";
+  suppliers?: SupplierResult[];
+  bestSupplier?: SupplierResult | null;
+  error?: string;
+};
+
+/** Result of extracting supplier shipping charges for a single image. */
+export type SingleImageComparisonResult = {
+  success: boolean;
+  imagePath: string;
+  sizeKB?: number;
+  lowestShippingCharge: number;
+  bestSupplier: SupplierResult | null;
+  suppliers: SupplierResult[];
+  screenshot?: string;
+  processingTimeMs: number;
   error?: string;
 };
 
 /** Full comparison result across all variants. */
 export type ShippingComparisonResult = {
   success: boolean;
-  bestVariant: { sizeKB: number; shipping: number; image: string } | null;
+  bestVariant: {
+    sizeKB: number;
+    variantName: string;
+    shippingCharge: number;
+    imagePath: string;
+    screenshot?: string;
+  } | null;
   variants: VariantShippingResult[];
   totalProcessingTimeMs: number;
   error?: string;
@@ -72,3 +103,4 @@ export type MeeshoCredentials = {
   email: string;
   password: string;
 };
+

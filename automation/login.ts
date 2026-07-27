@@ -1,7 +1,7 @@
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { DEFAULT_TIMEOUTS, ENV, MEESHO_URLS, PATHS } from "./config/constants.js";
-import { loginSelectors } from "./config/selectors.js";
+import { loginSelectors, productCreationSelectors } from "./config/selectors.js";
 import { LoginError } from "./lib/errors.js";
 import { logger } from "./lib/logger.js";
 import { withRetry } from "./lib/retry.js";
@@ -9,6 +9,7 @@ import { resolveSelector } from "./lib/selectors.js";
 import {
   clearSession,
   ensureAutomationDirs,
+  getSessionPath,
   isSessionValid,
   loadSession,
   saveSession,
@@ -23,7 +24,7 @@ export type LoginResult = {
   sessionPath: string;
 };
 
-/** Read credentials from environment variables. */
+/** Read credentials from environment variables or custom options. */
 export function getCredentialsFromEnv(): MeeshoCredentials | null {
   const email = process.env[ENV.email];
   const password = process.env[ENV.password];
@@ -44,6 +45,21 @@ export async function captureFailureScreenshot(
   await page.screenshot({ path: filePath, fullPage: true }).catch(() => undefined);
   logger.info("Failure screenshot captured", { path: filePath });
   return filePath;
+}
+
+/** Fill minimal fields on product creation form if prompted. */
+export async function fillMinimalProductFields(
+  page: Page,
+  _options: AutomationOptions = {},
+): Promise<void> {
+  const titleInput = resolveSelector(page, productCreationSelectors.productTitleInput);
+  const isVisible = await titleInput
+    .first()
+    .isVisible({ timeout: 1_000 })
+    .catch(() => false);
+  if (isVisible) {
+    await titleInput.first().fill("Test Product").catch(() => undefined);
+  }
 }
 
 /**
@@ -73,8 +89,7 @@ export async function interactiveLogin(page: Page, timeoutMs: number): Promise<v
 }
 
 /**
- * Automated login using email/password from env.
- * Handles both standard and OTP flows (OTP requires manual intervention in headed mode).
+ * Automated login using email/password from env or credentials argument.
  */
 export async function automatedLogin(
   page: Page,
@@ -141,7 +156,9 @@ export async function automatedLogin(
 /**
  * Launch browser, perform login (or reuse session), and return authenticated context.
  */
-export async function login(options: AutomationOptions = {}): Promise<LoginResult> {
+export async function login(
+  options: AutomationOptions & { credentials?: MeeshoCredentials } = {},
+): Promise<LoginResult> {
   await ensureAutomationDirs();
 
   const headless = options.headless ?? process.env[ENV.headed] !== "1";
@@ -160,7 +177,7 @@ export async function login(options: AutomationOptions = {}): Promise<LoginResul
   page.setDefaultTimeout(timeouts.elementVisible);
 
   try {
-    const credentials = getCredentialsFromEnv();
+    const credentials = options.credentials ?? getCredentialsFromEnv();
 
     if (credentials) {
       await automatedLogin(page, credentials, timeouts.login);
@@ -189,7 +206,7 @@ export async function login(options: AutomationOptions = {}): Promise<LoginResul
  * Falls back to login if session is missing or expired.
  */
 export async function createAuthenticatedContext(
-  options: AutomationOptions = {},
+  options: AutomationOptions & { credentials?: MeeshoCredentials } = {},
 ): Promise<LoginResult> {
   await ensureAutomationDirs();
 
@@ -200,8 +217,8 @@ export async function createAuthenticatedContext(
   const browser = await chromium.launch({ headless });
 
   if (!options.forceLogin && (await sessionExists(sessionPath))) {
-    const file = await loadSession(sessionPath);
-    const context = await browser.newContext({ storageState: file });
+    const state = await loadSession(sessionPath);
+    const context = await browser.newContext({ storageState: state });
     const page = await context.newPage();
     page.setDefaultTimeout(timeouts.elementVisible);
 
@@ -209,7 +226,7 @@ export async function createAuthenticatedContext(
 
     if (valid) {
       logger.info("Reusing valid persisted session");
-      return { browser, context, page, sessionPath: file };
+      return { browser, context, page, sessionPath: getSessionPath(sessionPath) };
     }
 
     logger.warn("Persisted session expired — re-authenticating");

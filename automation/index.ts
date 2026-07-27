@@ -18,6 +18,12 @@ export {
 export { waitForShippingCalculation, getShippingCharge, readShippingCharge } from "./shipping.js";
 
 export {
+  compareImageSuppliers,
+  extractSupplierCards,
+  supplierCardSelectors,
+} from "./compare.js";
+
+export {
   extractInrAmount,
   parseShippingChargeFromTexts,
   parseShippingChargeFromHtml,
@@ -38,6 +44,7 @@ export {
   isSessionValid,
   clearSession,
   getSessionPath,
+  getConnectionStatus,
 } from "./session.js";
 
 export { MEESHO_URLS, DEFAULT_TIMEOUTS, PATHS, ENV } from "./config/constants.js";
@@ -47,13 +54,24 @@ export type {
   VariantInput,
   VariantShippingResult,
   ShippingComparisonResult,
+  SingleImageComparisonResult,
+  SupplierResult,
   AutomationOptions,
   AutomationTimeouts,
   ParsedShippingCharge,
   MeeshoCredentials,
+  MeeshoConnectionStatus,
 } from "./types.js";
 
-export { MeeshoAutomationError, LoginError, SessionError, UploadError, ShippingCalculationError, ParseError, TimeoutError } from "./lib/errors.js";
+export {
+  MeeshoAutomationError,
+  LoginError,
+  SessionError,
+  UploadError,
+  ShippingCalculationError,
+  ParseError,
+  TimeoutError,
+} from "./lib/errors.js";
 
 export { logger } from "./lib/logger.js";
 export { withRetry } from "./lib/retry.js";

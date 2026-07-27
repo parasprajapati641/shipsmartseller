@@ -110,7 +110,7 @@ async function runCompare(args: CliArgs): Promise<void> {
 
   console.log(formatComparisonSummary(result));
 
-  if (!result.best) {
+  if (!result.bestVariant) {
     process.exit(1);
   }
 }

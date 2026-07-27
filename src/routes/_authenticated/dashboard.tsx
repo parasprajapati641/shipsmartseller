@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { optimizeAllSizes, validateImageFile, type OptimizedResult } from "@/lib/image-optimizer";
+import { MeeshoComparison } from "@/components/meesho-comparison";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -366,6 +367,9 @@ function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* Meesho Automation Section */}
+          <MeeshoComparison optimizedVariants={results} filename={file?.name} />
         </div>
 
         {/* History sidebar */}

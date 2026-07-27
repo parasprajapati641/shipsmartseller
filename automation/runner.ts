@@ -1,12 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Browser, BrowserContext, Page } from "playwright";
+import { extractSupplierCards } from "./compare.js";
 import { DEFAULT_TIMEOUTS, MEESHO_URLS, PATHS, SUPPORTED_IMAGE_EXTENSIONS } from "./config/constants.js";
 import { productCreationSelectors } from "./config/selectors.js";
-import { createAuthenticatedContext, captureFailureScreenshot } from "./login.js";
-import { logger } from "./lib/logger.js";
 import { isMeeshoAutomationError } from "./lib/errors.js";
+import { logger } from "./lib/logger.js";
 import { resolveSelector } from "./lib/selectors.js";
+import { createAuthenticatedContext, captureFailureScreenshot } from "./login.js";
 import { getShippingCharge } from "./shipping.js";
 import {
   captureVariantScreenshot,
@@ -39,37 +40,55 @@ async function navigateToProductCreation(page: Page, options: AutomationOptions)
     });
 }
 
-/** Test a single variant: upload → wait for shipping → parse → screenshot → remove. */
+function parseSizeKBFromName(name?: string): number {
+  if (!name) return 0;
+  const match = name.match(/_?(\d+)kb/i);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+/** Test a single variant: upload → wait for shipping → parse → extract suppliers → screenshot → remove. */
 async function testVariant(
   page: Page,
   variant: VariantInput,
   options: AutomationOptions,
 ): Promise<VariantShippingResult> {
   const start = Date.now();
-  logger.info("Testing variant", { name: variant.name, path: variant.path });
+  const variantName = variant.name ?? `${variant.sizeKB ?? parseSizeKBFromName(variant.path)}kb`;
+  const sizeKB = variant.sizeKB ?? parseSizeKBFromName(variantName);
+  logger.info("Testing variant", { name: variantName, path: variant.path });
 
   try {
     await uploadWithErrorCapture(page, variant.path, options);
     const charge = await getShippingCharge(page, options);
+    const suppliers = await extractSupplierCards(page);
+
+    const lowestCharge = suppliers.length > 0 ? Math.min(...suppliers.map((s) => s.shippingCharge)) : charge.amount;
+    const bestSupplier = suppliers.find((s) => s.shippingCharge === lowestCharge) ?? null;
+
     const screenshot = await captureVariantScreenshot(
       page,
-      variant.name,
+      variantName,
       options.screenshotsDir ?? PATHS.screenshotsDir,
     );
 
     await removeProductImage(page, options);
 
     const result: VariantShippingResult = {
-      variantName: variant.name,
-      shippingCharge: charge.amount,
+      sizeKB,
+      variantName,
+      shippingCharge: lowestCharge,
       imagePath: path.resolve(variant.path),
       screenshot,
       processingTimeMs: Date.now() - start,
+      status: "success",
+      suppliers,
+      bestSupplier,
     };
 
     logger.info("Variant test complete", {
-      name: variant.name,
-      charge: charge.amount,
+      name: variantName,
+      charge: lowestCharge,
+      suppliersCount: suppliers.length,
       ms: result.processingTimeMs,
     });
 
@@ -77,21 +96,23 @@ async function testVariant(
   } catch (error) {
     const screenshot = await captureFailureScreenshot(
       page,
-      `variant_${variant.name}_failure`,
+      `variant_${variantName}_failure`,
       options.screenshotsDir ?? PATHS.screenshotsDir,
     ).catch(() => "");
 
     await removeProductImage(page, options).catch(() => undefined);
 
     const message = error instanceof Error ? error.message : String(error);
-    logger.error("Variant test failed", { name: variant.name, error: message });
+    logger.error("Variant test failed", { name: variantName, error: message });
 
     return {
-      variantName: variant.name,
+      sizeKB,
+      variantName,
       shippingCharge: Infinity,
       imagePath: path.resolve(variant.path),
       screenshot,
       processingTimeMs: Date.now() - start,
+      status: "failed",
       error: message,
     };
   }
@@ -99,7 +120,7 @@ async function testVariant(
 
 /** Pick the variant with the lowest shipping charge from successful results. */
 function selectBestVariant(results: VariantShippingResult[]): VariantShippingResult | null {
-  const successful = results.filter((r) => r.error === undefined && Number.isFinite(r.shippingCharge));
+  const successful = results.filter((r) => r.status === "success" && Number.isFinite(r.shippingCharge));
   if (successful.length === 0) return null;
   return successful.reduce((best, current) =>
     current.shippingCharge < best.shippingCharge ? current : best,
@@ -108,22 +129,19 @@ function selectBestVariant(results: VariantShippingResult[]): VariantShippingRes
 
 /**
  * Main orchestrator: authenticate, test all variants, return the one with lowest shipping charge.
- *
- * @example
- * ```ts
- * const result = await runShippingComparison([
- *   { name: "5kb", path: "./variants/product_5kb.jpg" },
- *   { name: "10kb", path: "./variants/product_10kb.jpg" },
- * ]);
- * console.log(result.best?.shippingCharge);
- * ```
  */
 export async function runShippingComparison(
   variants: VariantInput[],
   options: AutomationOptions = {},
 ): Promise<ShippingComparisonResult> {
   if (variants.length === 0) {
-    throw new Error("No variants provided for shipping comparison");
+    return {
+      success: false,
+      bestVariant: null,
+      variants: [],
+      totalProcessingTimeMs: 0,
+      error: "No variants provided for shipping comparison",
+    };
   }
 
   const totalStart = Date.now();
@@ -156,7 +174,29 @@ export async function runShippingComparison(
       totalMs: totalProcessingTimeMs,
     });
 
-    return { best, results, totalProcessingTimeMs };
+    return {
+      success: results.some((r) => r.status === "success"),
+      bestVariant: best
+        ? {
+            sizeKB: best.sizeKB,
+            variantName: best.variantName,
+            shippingCharge: best.shippingCharge,
+            imagePath: best.imagePath,
+            screenshot: best.screenshot,
+          }
+        : null,
+      variants: results,
+      totalProcessingTimeMs,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      bestVariant: null,
+      variants: [],
+      totalProcessingTimeMs: Date.now() - totalStart,
+      error: message,
+    };
   } finally {
     if (context) await context.close().catch(() => undefined);
     if (browser) await browser.close().catch(() => undefined);
@@ -180,10 +220,14 @@ export async function discoverVariantsFromDirectory(dir: string): Promise<Varian
       if (aMatch && bMatch) return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
       return a.localeCompare(b);
     })
-    .map((f) => ({
-      name: f.replace(/\.[^.]+$/, ""),
-      path: path.join(absoluteDir, f),
-    }));
+    .map((f) => {
+      const name = f.replace(/\.[^.]+$/, "");
+      return {
+        sizeKB: parseSizeKBFromName(name),
+        name,
+        path: path.join(absoluteDir, f),
+      };
+    });
 
   logger.info("Discovered variants", { dir: absoluteDir, count: variants.length });
   return variants;
@@ -197,16 +241,18 @@ export function formatComparisonSummary(result: ShippingComparisonResult): strin
     "",
   ];
 
-  for (const r of result.results) {
+  for (const r of result.variants) {
     const status = r.error ? `FAILED (${r.error})` : `₹${r.shippingCharge}`;
     lines.push(`  ${r.variantName.padEnd(20)} ${status.padStart(20)}  (${r.processingTimeMs}ms)`);
   }
 
   lines.push("");
-  if (result.best) {
-    lines.push(`  Best variant: ${result.best.variantName} — ₹${result.best.shippingCharge}`);
-    lines.push(`  Image: ${result.best.imagePath}`);
-    lines.push(`  Screenshot: ${result.best.screenshot}`);
+  if (result.bestVariant) {
+    lines.push(`  Best variant: ${result.bestVariant.variantName} — ₹${result.bestVariant.shippingCharge}`);
+    lines.push(`  Image: ${result.bestVariant.imagePath}`);
+    if (result.bestVariant.screenshot) {
+      lines.push(`  Screenshot: ${result.bestVariant.screenshot}`);
+    }
   } else {
     lines.push("  No successful variant tests.");
   }

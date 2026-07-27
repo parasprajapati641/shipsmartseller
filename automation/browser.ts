@@ -50,7 +50,7 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
 /** Create a browser context with Meesho-appropriate defaults. */
 export async function createBrowserContext(
   browser: Browser,
-  storageState?: string | object,
+  storageState?: any,
 ): Promise<BrowserContext> {
   const contextOptions: Parameters<Browser["newContext"]>[0] = {
     viewport: DEFAULT_VIEWPORT,
