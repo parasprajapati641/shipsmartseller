@@ -1,10 +1,15 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+const RAZORPAY_KEY_ID =
+  process.env.RAZORPAY_KEY_ID ||
+  process.env.VITE_RAZORPAY_KEY_ID ||
+  process.env.VITE_RAZORPAY_KEY ||
+  "rzp_live_TIsdLWzr1fzNQd";
+
+const RAZORPAY_KEY_SECRET =
+  process.env.RAZORPAY_KEY_SECRET ||
+  process.env.VITE_RAZORPAY_KEY_SECRET ||
+  "l5vAbsdaZ1dtIR23xfmNbLj8";
 
 export default defineConfig({
   tanstackStart: {
@@ -13,14 +18,21 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    define: {
+      "process.env.RAZORPAY_KEY_ID": JSON.stringify(RAZORPAY_KEY_ID),
+      "process.env.RAZORPAY_KEY_SECRET": JSON.stringify(RAZORPAY_KEY_SECRET),
+      "process.env.VITE_RAZORPAY_KEY_ID": JSON.stringify(RAZORPAY_KEY_ID),
+      "process.env.VITE_RAZORPAY_KEY": JSON.stringify(RAZORPAY_KEY_ID),
+      "process.env.VITE_RAZORPAY_KEY_SECRET": JSON.stringify(RAZORPAY_KEY_SECRET),
+    },
     ssr: {
-      external: ["playwright", "playwright-core", "chromium-bidi", "razorpay"],
+      external: ["playwright", "playwright-core", "chromium-bidi"],
     },
     build: {
       minify: false,
       sourcemap: false,
       rollupOptions: {
-        external: ["playwright", "playwright-core", "chromium-bidi", "razorpay"],
+        external: ["playwright", "playwright-core", "chromium-bidi"],
       },
     },
   },

@@ -27,12 +27,12 @@ function getRazorpayKeys() {
     process.env.VITE_RAZORPAY_KEY_ID ||
     process.env.VITE_RAZORPAY_KEY ||
     process.env.PUBLIC_RAZORPAY_KEY_ID ||
-    "";
+    "rzp_live_TIsdLWzr1fzNQd";
 
   const keySecret =
     process.env.RAZORPAY_KEY_SECRET ||
     process.env.VITE_RAZORPAY_KEY_SECRET ||
-    "";
+    "l5vAbsdaZ1dtIR23xfmNbLj8";
 
   return { keyId, keySecret };
 }
