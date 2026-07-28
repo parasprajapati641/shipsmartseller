@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
   Check,
@@ -474,37 +475,257 @@ function Sizes() {
   );
 }
 
+// function Pricing() {
+//   const { isAuthed, goStart } = useAuthCTA();
+//   const navigate = useNavigate();
+
+//   function handlePremium() {
+//     if (!isAuthed) {
+//       toast.info("Sign in to start your Premium subscription.");
+//       navigate({ to: "/auth", search: { mode: "signup" } });
+//       return;
+//     }
+//     toast.info("Stripe checkout coming soon — connect Stripe keys to enable.");
+//   }
+
+//   const plans = [
+//     {
+//       name: "Free",
+//       price: "₹0",
+//       period: "for 14 days",
+//       tagline: "Kick the tires with a 2-week trial.",
+//       features: [
+//         "Up to 25 generations",
+//         "All size targets (5–50 KB)",
+//         "Personal history",
+//         "Standard processing queue",
+//       ],
+//       cta: isAuthed ? "Open dashboard" : "Start free trial",
+//       onClick: goStart,
+//       highlight: false,
+//     },
+//     {
+//       name: "Premium",
+//       price: "₹999",
+//       period: "per month",
+//       tagline: "For serious Meesho sellers.",
+//       features: [
+//         "Unlimited generations",
+//         "Priority processing queue",
+//         "Bulk uploads",
+//         "Advanced history & tagging",
+//         "Priority support",
+//       ],
+//       cta: "Upgrade to Premium",
+//       onClick: handlePremium,
+//       highlight: true,
+//     },
+//   ];
+
+//   return (
+//     <section id="pricing" className="border-y border-border/60 bg-card/20 scroll-mt-16">
+//       <div className="mx-auto max-w-7xl px-6 py-24 md:py-32">
+//         <div className="max-w-2xl mx-auto text-center">
+//           <p className="text-sm font-medium text-gradient">Pricing</p>
+//           <h2 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight">
+//             Simple, honest pricing.
+//           </h2>
+//           <p className="mt-4 text-muted-foreground">
+//             Try free for two weeks. Upgrade when you're ready.
+//           </p>
+//         </div>
+//         <div className="mt-14 grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
+//           {plans.map((p) => (
+//             <div
+//               key={p.name}
+//               className={
+//                 "relative rounded-2xl p-8 " +
+//                 (p.highlight
+//                   ? "bg-gradient-brand text-brand-foreground shadow-elevated"
+//                   : "surface")
+//               }
+//             >
+//               {p.highlight && (
+//                 <div className="absolute -top-3 left-8 rounded-full bg-background px-3 py-1 text-xs font-medium text-foreground border border-border">
+//                   Most popular
+//                 </div>
+//               )}
+//               <h3 className="text-xl font-semibold">{p.name}</h3>
+//               <p
+//                 className={
+//                   "mt-1 text-sm " +
+//                   (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")
+//                 }
+//               >
+//                 {p.tagline}
+//               </p>
+//               <div className="mt-6 flex items-baseline gap-2">
+//                 <span className="text-5xl font-semibold tracking-tight">{p.price}</span>
+//                 <span
+//                   className={
+//                     "text-sm " +
+//                     (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")
+//                   }
+//                 >
+//                   {p.period}
+//                 </span>
+//               </div>
+//               <ul className="mt-8 space-y-3">
+//                 {p.features.map((f) => (
+//                   <li key={f} className="flex items-start gap-3 text-sm">
+//                     <Check
+//                       className={
+//                         "h-4 w-4 mt-0.5 shrink-0 " +
+//                         (p.highlight ? "text-brand-foreground" : "text-brand")
+//                       }
+//                     />
+//                     {f}
+//                   </li>
+//                 ))}
+//               </ul>
+//               <button
+//                 onClick={p.onClick}
+//                 className={
+//                   "mt-8 w-full rounded-lg px-4 py-3 text-sm font-medium transition-opacity hover:opacity-90 " +
+//                   (p.highlight
+//                     ? "bg-background text-foreground"
+//                     : "bg-gradient-brand text-brand-foreground")
+//                 }
+//               >
+//                 {p.cta}
+//               </button>
+//             </div>
+//           ))}
+//         </div>
+//       </div>
+//     </section>
+//   );
+// }
+
 function Pricing() {
   const { isAuthed, goStart } = useAuthCTA();
   const navigate = useNavigate();
 
-  function handlePremium() {
+  // add pricing complonents
+  useEffect(() => {
+    if (document.getElementById("razorpay-sdk")) return;
+
+    const script = document.createElement("script");
+    script.id = "razorpay-sdk";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+
+  // razorpay integration
+  const handlePayment = async (plan: "premium" | "premium_plus") => {
     if (!isAuthed) {
-      toast.info("Sign in to start your Premium subscription.");
+      toast.info("Sign in to start your subscription.");
       navigate({ to: "/auth", search: { mode: "signup" } });
       return;
     }
-    toast.info("Stripe checkout coming soon — connect Stripe keys to enable.");
-  }
+
+    try {
+      const response = await fetch("http://localhost:5000/order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plan }),
+      });
+
+      if (!response.ok) {
+        toast.error("Unable to create order");
+        return;
+      }
+
+      const order = await response.json();
+
+      console.log("Razorpay Key:", import.meta.env.VITE_RAZORPAY_KEY);
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY,
+        amount: order.amount,
+        currency: order.currency,
+        name: "ShipSmart",
+        description:
+          plan === "premium"
+            ? "Premium Subscription"
+            : "Premium Plus Subscription",
+        order_id: order.id,
+
+        handler: async function (response: any) {
+
+          // Get logged in user
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          await fetch("http://localhost:5000/verify-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...response,
+              plan,
+              email: user?.email,
+            }),
+          });
+
+          toast.success("Subscription Activated 🎉");
+        },
+
+        prefill: {
+          name: "",
+          email: "",
+          contact: "",
+        },
+
+        theme: {
+          color: "#0F766E",
+        },
+      };
+
+      console.log(options);
+
+      const razorpay = new window.Razorpay(options);
+
+      razorpay.on("payment.failed", () => {
+        toast.error("Payment Failed");
+      });
+
+      razorpay.open();
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong.");
+    }
+  };
 
   const plans = [
     {
-      name: "Free",
-      price: "₹0",
-      period: "for 14 days",
-      tagline: "Kick the tires with a 2-week trial.",
+      name: "Premium",
+      price: "₹499",
+      period: "per month",
+      tagline: "For serious Meesho sellers.",
       features: [
-        "Up to 25 generations",
+        "Up to 50 generations",
         "All size targets (5–50 KB)",
         "Personal history",
         "Standard processing queue",
       ],
-      cta: isAuthed ? "Open dashboard" : "Start free trial",
-      onClick: goStart,
+      cta: "Upgrade to Premium",
+      onClick: () => handlePayment("premium"),
       highlight: false,
     },
     {
-      name: "Premium",
+      name: "Premium Plus",
       price: "₹999",
       period: "per month",
       tagline: "For serious Meesho sellers.",
@@ -515,8 +736,8 @@ function Pricing() {
         "Advanced history & tagging",
         "Priority support",
       ],
-      cta: "Upgrade to Premium",
-      onClick: handlePremium,
+      cta: "Upgrade to Premium Plus",
+      onClick: () => handlePayment("premium_plus"),
       highlight: true,
     },
   ];
