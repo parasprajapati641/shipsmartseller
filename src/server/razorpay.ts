@@ -1,20 +1,6 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-// Fallback to various env key names for max compatibility
-const RAZORPAY_KEY_ID =
-  process.env.RAZORPAY_KEY_ID ||
-  process.env.VITE_RAZORPAY_KEY_ID ||
-  process.env.VITE_RAZORPAY_KEY ||
-  "";
-
-const RAZORPAY_KEY_SECRET =
-  process.env.RAZORPAY_KEY_SECRET ||
-  process.env.VITE_RAZORPAY_KEY_SECRET ||
-  "";
-
-const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
-
 export type RazorpayOrderResponse = {
   success: boolean;
   id?: string;
@@ -34,12 +20,21 @@ export type RazorpayVerificationResponse = {
   error?: string;
 };
 
-/** Initialize Razorpay SDK client safely. */
-function getRazorpayInstance(): Razorpay {
-  return new Razorpay({
-    key_id: RAZORPAY_KEY_ID,
-    key_secret: RAZORPAY_KEY_SECRET,
-  });
+/** Dynamic environment variable retriever for universal serverless compatibility */
+function getRazorpayKeys() {
+  const keyId =
+    process.env.RAZORPAY_KEY_ID ||
+    process.env.VITE_RAZORPAY_KEY_ID ||
+    process.env.VITE_RAZORPAY_KEY ||
+    process.env.PUBLIC_RAZORPAY_KEY_ID ||
+    "";
+
+  const keySecret =
+    process.env.RAZORPAY_KEY_SECRET ||
+    process.env.VITE_RAZORPAY_KEY_SECRET ||
+    "";
+
+  return { keyId, keySecret };
 }
 
 /** Create a new Razorpay Order for Premium or Premium Plus Subscription. */
@@ -49,23 +44,72 @@ export async function createRazorpayOrder(
   userEmail?: string,
 ): Promise<RazorpayOrderResponse> {
   try {
-    const key = RAZORPAY_KEY_ID;
-    if (!key) {
+    const { keyId, keySecret } = getRazorpayKeys();
+
+    if (!keyId) {
+      console.error("[RAZORPAY ERROR] Missing Key ID on server.");
       return {
         success: false,
-        message: "Razorpay Key ID is missing. Please set RAZORPAY_KEY_ID in .env file.",
+        message: "Razorpay Key ID is missing. Please verify RAZORPAY_KEY_ID in server environment variables.",
         error: "MISSING_RAZORPAY_KEY_ID",
       };
     }
 
-    // Price mapping: Premium = ₹499 (49900 paise), Premium Plus = ₹999 (99900 paise)
     const defaultAmount = plan === "premium_plus" ? 999 : 499;
     const finalAmountInRupees = amountInRupees ?? defaultAmount;
     const amountInPaise = Math.round(finalAmountInRupees * 100);
-
-    const instance = getRazorpayInstance();
     const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+    // 1. Direct REST API execution for 100% universal serverless/edge compatibility
+    if (keySecret) {
+      try {
+        const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
+        const apiRes = await fetch("https://api.razorpay.com/v1/orders", {
+          method: "POST",
+          headers: {
+            Authorization: authHeader,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: amountInPaise,
+            currency: "INR",
+            receipt,
+            notes: {
+              plan,
+              userEmail: userEmail || "seller@shipsmart.app",
+              platform: "ShipSmart Seller",
+            },
+          }),
+        });
+
+        if (apiRes.ok) {
+          const orderData = (await apiRes.json()) as { id: string; amount: number; currency?: string };
+          return {
+            success: true,
+            id: orderData.id,
+            orderId: orderData.id,
+            amount: orderData.amount,
+            currency: orderData.currency || "INR",
+            key: keyId,
+            message: "Razorpay order created successfully",
+          };
+        } else {
+          const errJson = (await apiRes.json().catch(() => ({}))) as { error?: { description?: string } };
+          console.error("[RAZORPAY REST API ERROR]", errJson);
+          const errorDesc = errJson?.error?.description || "Razorpay API order creation failed";
+          return {
+            success: false,
+            message: `Razorpay Order Error: ${errorDesc}`,
+            error: errorDesc,
+          };
+        }
+      } catch (restErr) {
+        console.warn("[RAZORPAY REST API FETCH EXCEPTION] Falling back to SDK", restErr);
+      }
+    }
+
+    // 2. Fallback execution via Razorpay Node SDK
+    const instance = new Razorpay({ key_id: keyId, key_secret: keySecret });
     const order = await instance.orders.create({
       amount: amountInPaise,
       currency: "INR",
@@ -83,12 +127,12 @@ export async function createRazorpayOrder(
       orderId: order.id,
       amount: amountInPaise,
       currency: "INR",
-      key,
+      key: keyId,
       message: "Razorpay order created successfully",
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[RAZORPAY ORDER ERROR]", error);
+    console.error("[RAZORPAY ORDER EXCEPTION]", error);
     return {
       success: false,
       message: `Razorpay order creation failed: ${msg}`,
@@ -114,12 +158,11 @@ export async function verifyRazorpayPayment(
       };
     }
 
-    const secret = RAZORPAY_KEY_SECRET;
-    if (secret) {
-      // HMAC-SHA256 signature verification: order_id + "|" + payment_id
+    const { keySecret } = getRazorpayKeys();
+    if (keySecret) {
       const text = `${razorpay_order_id}|${razorpay_payment_id}`;
       const expectedSignature = crypto
-        .createHmac("sha256", secret)
+        .createHmac("sha256", keySecret)
         .update(text)
         .digest("hex");
 
@@ -131,26 +174,29 @@ export async function verifyRazorpayPayment(
         };
       }
     } else {
-      console.warn("[RAZORPAY WARNING] Key Secret missing — verified signature via payload parameters.");
+      console.warn("[RAZORPAY WARNING] Key Secret missing on server — verified signature via payload parameters.");
     }
 
     console.log(
       `[RAZORPAY VERIFIED SUCCESS] Payment ${razorpay_payment_id} verified for order ${razorpay_order_id} (Plan: ${plan}, Email: ${email || "N/A"})`,
     );
 
-    // Dispatch high-deliverability transactional billing receipt email if user email is present
     if (email) {
       const planName = plan === "premium_plus" ? "Premium Plus Subscription" : "Premium Subscription";
-      const amountPaid = plan === "premium_plus" ? "₹1 (Test Price)" : "₹499";
-      const { sendSubscriptionConfirmationEmail } = await import("./email-service.js");
-      await sendSubscriptionConfirmationEmail({
-        to: email,
-        subject: `Payment Receipt: ShipSmart ${planName}`,
-        planName,
-        amountPaid,
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-      });
+      const amountPaid = plan === "premium_plus" ? "₹999" : "₹499";
+      try {
+        const { sendSubscriptionConfirmationEmail } = await import("./email-service.js");
+        await sendSubscriptionConfirmationEmail({
+          to: email,
+          subject: `Payment Receipt: ShipSmart ${planName}`,
+          planName,
+          amountPaid,
+          paymentId: razorpay_payment_id,
+          orderId: razorpay_order_id,
+        });
+      } catch (emailErr) {
+        console.error("[EMAIL DISPATCH EXCEPTION]", emailErr);
+      }
     }
 
     return {

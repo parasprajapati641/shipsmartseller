@@ -149,7 +149,11 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
     razorpayInstance.open();
   } catch (error) {
     toast.dismiss(toastId);
-    const msg = error instanceof Error ? error.message : String(error);
-    toast.error(`Checkout error: ${msg}`);
+    const rawMsg = error instanceof Error ? error.message : String(error);
+    const isHtmlError = rawMsg.includes("<!DOCTYPE") || rawMsg.includes("This page didn't load") || rawMsg.includes("<html");
+    const cleanMsg = isHtmlError
+      ? "Server configuration error. Please verify RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables on your live deployment."
+      : rawMsg;
+    toast.error(`Checkout error: ${cleanMsg}`);
   }
 }
