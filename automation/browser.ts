@@ -26,9 +26,25 @@ async function getChromium() {
   }
 }
 
+/** Get proxy settings from environment if configured (e.g. residential proxy). */
+function getProxyOptions() {
+  const proxyServer = process.env.MEESHO_PROXY_SERVER || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
+  if (!proxyServer) return undefined;
+
+  const username = process.env.MEESHO_PROXY_USERNAME;
+  const password = process.env.MEESHO_PROXY_PASSWORD;
+
+  logger.info("Configuring proxy for Playwright browser", { server: proxyServer });
+
+  return {
+    server: proxyServer,
+    ...(username && password ? { username, password } : {}),
+  };
+}
+
 /**
  * Launch Chromium with support for local execution, remote WebSocket CDP endpoint (Browserless/VPS/EC2),
- * or serverless chromium fallback.
+ * proxy servers, or serverless chromium fallback.
  */
 export async function launchBrowser(headless?: boolean): Promise<Browser> {
   if (!isNodeRuntime()) {
@@ -54,6 +70,7 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
   }
 
   const chromium = await getChromium();
+  const proxy = getProxyOptions();
 
   // Strategy 1: Remote WebSocket Endpoint (Browserless.io, Render, Railway, EC2, VPS)
   const wsEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT || process.env.BROWSERLESS_WS_ENDPOINT;
@@ -82,6 +99,7 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
           args: sparticuz.default.args,
           executablePath,
           headless: sparticuz.default.headless === true,
+          ...(proxy ? { proxy } : {}),
         });
         sharedBrowserHeadless = resolvedHeadless;
         return sharedBrowser;
@@ -100,17 +118,20 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
     "--disable-gpu",
     "--no-first-run",
     "--no-zygote",
+    "--disable-features=IsolateOrigins,site-per-process",
   ];
 
   // In Production / Linux (Render, Docker, Railway, EC2, VPS), use bundled Chromium without channel fallbacks
   if (isProductionLinux) {
     logger.info("Launching Playwright bundled Chromium in Linux/Production environment", {
       headless: resolvedHeadless,
+      hasProxy: Boolean(proxy),
     });
     try {
       sharedBrowser = await chromium.launch({
         headless: resolvedHeadless,
         args: linuxArgs,
+        ...(proxy ? { proxy } : {}),
       });
       sharedBrowserHeadless = resolvedHeadless;
 
@@ -131,6 +152,7 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
   const launchOptions = {
     headless: resolvedHeadless,
     args: linuxArgs,
+    ...(proxy ? { proxy } : {}),
   };
 
   try {

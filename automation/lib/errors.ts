@@ -20,6 +20,14 @@ export class LoginError extends MeeshoAutomationError {
   }
 }
 
+export class IpBlockedError extends MeeshoAutomationError {
+  readonly reason: string = "MEESHO_IP_BLOCKED";
+  constructor(message: string, options?: { screenshotPath?: string; cause?: unknown }) {
+    super(message, "MEESHO_IP_BLOCKED", options);
+    this.name = "IpBlockedError";
+  }
+}
+
 export class SessionError extends MeeshoAutomationError {
   constructor(message: string, options?: { screenshotPath?: string; cause?: unknown }) {
     super(message, "SESSION_INVALID", options);

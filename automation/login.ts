@@ -4,7 +4,7 @@ import { chromium, type Browser, type BrowserContext, type Locator, type Page } 
 import { createBrowserContext, launchBrowser } from "./browser.js";
 import { DEFAULT_TIMEOUTS, ENV, MEESHO_URLS, PATHS } from "./config/constants.js";
 import { productCreationSelectors } from "./config/selectors.js";
-import { LoginError } from "./lib/errors.js";
+import { IpBlockedError, LoginError } from "./lib/errors.js";
 import { logger } from "./lib/logger.js";
 import { resolveSelector } from "./lib/selectors.js";
 import {
@@ -182,7 +182,7 @@ export async function handleOtpInteractively(
 }
 
 /**
- * Dynamic production-grade automated login with OTP auto-fallback.
+ * Dynamic production-grade automated login with Access Denied / IP Block detection.
  */
 export async function automatedLogin(
   page: Page,
@@ -192,10 +192,34 @@ export async function automatedLogin(
   logger.info("Starting production automated login", { email: credentials.email });
   page.setDefaultTimeout(STEP_TIMEOUT);
 
+  let response = null;
   try {
-    await page.goto(MEESHO_URLS.login, { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT });
+    response = await page.goto(MEESHO_URLS.login, { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT });
   } catch {
-    await page.goto("https://supplier.meesho.com/", { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT });
+    response = await page.goto("https://supplier.meesho.com/", { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT }).catch(() => null);
+  }
+
+  // 1. Detect Access Denied / 403 / IP Block before trying to locate any input fields
+  const title = (await page.title().catch(() => "")).trim();
+  const statusCode = response?.status() ?? 200;
+  const content = await page.content().catch(() => "");
+
+  const isIpBlocked =
+    statusCode === 403 ||
+    title.toLowerCase().includes("access denied") ||
+    title.toLowerCase().includes("403 forbidden") ||
+    title.toLowerCase().includes("attention required") ||
+    content.toLowerCase().includes("access denied") ||
+    content.toLowerCase().includes("cloudflare ray id") ||
+    content.toLowerCase().includes("block script");
+
+  if (isIpBlocked) {
+    logger.error("Meesho IP block / Access Denied detected on navigation", { title, statusCode, url: page.url() });
+    const diag = await captureFullDiagnostics(page, "ip_blocked");
+    throw new IpBlockedError(
+      "Meesho blocked this server IP before the login page loaded.",
+      { screenshotPath: diag.screenshot },
+    );
   }
 
   const loginLink = page.getByRole("link", { name: /login/i }).or(page.locator('a[href*="login"]'));
@@ -352,6 +376,10 @@ export async function login(
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
     await clearSession(sessionPath);
+
+    if (error instanceof IpBlockedError) {
+      throw error;
+    }
 
     throw new LoginError(
       `Login failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -46,7 +46,7 @@ export async function getMeeshoStatus(): Promise<MeeshoConnectionStatus> {
 /** Authenticate and persist session for Meesho Seller portal. */
 export async function connectMeesho(
   credentials?: MeeshoCredentials,
-): Promise<{ success: boolean; requiresOtp?: boolean; message: string; status: MeeshoConnectionStatus; step?: string; error?: string }> {
+): Promise<{ success: boolean; requiresOtp?: boolean; reason?: string; message: string; status: MeeshoConnectionStatus; step?: string; error?: string }> {
   if (AUTOMATION_API_URL) {
     try {
       const res = await fetch(`${AUTOMATION_API_URL}/meesho/connect`, {
@@ -90,6 +90,7 @@ export async function connectMeesho(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const isBlocked = (error as any)?.code === "MEESHO_IP_BLOCKED" || message.includes("blocked this server IP") || message.includes("Access Denied");
     let status: MeeshoConnectionStatus = { connected: false };
     try {
       const { getConnectionStatus } = await loadAutomationModule();
@@ -99,9 +100,12 @@ export async function connectMeesho(
     }
     return {
       success: false,
-      message: `Meesho login failed: ${message}`,
+      reason: isBlocked ? "MEESHO_IP_BLOCKED" : "LOGIN_FAILED",
+      message: isBlocked
+        ? "Meesho blocked this server IP before the login page loaded."
+        : `Meesho login failed: ${message}`,
       error: message,
-      step: "login_automation",
+      step: isBlocked ? "ip_check" : "login_automation",
       status,
     };
   }
