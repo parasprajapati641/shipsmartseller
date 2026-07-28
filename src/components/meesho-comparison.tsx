@@ -210,8 +210,8 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
   return (
     <div className="rounded-2xl surface p-6 space-y-6">
       {/* Header & Connection Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
-        <div>
+      {/* <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5"> */}
+        {/* <div>
           <div className="flex items-center gap-2">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand">
               <Truck className="h-4 w-4 text-brand-foreground" />
@@ -221,10 +221,10 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
           <p className="mt-1 text-xs text-muted-foreground">
             Auto-upload variants to Meesho Seller Portal & extract lowest shipping supplier rates.
           </p>
-        </div>
+        </div> */}
 
         {/* Connection status badge & controls */}
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-border bg-card/60 px-3.5 py-1.5 text-xs font-medium">
             {connectionState.connected ? (
               <>
@@ -259,8 +259,8 @@ export function MeeshoComparison({ optimizedVariants, filename }: MeeshoComparis
           >
             {connectionState.connected ? "Re-connect" : "Connect Meesho"}
           </button>
-        </div>
-      </div>
+        </div> */}
+      {/* </div> */}
 
       {/* Connection Modal */}
       {showConnectModal && (
