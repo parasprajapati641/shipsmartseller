@@ -14,11 +14,13 @@ export default defineConfig({
   },
   vite: {
     ssr: {
-      external: ["playwright", "playwright-core", "chromium-bidi"],
+      external: ["playwright", "playwright-core", "chromium-bidi", "razorpay"],
     },
     build: {
+      minify: false,
+      sourcemap: false,
       rollupOptions: {
-        external: ["playwright", "playwright-core", "chromium-bidi"],
+        external: ["playwright", "playwright-core", "chromium-bidi", "razorpay"],
       },
     },
   },

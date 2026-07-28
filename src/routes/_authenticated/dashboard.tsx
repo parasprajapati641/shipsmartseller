@@ -298,6 +298,20 @@ function Dashboard() {
           </Link>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => {
+                import("@/lib/razorpay-checkout").then(({ openRazorpayCheckout }) => {
+                  openRazorpayCheckout({
+                    plan: "premium",
+                    amountInRupees: 499,
+                    userEmail: user?.email,
+                  });
+                });
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3.5 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90 transition-opacity glow shadow-sm"
+            >
+              <Zap className="h-3.5 w-3.5" /> Upgrade to Premium (₹499)
+            </button>
+            <button
               onClick={() => setShowAnalyticsModal(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/20 transition-colors"
             >
@@ -590,9 +604,9 @@ function Dashboard() {
                     <div className="p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-semibold text-gradient">{r.targetKB} KB Target</div>
+                          <div className="text-xs font-semibold text-gradient">{r.targetKB} KB Preset ({r.sizeKB} KB File)</div>
                           <div className="text-[10px] text-muted-foreground">
-                            Confidence: {r.recommendation?.confidenceScorePct ?? 80}% · {r.sizeKB} KB
+                            Confidence: {r.recommendation?.confidenceScorePct ?? 85}% · {r.width}×{r.height}px
                           </div>
                         </div>
                         <button

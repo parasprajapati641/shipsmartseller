@@ -183,9 +183,9 @@ function classifyOrientation(aspectRatio: number): ImageOrientation {
 
 function computeMasterSize(srcW: number, srcH: number): number {
   const maxDim = Math.max(srcW, srcH);
-  if (maxDim <= 1200) return 1200;
   if (maxDim <= 1600) return 1600;
-  return 2048;
+  if (maxDim <= 2048) return 2048;
+  return Math.min(2400, maxDim);
 }
 
 async function prepareMaster(file: File): Promise<MasterContext> {
@@ -218,8 +218,42 @@ async function prepareMaster(file: File): Promise<MasterContext> {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Custom Strategy Master Composition Engine
+// 4. Custom Strategy Master Composition & High-Clarity Engine
 // ---------------------------------------------------------------------------
+
+/** High-Precision Edge Sharpening Pass (Unsharp Mask) to preserve fine facial & fabric textures. */
+function applyAdaptiveSharpening(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  level: "none" | "balanced" | "high" = "high",
+): void {
+  if (level === "none") return;
+  const amount = level === "high" ? 0.35 : 0.2;
+
+  const imgData = ctx.getImageData(0, 0, width, height);
+  const data = imgData.data;
+  const copy = new Uint8ClampedArray(data);
+
+  // 3x3 High-Frequency Detail Kernel
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const center = copy[idx + c];
+        const top = copy[((y - 1) * width + x) * 4 + c];
+        const bottom = copy[((y + 1) * width + x) * 4 + c];
+        const left = copy[(y * width + (x - 1)) * 4 + c];
+        const right = copy[(y * width + (x + 1)) * 4 + c];
+
+        const laplacian = 4 * center - top - bottom - left - right;
+        const sharpened = center + amount * laplacian;
+        data[idx + c] = Math.min(255, Math.max(0, sharpened));
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
 
 async function createStrategyCanvas(
   ctx: MasterContext,
@@ -230,11 +264,14 @@ async function createStrategyCanvas(
   let canvasW = masterSize;
   let canvasH = strategy.aspectRatio === "3:4" ? Math.round(masterSize * (4 / 3)) : masterSize;
 
-  const padPixels = Math.round(canvasW * strategy.paddingRatio);
+  // Small safe margin (3%) so the subject fills the frame cleanly
+  const padRatio = Math.min(strategy.paddingRatio, 0.03);
+  const padPixels = Math.round(canvasW * padRatio);
   const innerW = canvasW - padPixels * 2;
   const innerH = canvasH - padPixels * 2;
 
-  const fillRatio = strategy.fillRatio;
+  // Make subject 10%-15% larger than original default while keeping the exact original layout
+  const fillRatio = Math.max(strategy.fillRatio, 0.90);
   const longestSide = Math.max(bbox.width, bbox.height);
   const maxInnerDim = Math.min(innerW, innerH);
   const desiredSize = maxInnerDim * fillRatio;
@@ -278,37 +315,85 @@ async function createStrategyCanvas(
 
   mctx.drawImage(scaledProductCanvas, offsetX, offsetY);
 
+  // Apply high-clarity detail sharpening
+  applyAdaptiveSharpening(mctx, canvasW, canvasH, strategy.sharpeningLevel ?? "high");
+
   return master;
 }
 
 // ---------------------------------------------------------------------------
-// 5. Encoding & Perceptual Scoring
+// 5. Encoding & Precision Target KB Engine
 // ---------------------------------------------------------------------------
 
-async function encodeJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
-  return pica.toBlob(canvas, "image/jpeg", quality);
-}
+/**
+ * Adaptively scales canvas dimensions and binary-searches JPEG quality to hit targetKB with high precision (within 90%-99.5% of budget),
+ * ensuring every preset produces its distinct target file size with maximum subject resolution and sharpness.
+ */
+async function encodeExactTargetKB(
+  strategyCanvas: HTMLCanvasElement,
+  targetKB: number,
+  sharpeningLevel: "none" | "balanced" | "high" = "high",
+): Promise<{ blob: Blob; width: number; height: number; quality: number }> {
+  const targetBytes = targetKB * 1024;
+  const minAcceptableBytes = Math.max(1024, Math.round(targetBytes * 0.90));
+  const maxAcceptableBytes = Math.round(targetBytes * 0.995);
 
-async function bestQualityUnderBudget(
-  canvas: HTMLCanvasElement,
-  targetBytes: number,
-): Promise<{ blob: Blob; quality: number } | null> {
-  let lo = MIN_QUALITY;
-  let hi = MAX_QUALITY;
-  let best: { blob: Blob; quality: number } | null = null;
+  // Calculate ideal initial canvas scale factor derived from targetKB to prevent preset duplication
+  const estimatedPixelCapacity = (targetBytes * 3.4) / 0.55;
+  const currentPixelArea = strategyCanvas.width * strategyCanvas.height;
+  const initialScale = Math.min(1.0, Math.sqrt(estimatedPixelCapacity / currentPixelArea));
 
-  for (let i = 0; i < BINARY_SEARCH_ITERATIONS; i++) {
-    const q = (lo + hi) / 2;
-    const blob = await encodeJpeg(canvas, q);
-    if (blob.size <= targetBytes) {
-      best = { blob, quality: q };
-      lo = q;
-    } else {
-      hi = q;
+  const scaleList = [
+    Math.min(1.0, Math.max(0.2, initialScale * 1.15)),
+    Math.min(1.0, Math.max(0.2, initialScale * 1.0)),
+    Math.min(1.0, Math.max(0.2, initialScale * 0.88)),
+    Math.min(1.0, Math.max(0.2, initialScale * 0.75)),
+    Math.min(1.0, Math.max(0.2, initialScale * 0.60)),
+    0.40,
+    0.30,
+    0.22,
+  ];
+
+  for (const scale of scaleList) {
+    const nw = Math.max(220, Math.round(strategyCanvas.width * scale));
+    const nh = Math.max(220, Math.round(strategyCanvas.height * scale));
+
+    const candidateCanvas = makeCanvas(nw, nh);
+    const sctx = candidateCanvas.getContext("2d")!;
+    sctx.fillStyle = "#ffffff";
+    sctx.fillRect(0, 0, nw, nh);
+    sctx.drawImage(strategyCanvas, 0, 0, nw, nh);
+    applyAdaptiveSharpening(sctx, nw, nh, sharpeningLevel);
+
+    let lo = 0.40;
+    let hi = 0.97;
+    let bestBlob: Blob | null = null;
+    let bestQ = lo;
+
+    for (let iter = 0; iter < 14; iter++) {
+      const q = (lo + hi) / 2;
+      const blob = await pica.toBlob(candidateCanvas, "image/jpeg", q);
+
+      if (blob.size <= maxAcceptableBytes) {
+        bestBlob = blob;
+        bestQ = q;
+        lo = q; // Try higher quality
+        if (blob.size >= minAcceptableBytes) {
+          return { blob, width: nw, height: nh, quality: Math.round(q * 100) / 100 };
+        }
+      } else {
+        hi = q;
+      }
+    }
+
+    if (bestBlob && bestBlob.size <= maxAcceptableBytes && bestBlob.size >= Math.round(targetBytes * 0.82)) {
+      return { blob: bestBlob, width: nw, height: nh, quality: Math.round(bestQ * 100) / 100 };
     }
   }
 
-  return best;
+  // Fallback fit
+  const fallbackBlob = await pica.toBlob(strategyCanvas, "image/jpeg", 0.60);
+  return { blob: fallbackBlob, width: strategyCanvas.width, height: strategyCanvas.height, quality: 0.60 };
 }
 
 function scoreCandidateImage(
@@ -335,23 +420,23 @@ async function encodeStrategyVariant(
   const targetBytes = targetKB * 1024;
 
   const strategyCanvas = await createStrategyCanvas(ctx, strategy);
-  const attempt = await bestQualityUnderBudget(strategyCanvas, targetBytes);
+  const encoded = await encodeExactTargetKB(strategyCanvas, targetKB, strategy.sharpeningLevel ?? "high");
 
-  const finalBlob = attempt?.blob ?? (await encodeJpeg(strategyCanvas, MIN_QUALITY));
-  const quality = attempt?.quality ?? MIN_QUALITY;
+  const finalBlob = encoded.blob;
+  const quality = encoded.quality;
   const sizeKB = Math.round((finalBlob.size / 1024) * 10) / 10;
   const compressionPct = Math.max(0, Math.round((1 - finalBlob.size / ctx.fileSize) * 1000) / 10);
-  const score = scoreCandidateImage(strategyCanvas.width, ctx.masterSize, quality, finalBlob.size, targetBytes);
+  const score = scoreCandidateImage(encoded.width, ctx.masterSize, quality, finalBlob.size, targetBytes);
 
   return {
     targetKB,
     blob: finalBlob,
     url: URL.createObjectURL(finalBlob),
-    width: strategyCanvas.width,
-    height: strategyCanvas.height,
+    width: encoded.width,
+    height: encoded.height,
     sizeKB,
     format: "image/jpeg",
-    quality: Math.round(quality * 100) / 100,
+    quality,
     compressionPct,
     orientation: ctx.orientation,
     score,
@@ -411,11 +496,11 @@ export async function optimizeToTarget(file: File, targetKB: number): Promise<Op
   const defaultStrategy: OptimizationStrategy = {
     id: `custom_${targetKB}kb`,
     name: `Target ${targetKB}KB`,
-    fillRatio: 0.8,
+    fillRatio: 0.95,
     aspectRatio: "1:1",
     targetKB,
-    paddingRatio: 0.1,
-    sharpeningLevel: "balanced",
+    paddingRatio: 0.02,
+    sharpeningLevel: "high",
   };
   return encodeStrategyVariant(ctx, defaultStrategy);
 }

@@ -64,25 +64,24 @@ const STORAGE_KEY_OUTCOMES = "shipsmart_outcomes_history_v1";
 
 /** Default Base Strategies covering the design space. */
 export const DEFAULT_STRATEGIES: OptimizationStrategy[] = [
-  { id: "tight_10kb_square", name: "Tight Crop 10KB (1:1)", fillRatio: 0.9, aspectRatio: "1:1", targetKB: 10, paddingRatio: 0.05, sharpeningLevel: "high", weight: 1.2 },
-  { id: "balanced_15kb_square", name: "Balanced 15KB (1:1)", fillRatio: 0.8, aspectRatio: "1:1", targetKB: 15, paddingRatio: 0.1, sharpeningLevel: "balanced", weight: 1.1 },
-  { id: "tight_20kb_portrait", name: "Tight Crop Apparel 20KB (3:4)", fillRatio: 0.88, aspectRatio: "3:4", targetKB: 20, paddingRatio: 0.06, sharpeningLevel: "balanced", weight: 1.3 },
-  { id: "balanced_25kb_square", name: "Balanced 25KB (1:1)", fillRatio: 0.82, aspectRatio: "1:1", targetKB: 25, paddingRatio: 0.1, sharpeningLevel: "balanced", weight: 1.0 },
-  { id: "wide_30kb_square", name: "Wide Margin 30KB (1:1)", fillRatio: 0.72, aspectRatio: "1:1", targetKB: 30, paddingRatio: 0.15, sharpeningLevel: "none", weight: 0.9 },
-  { id: "compact_5kb_square", name: "Ultra-Compact 5KB (1:1)", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 5, paddingRatio: 0.04, sharpeningLevel: "high", weight: 1.4 },
-  { id: "apparel_30kb_portrait", name: "Apparel Pro 30KB (3:4)", fillRatio: 0.85, aspectRatio: "3:4", targetKB: 30, paddingRatio: 0.08, sharpeningLevel: "balanced", weight: 1.1 },
-  { id: "standard_50kb_square", name: "Standard High Quality 50KB", fillRatio: 0.78, aspectRatio: "1:1", targetKB: 50, paddingRatio: 0.12, sharpeningLevel: "balanced", weight: 0.8 },
+  { id: "max_tight_15kb_square", name: "Max Subject Frame 15KB (1:1)", fillRatio: 0.95, aspectRatio: "1:1", targetKB: 15, paddingRatio: 0.02, sharpeningLevel: "high", weight: 1.5 },
+  { id: "full_body_20kb_portrait", name: "Full Person Portrait 20KB (3:4)", fillRatio: 0.94, aspectRatio: "3:4", targetKB: 20, paddingRatio: 0.03, sharpeningLevel: "high", weight: 1.4 },
+  { id: "sharp_25kb_square", name: "Sharp High-Res 25KB (1:1)", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 25, paddingRatio: 0.03, sharpeningLevel: "balanced", weight: 1.2 },
+  { id: "studio_30kb_square", name: "Studio Focus 30KB (1:1)", fillRatio: 0.90, aspectRatio: "1:1", targetKB: 30, paddingRatio: 0.04, sharpeningLevel: "balanced", weight: 1.0 },
+  { id: "compact_5kb_square", name: "Ultra-Crisp 5KB (1:1)", fillRatio: 0.96, aspectRatio: "1:1", targetKB: 5, paddingRatio: 0.02, sharpeningLevel: "high", weight: 1.4 },
+  { id: "apparel_30kb_portrait", name: "Apparel HD 30KB (3:4)", fillRatio: 0.93, aspectRatio: "3:4", targetKB: 30, paddingRatio: 0.03, sharpeningLevel: "high", weight: 1.3 },
+  { id: "standard_50kb_square", name: "Maximum Clarity 50KB", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 50, paddingRatio: 0.03, sharpeningLevel: "high", weight: 1.1 },
 ];
 
 export const ROUND_2_DEEP_STRATEGIES: OptimizationStrategy[] = [
-  { id: "deep_ultra_4kb_square", name: "Deep Ultra-Low 4KB (1:1)", fillRatio: 0.95, aspectRatio: "1:1", targetKB: 4, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_apparel_12kb_portrait", name: "Deep Apparel Extreme 12KB (3:4)", fillRatio: 0.94, aspectRatio: "3:4", targetKB: 12, paddingRatio: 0.04, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_contrast_18kb_square", name: "Deep High-Contrast 18KB", fillRatio: 0.86, aspectRatio: "1:1", targetKB: 18, paddingRatio: 0.07, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_wide_35kb_square", name: "Deep Micro-Padding 35KB", fillRatio: 0.75, aspectRatio: "1:1", targetKB: 35, paddingRatio: 0.18, sharpeningLevel: "balanced", isRound2Deep: true },
-  { id: "deep_portrait_40kb", name: "Deep Portrait Studio 40KB (3:4)", fillRatio: 0.84, aspectRatio: "3:4", targetKB: 40, paddingRatio: 0.09, sharpeningLevel: "balanced", isRound2Deep: true },
-  { id: "deep_compact_8kb_square", name: "Deep Compact 8KB", fillRatio: 0.93, aspectRatio: "1:1", targetKB: 8, paddingRatio: 0.04, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_balanced_22kb_square", name: "Deep Tuned 22KB", fillRatio: 0.83, aspectRatio: "1:1", targetKB: 22, paddingRatio: 0.08, sharpeningLevel: "balanced", isRound2Deep: true },
-  { id: "deep_max_45kb_portrait", name: "Deep Max-Detail 45KB (3:4)", fillRatio: 0.87, aspectRatio: "3:4", targetKB: 45, paddingRatio: 0.07, sharpeningLevel: "balanced", isRound2Deep: true },
+  { id: "deep_ultra_4kb_square", name: "Deep Ultra-Crisp 4KB (1:1)", fillRatio: 0.96, aspectRatio: "1:1", targetKB: 4, paddingRatio: 0.02, sharpeningLevel: "high", isRound2Deep: true },
+  { id: "deep_apparel_12kb_portrait", name: "Deep Apparel HD 12KB (3:4)", fillRatio: 0.95, aspectRatio: "3:4", targetKB: 12, paddingRatio: 0.02, sharpeningLevel: "high", isRound2Deep: true },
+  { id: "deep_contrast_18kb_square", name: "Deep Edge-Sharp 18KB", fillRatio: 0.93, aspectRatio: "1:1", targetKB: 18, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
+  { id: "deep_wide_35kb_square", name: "Deep Full Frame 35KB", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 35, paddingRatio: 0.04, sharpeningLevel: "balanced", isRound2Deep: true },
+  { id: "deep_portrait_40kb", name: "Deep Portrait HD 40KB (3:4)", fillRatio: 0.94, aspectRatio: "3:4", targetKB: 40, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
+  { id: "deep_compact_8kb_square", name: "Deep Compact 8KB", fillRatio: 0.95, aspectRatio: "1:1", targetKB: 8, paddingRatio: 0.02, sharpeningLevel: "high", isRound2Deep: true },
+  { id: "deep_balanced_22kb_square", name: "Deep Tuned 22KB", fillRatio: 0.91, aspectRatio: "1:1", targetKB: 22, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
+  { id: "deep_max_45kb_portrait", name: "Deep Max-Detail 45KB (3:4)", fillRatio: 0.93, aspectRatio: "3:4", targetKB: 45, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
 ];
 
 export const PRODUCT_CATEGORIES = [

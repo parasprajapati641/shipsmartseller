@@ -39,7 +39,7 @@ const FEATURES = [
   {
     icon: Zap,
     title: "Instant optimization",
-    body: "Drop a photo and get 10 marketplace-ready variants in under 8 seconds — powered by a modular AI pipeline.",
+    body: "Drop a photo and get 10 marketplace-ready variants in under 8 seconds, powered by a modular AI pipeline.",
   },
   {
     icon: LayoutGrid,
@@ -49,7 +49,7 @@ const FEATURES = [
   {
     icon: ImageIcon,
     title: "Studio-clean output",
-    body: "Pure white background, correct product padding, perfect square ratio — every image looks like a paid shoot.",
+    body: "Pure white background, correct product padding, perfect square ratio, every image looks like a paid shoot.",
   },
   {
     icon: Shield,
@@ -116,7 +116,7 @@ const FAQS = [
   },
   {
     q: "Will the compressed images look pixelated?",
-    a: "No. We use perceptual compression tuned for product photography — edges stay sharp and colors true, even at 5 KB.",
+    a: "No. We use perceptual compression tuned for product photography, edges stay sharp and colors true, even at 5 KB.",
   },
   {
     q: "What formats do you support?",
@@ -604,6 +604,7 @@ function Sizes() {
 
 function Pricing() {
   const { isAuthed, goStart } = useAuthCTA();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // add pricing complonents
@@ -632,79 +633,18 @@ function Pricing() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const { openRazorpayCheckout } = await import("@/lib/razorpay-checkout");
+      await openRazorpayCheckout({
+        plan,
+        amountInRupees: plan === "premium_plus" ? 999 : 499,
+        userEmail: user?.email,
+        onSuccess: () => {
+          navigate({ to: "/dashboard" });
         },
-        body: JSON.stringify({ plan }),
       });
-
-      if (!response.ok) {
-        toast.error("Unable to create order");
-        return;
-      }
-
-      const order = await response.json();
-
-      console.log("Razorpay Key:", import.meta.env.VITE_RAZORPAY_KEY);
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY,
-        amount: order.amount,
-        currency: order.currency,
-        name: "ShipSmart",
-        description:
-          plan === "premium"
-            ? "Premium Subscription"
-            : "Premium Plus Subscription",
-        order_id: order.id,
-
-        handler: async function (response: any) {
-
-          // Get logged in user
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-
-          await fetch("http://localhost:5000/verify-payment", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              ...response,
-              plan,
-              email: user?.email,
-            }),
-          });
-
-          toast.success("Subscription Activated 🎉");
-        },
-
-        prefill: {
-          name: "",
-          email: "",
-          contact: "",
-        },
-
-        theme: {
-          color: "#0F766E",
-        },
-      };
-
-      console.log(options);
-
-      const razorpay = new window.Razorpay(options);
-
-      razorpay.on("payment.failed", () => {
-        toast.error("Payment Failed");
-      });
-
-      razorpay.open();
     } catch (err) {
-      console.error(err);
-      toast.error("Something went wrong.");
+      console.error("[PAYMENT CHECKOUT ERROR]", err);
+      toast.error(err instanceof Error ? err.message : "Payment initialization failed.");
     }
   };
 
