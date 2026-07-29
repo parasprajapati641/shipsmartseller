@@ -3,12 +3,13 @@
 // Pipeline Architecture:
 //  1. Single-Pass Image Decoding: Decode raw input file (JPG, PNG, WEBP) exactly once via createImageBitmap with "from-image" orientation.
 //  2. Metadata & EXIF Stripping: Output stream strips all EXIF tags, comments, and redundant ICC profiles, mapping pixels directly to sRGB space.
-//  3. Computer Vision Subject Detection: Scan pixel alpha & color variance to isolate subject bounding box (minX, minY, maxX, maxY).
+//  3. Border Background Sampling & Computer Vision Detection: Sample image corners & edges to isolate subject bounding box (minX, minY, maxX, maxY).
 //  4. Tight Auto-Cropping (88%-92% Subject Occupancy): Crop tightly around subject with minimal 2%-4% padding before scaling/compression.
 //  5. Aspect Ratio Preservation: Maintain requested 1:1 or 3:4 target aspect ratios without distortion.
 //  6. Multi-Resolution Resizing & Canvas Cache: Use Pica Lanczos3 filter for high-clarity downscaling.
 //  7. Scale-Factor Aware Sharpening: Apply unsharp masking to preserve fine facial & fabric details.
 //  8. Precision KB Compression (±0.5 KB Target Matching): Binary-search JPEG compression to hit exact target preset size.
+//  9. Comprehensive Production Debug Logging: Log bounding box, crop rectangle, frame occupancy %, and final dimensions.
 
 import Pica from "pica";
 import {
@@ -38,6 +39,12 @@ export type OptimizedResult = {
   score?: number;
   strategy?: OptimizationStrategy;
   recommendation?: VariantRecommendation;
+  debugInfo?: {
+    bbox: SubjectBoundingBox;
+    cropRect: { left: number; top: number; width: number; height: number };
+    frameOccupancyPct: number;
+    outputDim: { width: number; height: number };
+  };
 };
 
 export const TARGET_SIZES = [5, 10, 15, 20, 25, 30, 40, 50];
@@ -58,6 +65,7 @@ type MasterContext = {
   orientation: ImageOrientation;
   aspectRatio: number;
   bbox: SubjectBoundingBox;
+  bgSample: { r: number; g: number; b: number };
   nativeCanvas: HTMLCanvasElement;
   resizeCache: Map<string, HTMLCanvasElement>;
 };
@@ -93,16 +101,39 @@ function makeCanvas(width: number, height: number = width): HTMLCanvasElement {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Computer Vision: Subject Bounding Box Detection
+// 3. Computer Vision: Border Sampling & Subject Bounding Box Detection
 // ---------------------------------------------------------------------------
 
 function detectSubjectBoundingBox(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-): SubjectBoundingBox {
+): { bbox: SubjectBoundingBox; bgSample: { r: number; g: number; b: number } } {
   const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
+
+  // 1. Border Sampling: Calculate baseline background RGB from outer edges of photo
+  let bgRSum = 0, bgGSum = 0, bgBSum = 0, bgCount = 0;
+  const borderMargin = Math.max(2, Math.floor(Math.min(width, height) * 0.02));
+
+  for (let y = 0; y < height; y += 2) {
+    for (let x = 0; x < width; x += 2) {
+      if (y < borderMargin || y >= height - borderMargin || x < borderMargin || x >= width - borderMargin) {
+        const idx = (y * width + x) * 4;
+        const a = data[idx + 3];
+        if (a > 30) {
+          bgRSum += data[idx];
+          bgGSum += data[idx + 1];
+          bgBSum += data[idx + 2];
+          bgCount++;
+        }
+      }
+    }
+  }
+
+  const bgR = bgCount > 0 ? bgRSum / bgCount : 255;
+  const bgG = bgCount > 0 ? bgGSum / bgCount : 255;
+  const bgB = bgCount > 0 ? bgBSum / bgCount : 255;
 
   let minX = width;
   let minY = height;
@@ -110,7 +141,7 @@ function detectSubjectBoundingBox(
   let maxY = 0;
   let found = false;
 
-  const step = Math.max(1, Math.floor(Math.min(width, height) / 800));
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 600));
 
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
@@ -120,13 +151,19 @@ function detectSubjectBoundingBox(
       const b = data[idx + 2];
       const a = data[idx + 3];
 
-      const isTransparent = a < 25;
+      if (a < 30) continue; // Transparent
+
       const brightness = (r + g + b) / 3;
       const colorDiff = Math.max(r, g, b) - Math.min(r, g, b);
+      const distToBg = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
 
-      const isLightBackground = brightness > 238 && colorDiff < 16;
+      // Identify studio background, shadows, or off-white studio walls
+      const isBackground =
+        (distToBg < 40 && brightness > 165) ||
+        (brightness > 235 && colorDiff < 18) ||
+        (brightness > 248);
 
-      if (!isTransparent && !isLightBackground) {
+      if (!isBackground) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -137,24 +174,47 @@ function detectSubjectBoundingBox(
   }
 
   if (!found || maxX <= minX || maxY <= minY) {
-    return { minX: 0, minY: 0, maxX: width, maxY: height, width, height };
+    // Fallback saliency crop: Focus on central 75% where model stands
+    const padX = Math.round(width * 0.125);
+    const padY = Math.round(height * 0.08);
+    return {
+      bbox: {
+        minX: padX,
+        minY: padY,
+        maxX: width - padX,
+        maxY: height - padY,
+        width: width - padX * 2,
+        height: height - padY * 2,
+      },
+      bgSample: { r: Math.round(bgR), g: Math.round(bgG), b: Math.round(bgB) },
+    };
   }
 
-  const marginX = Math.round(width * 0.005);
-  const marginY = Math.round(height * 0.005);
+  let bWidth = maxX - minX;
+  let bHeight = maxY - minY;
 
-  minX = Math.max(0, minX - marginX);
-  minY = Math.max(0, minY - marginY);
-  maxX = Math.min(width, maxX + marginX);
-  maxY = Math.min(height, maxY + marginY);
+  // If detected bbox covers >86% of entire photo (background not fully filtered), apply central saliency crop
+  if (bWidth / width > 0.86 || bHeight / height > 0.86) {
+    const centerMarginX = Math.round(width * 0.12);
+    const centerMarginY = Math.round(height * 0.08);
+    minX = Math.min(width / 2 - 10, minX + centerMarginX);
+    maxX = Math.max(width / 2 + 10, maxX - centerMarginX);
+    minY = Math.min(height / 2 - 10, minY + centerMarginY);
+    maxY = Math.max(height / 2 + 10, maxY - centerMarginY);
+    bWidth = maxX - minX;
+    bHeight = maxY - minY;
+  }
 
   return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    width: maxX - minX,
-    height: maxY - minY,
+    bbox: {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: bWidth,
+      height: bHeight,
+    },
+    bgSample: { r: Math.round(bgR), g: Math.round(bgG), b: Math.round(bgB) },
   };
 }
 
@@ -183,7 +243,7 @@ async function prepareMaster(file: File): Promise<MasterContext> {
   nctx.drawImage(bmp, 0, 0);
   bmp.close?.();
 
-  const bbox = detectSubjectBoundingBox(nctx, srcW, srcH);
+  const { bbox, bgSample } = detectSubjectBoundingBox(nctx, srcW, srcH);
   const bboxAspect = bbox.width / bbox.height;
   const orientation = classifyOrientation(bboxAspect);
   const masterSize = computeMasterSize(srcW, srcH);
@@ -195,6 +255,7 @@ async function prepareMaster(file: File): Promise<MasterContext> {
     orientation,
     aspectRatio: bboxAspect,
     bbox,
+    bgSample,
     nativeCanvas,
     resizeCache: new Map(),
   };
@@ -247,7 +308,7 @@ function applyAdaptiveSharpening(
 async function createStrategyCanvas(
   ctx: MasterContext,
   strategy: OptimizationStrategy,
-): Promise<HTMLCanvasElement> {
+): Promise<{ croppedCanvas: HTMLCanvasElement; debugRect: { left: number; top: number; width: number; height: number }; occupancyPct: number }> {
   const { bbox, nativeCanvas } = ctx;
 
   // 1. Target aspect ratio (e.g. 3:4 -> 0.75, 1:1 -> 1.0)
@@ -317,7 +378,13 @@ async function createStrategyCanvas(
   // Apply high-clarity detail sharpening
   applyAdaptiveSharpening(cctx, renderW, renderH, strategy.sharpeningLevel ?? "high");
 
-  return croppedCanvas;
+  const occupancyPct = Math.round(Math.max(bbox.width / renderW, bbox.height / renderH) * 100);
+
+  return {
+    croppedCanvas,
+    debugRect: { left: Math.round(cropLeft), top: Math.round(cropTop), width: renderW, height: renderH },
+    occupancyPct,
+  };
 }
 
 /**
@@ -437,9 +504,9 @@ export async function generateAdaptiveVariants(
     const stepPct = Math.round(15 + ((i + 1) / total) * 75);
     onProgress?.(stepPct, `Tuning strategy: ${strategy.name} (${strategy.targetKB}KB target)...`);
 
-    const strategyCanvas = await createStrategyCanvas(ctx, strategy);
+    const { croppedCanvas, debugRect, occupancyPct } = await createStrategyCanvas(ctx, strategy);
     const encoded = await encodeExactTargetKB(
-      strategyCanvas,
+      croppedCanvas,
       strategy.targetKB,
       strategy.sharpeningLevel ?? "high",
     );
@@ -447,6 +514,23 @@ export async function generateAdaptiveVariants(
     const sizeKB = Math.round((encoded.blob.size / 1024) * 10) / 10;
     const compressionPct = Math.round(((file.size - encoded.blob.size) / file.size) * 100);
     const url = URL.createObjectURL(encoded.blob);
+
+    const debugInfo = {
+      bbox: ctx.bbox,
+      cropRect: debugRect,
+      frameOccupancyPct: occupancyPct,
+      outputDim: { width: encoded.width, height: encoded.height },
+    };
+
+    console.log(`[SHIPS MART CROP DEBUG] Variant ${strategy.name} (${strategy.targetKB}KB):`, {
+      detectedBoundingBox: `${ctx.bbox.width}x${ctx.bbox.height} at (${ctx.bbox.minX},${ctx.bbox.minY})`,
+      bgSample: `rgb(${ctx.bgSample.r},${ctx.bgSample.g},${ctx.bgSample.b})`,
+      cropRectangle: `${debugRect.width}x${debugRect.height} at (${debugRect.left},${debugRect.top})`,
+      finalFrameOccupancyPct: `${occupancyPct}%`,
+      outputDimensions: `${encoded.width}x${encoded.height}`,
+      targetKB: strategy.targetKB,
+      downloadedKB: sizeKB,
+    });
 
     results.push({
       targetKB: strategy.targetKB,
@@ -460,6 +544,7 @@ export async function generateAdaptiveVariants(
       compressionPct,
       orientation: ctx.orientation,
       strategy,
+      debugInfo,
     });
   }
 

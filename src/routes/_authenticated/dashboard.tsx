@@ -612,7 +612,7 @@ function Dashboard() {
                         <div>
                           <div className="text-xs font-semibold text-gradient">{r.targetKB} KB Preset ({r.sizeKB} KB File)</div>
                           <div className="text-[10px] text-muted-foreground">
-                            Confidence: {r.recommendation?.confidenceScorePct ?? 85}% · {r.width}×{r.height}px
+                            Frame Occupancy: {r.debugInfo?.frameOccupancyPct ?? 90}% · {r.width}×{r.height}px
                           </div>
                         </div>
                         <button
