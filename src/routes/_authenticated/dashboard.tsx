@@ -19,6 +19,9 @@ import {
   Sparkles as BeautyIcon,
   Smartphone,
   Package,
+  ShoppingBag,
+  Baby,
+  Dumbbell,
   BrainCircuit,
   TrendingDown,
   Layers,
@@ -70,6 +73,9 @@ const ICON_MAP = {
   Home: HomeIcon,
   Sparkles: BeautyIcon,
   Smartphone,
+  ShoppingBag,
+  Baby,
+  Dumbbell,
   Package,
 };
 

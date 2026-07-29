@@ -386,13 +386,13 @@ async function encodeExactTargetKB(
       }
     }
 
-    if (bestBlob && bestBlob.size <= maxAcceptableBytes && bestBlob.size >= Math.round(targetBytes * 0.82)) {
+    if (bestBlob && bestBlob.size <= maxAcceptableBytes) {
       return { blob: bestBlob, width: nw, height: nh, quality: Math.round(bestQ * 100) / 100 };
     }
   }
 
   // Fallback fit
-  const fallbackBlob = await pica.toBlob(strategyCanvas, "image/jpeg", 0.60);
+  const fallbackBlob = await pica.toBlob(strategyCanvas, "image/jpeg", 0.70);
   return { blob: fallbackBlob, width: strategyCanvas.width, height: strategyCanvas.height, quality: 0.60 };
 }
 

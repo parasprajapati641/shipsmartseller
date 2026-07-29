@@ -87,11 +87,14 @@ export const ROUND_2_DEEP_STRATEGIES: OptimizationStrategy[] = [
 export const PRODUCT_CATEGORIES = [
   { id: "apparel", label: "Apparel & Sarees", icon: "Shirt" },
   { id: "footwear", label: "Footwear & Shoes", icon: "Footprints" },
-  { id: "jewelry", label: "Jewelry & Accessories", icon: "Gem" },
-  { id: "home", label: "Home & Kitchen", icon: "Home" },
-  { id: "beauty", label: "Beauty & Personal Care", icon: "Sparkles" },
-  { id: "electronics", label: "Electronics & Gadgets", icon: "Smartphone" },
-  { id: "general", label: "General Products", icon: "Package" },
+  { id: "jewelry", label: "Jewelry & Fashion Accessories", icon: "Gem" },
+  { id: "home", label: "Home Decor & Kitchen", icon: "Home" },
+  { id: "beauty", label: "Beauty, Cosmetics & Personal Care", icon: "Sparkles" },
+  { id: "electronics", label: "Electronics & Mobile Gadgets", icon: "Smartphone" },
+  { id: "bags", label: "Bags, Luggage & Wallets", icon: "ShoppingBag" },
+  { id: "baby", label: "Toys, Baby Care & Kids", icon: "Baby" },
+  { id: "sports", label: "Sports, Fitness & Outdoor", icon: "Dumbbell" },
+  { id: "general", label: "General Catalog & Multi-Category", icon: "Package" },
 ] as const;
 
 export function loadAllCategoryStats(): Record<string, CategoryStats> {
