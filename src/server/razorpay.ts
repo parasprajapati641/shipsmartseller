@@ -1,4 +1,3 @@
-import Razorpay from "razorpay";
 import crypto from "crypto";
 
 export type RazorpayOrderResponse = {
@@ -60,76 +59,47 @@ export async function createRazorpayOrder(
     const amountInPaise = Math.round(finalAmountInRupees * 100);
     const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    // 1. Direct REST API execution for 100% universal serverless/edge compatibility
-    if (keySecret) {
-      try {
-        const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
-        const apiRes = await fetch("https://api.razorpay.com/v1/orders", {
-          method: "POST",
-          headers: {
-            Authorization: authHeader,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: amountInPaise,
-            currency: "INR",
-            receipt,
-            notes: {
-              plan,
-              userEmail: userEmail || "seller@shipsmart.app",
-              platform: "ShipSmart Seller",
-            },
-          }),
-        });
-
-        if (apiRes.ok) {
-          const orderData = (await apiRes.json()) as { id: string; amount: number; currency?: string };
-          return {
-            success: true,
-            id: orderData.id,
-            orderId: orderData.id,
-            amount: orderData.amount,
-            currency: orderData.currency || "INR",
-            key: keyId,
-            message: "Razorpay order created successfully",
-          };
-        } else {
-          const errJson = (await apiRes.json().catch(() => ({}))) as { error?: { description?: string } };
-          console.error("[RAZORPAY REST API ERROR]", errJson);
-          const errorDesc = errJson?.error?.description || "Razorpay API order creation failed";
-          return {
-            success: false,
-            message: `Razorpay Order Error: ${errorDesc}`,
-            error: errorDesc,
-          };
-        }
-      } catch (restErr) {
-        console.warn("[RAZORPAY REST API FETCH EXCEPTION] Falling back to SDK", restErr);
-      }
-    }
-
-    // 2. Fallback execution via Razorpay Node SDK
-    const instance = new Razorpay({ key_id: keyId, key_secret: keySecret });
-    const order = await instance.orders.create({
-      amount: amountInPaise,
-      currency: "INR",
-      receipt,
-      notes: {
-        plan,
-        userEmail: userEmail || "seller@shipsmart.app",
-        platform: "ShipSmart Seller",
+    // Direct REST API execution for 100% universal serverless/edge compatibility
+    const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
+    const apiRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency: "INR",
+        receipt,
+        notes: {
+          plan,
+          userEmail: userEmail || "seller@shipsmart.app",
+          platform: "ShipSmart Seller",
+        },
+      }),
     });
 
-    return {
-      success: true,
-      id: order.id,
-      orderId: order.id,
-      amount: amountInPaise,
-      currency: "INR",
-      key: keyId,
-      message: "Razorpay order created successfully",
-    };
+    if (apiRes.ok) {
+      const orderData = (await apiRes.json()) as { id: string; amount: number; currency?: string };
+      return {
+        success: true,
+        id: orderData.id,
+        orderId: orderData.id,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        key: keyId,
+        message: "Razorpay order created successfully",
+      };
+    } else {
+      const errJson = (await apiRes.json().catch(() => ({}))) as { error?: { description?: string } };
+      console.error("[RAZORPAY REST API ERROR]", errJson);
+      const errorDesc = errJson?.error?.description || "Razorpay API order creation failed";
+      return {
+        success: false,
+        message: `Razorpay Order Error: ${errorDesc}`,
+        error: errorDesc,
+      };
+    }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[RAZORPAY ORDER EXCEPTION]", error);
