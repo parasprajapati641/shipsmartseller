@@ -1,15 +1,11 @@
 // Production-Grade Meesho Image Optimization Engine for Ship Smart
 //
 // Pipeline Architecture:
-//  1. Single-Pass Image Decoding: Decode raw input file (JPG, PNG, WEBP) exactly once via createImageBitmap with "from-image" orientation.
-//  2. Metadata & EXIF Stripping: Output stream strips all EXIF tags, comments, and redundant ICC profiles, mapping pixels directly to sRGB space.
-//  3. Border Background Sampling & Computer Vision Detection: Sample image corners & edges to isolate subject bounding box (minX, minY, maxX, maxY).
-//  4. Tight Auto-Cropping (88%-92% Subject Occupancy): Crop tightly around subject with minimal 2%-4% padding before scaling/compression.
-//  5. Aspect Ratio Preservation: Maintain requested 1:1 or 3:4 target aspect ratios without distortion.
-//  6. Multi-Resolution Resizing & Canvas Cache: Use Pica Lanczos3 filter for high-clarity downscaling.
-//  7. Scale-Factor Aware Sharpening: Apply unsharp masking to preserve fine facial & fabric details.
-//  8. Precision KB Compression (±0.5 KB Target Matching): Binary-search JPEG compression to hit exact target preset size.
-//  9. Comprehensive Production Debug Logging: Log bounding box, crop rectangle, frame occupancy %, and final dimensions.
+//  1. Single-Pass Image Decoding: Decode raw input file (JPG, PNG, WEBP) exactly once via createImageBitmap.
+//  2. Border Background Sampling & Computer Vision: Sample outer edge pixels to detect subject bounding box.
+//  3. Deterministic Tight Cropping (88%-92% Frame Occupancy): Crop tightly around subject with 2%-4% margins.
+//  4. Independent Compression Pipeline: Multi-resolution scale search to hit exact target preset size (±0.5 KB).
+//  5. Scale-Factor Aware Sharpening: Unsharp masking pass to preserve fine facial & fabric textures.
 
 import Pica from "pica";
 import {
@@ -114,7 +110,7 @@ function detectSubjectBoundingBox(
 
   // 1. Border Sampling: Calculate baseline background RGB from outer edges of photo
   let bgRSum = 0, bgGSum = 0, bgBSum = 0, bgCount = 0;
-  const borderMargin = Math.max(2, Math.floor(Math.min(width, height) * 0.02));
+  const borderMargin = Math.max(3, Math.floor(Math.min(width, height) * 0.03));
 
   for (let y = 0; y < height; y += 2) {
     for (let x = 0; x < width; x += 2) {
@@ -141,7 +137,7 @@ function detectSubjectBoundingBox(
   let maxY = 0;
   let found = false;
 
-  const step = Math.max(1, Math.floor(Math.min(width, height) / 600));
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 500));
 
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
@@ -157,11 +153,10 @@ function detectSubjectBoundingBox(
       const colorDiff = Math.max(r, g, b) - Math.min(r, g, b);
       const distToBg = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
 
-      // Identify studio background, shadows, or off-white studio walls
       const isBackground =
-        (distToBg < 40 && brightness > 165) ||
-        (brightness > 235 && colorDiff < 18) ||
-        (brightness > 248);
+        (distToBg < 45 && brightness > 150) ||
+        (brightness > 230 && colorDiff < 20) ||
+        (brightness > 245);
 
       if (!isBackground) {
         if (x < minX) minX = x;
@@ -173,18 +168,18 @@ function detectSubjectBoundingBox(
     }
   }
 
-  if (!found || maxX <= minX || maxY <= minY) {
-    // Fallback saliency crop: Focus on central 75% where model stands
-    const padX = Math.round(width * 0.125);
-    const padY = Math.round(height * 0.08);
+  // Deterministic Fallback: Center saliency crop
+  if (!found || maxX <= minX || maxY <= minY || (maxX - minX < width * 0.1) || (maxY - minY < height * 0.1)) {
+    const cropMarginX = Math.round(width * 0.12);
+    const cropMarginY = Math.round(height * 0.08);
     return {
       bbox: {
-        minX: padX,
-        minY: padY,
-        maxX: width - padX,
-        maxY: height - padY,
-        width: width - padX * 2,
-        height: height - padY * 2,
+        minX: cropMarginX,
+        minY: cropMarginY,
+        maxX: width - cropMarginX,
+        maxY: height - cropMarginY,
+        width: width - cropMarginX * 2,
+        height: height - cropMarginY * 2,
       },
       bgSample: { r: Math.round(bgR), g: Math.round(bgG), b: Math.round(bgB) },
     };
@@ -193,14 +188,14 @@ function detectSubjectBoundingBox(
   let bWidth = maxX - minX;
   let bHeight = maxY - minY;
 
-  // If detected bbox covers >86% of entire photo (background not fully filtered), apply central saliency crop
-  if (bWidth / width > 0.86 || bHeight / height > 0.86) {
-    const centerMarginX = Math.round(width * 0.12);
-    const centerMarginY = Math.round(height * 0.08);
-    minX = Math.min(width / 2 - 10, minX + centerMarginX);
-    maxX = Math.max(width / 2 + 10, maxX - centerMarginX);
-    minY = Math.min(height / 2 - 10, minY + centerMarginY);
-    maxY = Math.max(height / 2 + 10, maxY - centerMarginY);
+  // Deterministic Guard: If detected bounding box covers >82% of full canvas, trim outer background margins
+  if (bWidth / width > 0.82 || bHeight / height > 0.82) {
+    const trimX = Math.round(width * 0.10);
+    const trimY = Math.round(height * 0.06);
+    minX = Math.min(width / 2 - 10, minX + trimX);
+    maxX = Math.max(width / 2 + 10, maxX - trimX);
+    minY = Math.min(height / 2 - 10, minY + trimY);
+    maxY = Math.max(height / 2 + 10, maxY - trimY);
     bWidth = maxX - minX;
     bHeight = maxY - minY;
   }
@@ -397,29 +392,22 @@ async function encodeExactTargetKB(
 ): Promise<{ blob: Blob; width: number; height: number; quality: number }> {
   const targetBytes = targetKB * 1024;
   
-  // Target file size within ±0.5 KB of preset (e.g. 5KB -> 4.5KB - 5.5KB, 10KB -> 9.5KB - 10.5KB)
-  const minAcceptableBytes = Math.max(1024, Math.round((targetKB - 0.5) * 1024));
+  // Strict target bounds: ±0.45 KB of target (e.g. 5KB -> 4.55KB - 5.45KB, 50KB -> 49.55KB - 50.45KB)
+  const minAcceptableBytes = Math.max(1024, Math.round((targetKB - 0.45) * 1024));
   const maxAcceptableBytes = Math.round((targetKB + 0.45) * 1024);
 
-  // Estimate initial canvas pixel capacity for targetKB
-  const estimatedPixelCapacity = (targetBytes * 3.4) / 0.55;
-  const currentPixelArea = strategyCanvas.width * strategyCanvas.height;
-  const initialScale = Math.min(1.0, Math.sqrt(estimatedPixelCapacity / currentPixelArea));
+  // High-resolution multi-scale search array starting at full resolution (1.0)
+  const scalesToTry = [1.0, 0.95, 0.90, 0.82, 0.75, 0.68, 0.60, 0.52, 0.45, 0.38, 0.30, 0.24, 0.18];
 
-  const scaleList = [
-    Math.min(1.0, Math.max(0.2, initialScale * 1.15)),
-    Math.min(1.0, Math.max(0.2, initialScale * 1.0)),
-    Math.min(1.0, Math.max(0.2, initialScale * 0.88)),
-    Math.min(1.0, Math.max(0.2, initialScale * 0.75)),
-    Math.min(1.0, Math.max(0.2, initialScale * 0.60)),
-    0.40,
-    0.30,
-    0.22,
-  ];
+  let closestBlob: Blob | null = null;
+  let closestW = strategyCanvas.width;
+  let closestH = strategyCanvas.height;
+  let closestQ = 0.70;
+  let minDiff = Infinity;
 
-  for (const scale of scaleList) {
-    const nw = Math.max(220, Math.round(strategyCanvas.width * scale));
-    const nh = Math.max(220, Math.round(strategyCanvas.height * scale));
+  for (const scale of scalesToTry) {
+    const nw = Math.max(180, Math.round(strategyCanvas.width * scale));
+    const nh = Math.max(180, Math.round(strategyCanvas.height * scale));
 
     const candidateCanvas = makeCanvas(nw, nh);
     const sctx = candidateCanvas.getContext("2d")!;
@@ -428,56 +416,40 @@ async function encodeExactTargetKB(
     sctx.drawImage(strategyCanvas, 0, 0, nw, nh);
     applyAdaptiveSharpening(sctx, nw, nh, sharpeningLevel);
 
-    let lo = 0.35;
+    let lo = 0.20;
     let hi = 0.98;
-    let bestBlob: Blob | null = null;
-    let bestQ = lo;
 
-    for (let iter = 0; iter < 16; iter++) {
+    for (let iter = 0; iter < 18; iter++) {
       const q = (lo + hi) / 2;
       const blob = await pica.toBlob(candidateCanvas, "image/jpeg", q);
+      const diff = Math.abs(blob.size - targetBytes);
 
-      if (blob.size <= maxAcceptableBytes) {
-        bestBlob = blob;
-        bestQ = q;
-        lo = q; // Try higher quality
-        if (blob.size >= minAcceptableBytes) {
-          return { blob, width: nw, height: nh, quality: Math.round(q * 100) / 100 };
-        }
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestBlob = blob;
+        closestW = nw;
+        closestH = nh;
+        closestQ = q;
+      }
+
+      if (blob.size >= minAcceptableBytes && blob.size <= maxAcceptableBytes) {
+        return { blob, width: nw, height: nh, quality: Math.round(q * 100) / 100 };
+      }
+
+      if (blob.size < minAcceptableBytes) {
+        lo = q;
       } else {
         hi = q;
       }
     }
-
-    if (bestBlob && bestBlob.size <= maxAcceptableBytes && bestBlob.size >= minAcceptableBytes) {
-      return { blob: bestBlob, width: nw, height: nh, quality: Math.round(bestQ * 100) / 100 };
-    }
   }
 
-  // Fallback fit if image compresses extremely small or large
-  let lo = 0.30;
-  let hi = 0.98;
-  let bestFallback: Blob | null = null;
-  let bestQ = 0.70;
-
-  for (let iter = 0; iter < 10; iter++) {
-    const q = (lo + hi) / 2;
-    const blob = await pica.toBlob(strategyCanvas, "image/jpeg", q);
-    if (blob.size <= maxAcceptableBytes) {
-      bestFallback = blob;
-      bestQ = q;
-      lo = q;
-    } else {
-      hi = q;
-    }
-  }
-
-  const finalBlob = bestFallback || (await pica.toBlob(strategyCanvas, "image/jpeg", 0.70));
+  // Fallback to closest match if exact range not hit
   return {
-    blob: finalBlob,
-    width: strategyCanvas.width,
-    height: strategyCanvas.height,
-    quality: Math.round(bestQ * 100) / 100,
+    blob: closestBlob!,
+    width: closestW,
+    height: closestH,
+    quality: Math.round(closestQ * 100) / 100,
   };
 }
 
