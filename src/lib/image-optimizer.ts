@@ -260,34 +260,56 @@ async function prepareMaster(file: File): Promise<MasterContext> {
 // 4. Custom Strategy Master Composition & Tight Subject Cropping (88%-92%)
 // ---------------------------------------------------------------------------
 
-/** High-Precision Edge Sharpening Pass (Unsharp Mask) to preserve fine facial & fabric textures. */
+/** High-Precision Edge-Preserving Unsharp Masking & Micro-Contrast Pass */
 function applyAdaptiveSharpening(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   level: "none" | "balanced" | "high" = "high",
+  scale: number = 1.0,
 ): void {
   if (level === "none") return;
-  const amount = level === "high" ? 0.35 : 0.2;
+
+  // Downsampling naturally softens image details, so scale-aware boost preserves crisp edges & faces
+  const baseAmount = level === "high" ? 0.42 : 0.26;
+  const amount = Math.min(0.70, baseAmount + (1.0 - Math.min(1.0, scale)) * 0.22);
+  const threshold = 5; // Noise gate threshold: preserves smooth skin gradients while sharpening edges & text
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
   const copy = new Uint8ClampedArray(data);
 
-  // 3x3 High-Frequency Detail Kernel
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       const idx = (y * width + x) * 4;
+      const r = copy[idx];
+      const g = copy[idx + 1];
+      const b = copy[idx + 2];
+
+      const topIdx = ((y - 1) * width + x) * 4;
+      const botIdx = ((y + 1) * width + x) * 4;
+      const leftIdx = (y * width + (x - 1)) * 4;
+      const rightIdx = (y * width + (x + 1)) * 4;
+
       for (let c = 0; c < 3; c++) {
         const center = copy[idx + c];
-        const top = copy[((y - 1) * width + x) * 4 + c];
-        const bottom = copy[((y + 1) * width + x) * 4 + c];
-        const left = copy[(y * width + (x - 1)) * 4 + c];
-        const right = copy[(y * width + (x + 1)) * 4 + c];
+        const top = copy[topIdx + c];
+        const bottom = copy[botIdx + c];
+        const left = copy[leftIdx + c];
+        const right = copy[rightIdx + c];
 
         const laplacian = 4 * center - top - bottom - left - right;
-        const sharpened = center + amount * laplacian;
-        data[idx + c] = Math.min(255, Math.max(0, sharpened));
+
+        // Apply unsharp mask only if high-frequency Laplacian variance exceeds threshold
+        if (Math.abs(laplacian) > threshold) {
+          let sharpened = center + amount * laplacian;
+          // Midtone micro-contrast enhancement for texture depth (facial features, fabric weave, bottle labels)
+          if (center > 40 && center < 215) {
+            const norm = (sharpened - 128) / 128;
+            sharpened = 128 + norm * 1.04 * 128;
+          }
+          data[idx + c] = Math.min(255, Math.max(0, Math.round(sharpened)));
+        }
       }
     }
   }
@@ -370,8 +392,8 @@ async function createStrategyCanvas(
     );
   }
 
-  // Apply high-clarity detail sharpening
-  applyAdaptiveSharpening(cctx, renderW, renderH, strategy.sharpeningLevel ?? "high");
+  // Apply high-clarity edge-preserving sharpening
+  applyAdaptiveSharpening(cctx, renderW, renderH, strategy.sharpeningLevel ?? "high", 1.0);
 
   const occupancyPct = Math.round(Math.max(bbox.width / renderW, bbox.height / renderH) * 100);
 
@@ -384,6 +406,7 @@ async function createStrategyCanvas(
 
 /**
  * Encodes the strategy canvas to hit the exact target KB preset size within ±0.5 KB tolerance.
+ * Uses Pica Lanczos3 3-pass resampling filter to maintain crisp edges, readable text, and sharp faces.
  */
 async function encodeExactTargetKB(
   strategyCanvas: HTMLCanvasElement,
@@ -392,17 +415,21 @@ async function encodeExactTargetKB(
 ): Promise<{ blob: Blob; width: number; height: number; quality: number }> {
   const targetBytes = targetKB * 1024;
   
-  // Strict target bounds: ±0.45 KB of target (e.g. 5KB -> 4.55KB - 5.45KB, 50KB -> 49.55KB - 50.45KB)
+  // Strict target bounds: ±0.45 KB of target
   const minAcceptableBytes = Math.max(1024, Math.round((targetKB - 0.45) * 1024));
   const maxAcceptableBytes = Math.round((targetKB + 0.45) * 1024);
 
-  // High-resolution multi-scale search array starting at full resolution (1.0)
-  const scalesToTry = [1.0, 0.95, 0.90, 0.82, 0.75, 0.68, 0.60, 0.52, 0.45, 0.38, 0.30, 0.24, 0.18];
+  // Resolution-preserving scale search array prioritizing higher resolutions
+  const scalesToTry = targetKB >= 30
+    ? [1.0, 0.95, 0.90, 0.85, 0.80, 0.75]
+    : targetKB >= 15
+      ? [1.0, 0.92, 0.85, 0.78, 0.70, 0.62, 0.55]
+      : [0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30, 0.22];
 
   let closestBlob: Blob | null = null;
   let closestW = strategyCanvas.width;
   let closestH = strategyCanvas.height;
-  let closestQ = 0.70;
+  let closestQ = 0.75;
   let minDiff = Infinity;
 
   for (const scale of scalesToTry) {
@@ -410,13 +437,22 @@ async function encodeExactTargetKB(
     const nh = Math.max(180, Math.round(strategyCanvas.height * scale));
 
     const candidateCanvas = makeCanvas(nw, nh);
-    const sctx = candidateCanvas.getContext("2d")!;
-    sctx.fillStyle = "#ffffff";
-    sctx.fillRect(0, 0, nw, nh);
-    sctx.drawImage(strategyCanvas, 0, 0, nw, nh);
-    applyAdaptiveSharpening(sctx, nw, nh, sharpeningLevel);
 
-    let lo = 0.20;
+    try {
+      // Use Pica Lanczos3 resampling for ultra-sharp product downscaling
+      await pica.resize(strategyCanvas, candidateCanvas, { filter: "lanczos3" });
+    } catch {
+      // Fallback to high quality canvas scaling
+      const sctx = candidateCanvas.getContext("2d")!;
+      sctx.fillStyle = "#ffffff";
+      sctx.fillRect(0, 0, nw, nh);
+      sctx.drawImage(strategyCanvas, 0, 0, nw, nh);
+    }
+
+    const sctx = candidateCanvas.getContext("2d")!;
+    applyAdaptiveSharpening(sctx, nw, nh, sharpeningLevel, scale);
+
+    let lo = targetKB <= 10 ? 0.35 : 0.45;
     let hi = 0.98;
 
     for (let iter = 0; iter < 18; iter++) {
@@ -462,50 +498,131 @@ export async function generateAdaptiveVariants(
   category: string,
   onProgress?: (progress: number, message: string) => void,
 ): Promise<OptimizedResult[]> {
-  onProgress?.(5, "Decoding input image...");
-  const ctx = await prepareMaster(file);
+  try {
+    onProgress?.(5, "Decoding input image...");
+    const ctx = await prepareMaster(file);
 
-  onProgress?.(15, `Categorizing ${category} dataset & selecting strategies...`);
-  const selectedStrategies = selectAdaptiveStrategiesForCategory(category, 1);
+    onProgress?.(15, `Categorizing ${category} dataset & selecting strategies...`);
+    const selectedStrategies = selectAdaptiveStrategiesForCategory(category, 1);
 
-  const total = selectedStrategies.length;
-  const results: OptimizedResult[] = [];
+    const total = selectedStrategies.length;
+    const results: OptimizedResult[] = [];
 
-  for (let i = 0; i < total; i++) {
-    const strategy = selectedStrategies[i];
-    const stepPct = Math.round(15 + ((i + 1) / total) * 75);
-    onProgress?.(stepPct, `Tuning strategy: ${strategy.name} (${strategy.targetKB}KB target)...`);
+    for (let i = 0; i < total; i++) {
+      const strategy = selectedStrategies[i];
+      const stepPct = Math.round(15 + ((i + 1) / total) * 75);
+      onProgress?.(stepPct, `Tuning strategy: ${strategy.name} (${strategy.targetKB}KB target)...`);
 
-    const { croppedCanvas, debugRect, occupancyPct } = await createStrategyCanvas(ctx, strategy);
-    const encoded = await encodeExactTargetKB(
-      croppedCanvas,
-      strategy.targetKB,
-      strategy.sharpeningLevel ?? "high",
+      let croppedCanvas: HTMLCanvasElement;
+      let debugRect = { left: 0, top: 0, width: ctx.masterSize, height: ctx.masterSize };
+      let occupancyPct = 90;
+
+      try {
+        const stratRes = await createStrategyCanvas(ctx, strategy);
+        croppedCanvas = stratRes.croppedCanvas;
+        debugRect = stratRes.debugRect;
+        occupancyPct = stratRes.occupancyPct;
+      } catch (err) {
+        console.warn("[SHIP SMART OPTIMIZER] Strategy canvas fallback triggered:", err);
+        croppedCanvas = ctx.masterCanvas;
+      }
+
+      let encoded: { blob: Blob; width: number; height: number; quality: number };
+      try {
+        encoded = await encodeExactTargetKB(
+          croppedCanvas,
+          strategy.targetKB,
+          strategy.sharpeningLevel ?? "high",
+        );
+      } catch (err) {
+        console.warn("[SHIP SMART OPTIMIZER] Pica encode fallback triggered:", err);
+        // HTML5 Canvas Fallback Encoder
+        encoded = await nativeCanvasFallbackEncode(croppedCanvas, strategy.targetKB);
+      }
+
+      const sizeKB = Math.round((encoded.blob.size / 1024) * 10) / 10;
+      const compressionPct = Math.round(((file.size - encoded.blob.size) / file.size) * 100);
+      const url = URL.createObjectURL(encoded.blob);
+
+      const debugInfo = {
+        bbox: ctx.bbox,
+        cropRect: debugRect,
+        frameOccupancyPct: occupancyPct,
+        outputDim: { width: encoded.width, height: encoded.height },
+      };
+
+      results.push({
+        targetKB: strategy.targetKB,
+        blob: encoded.blob,
+        url,
+        width: encoded.width,
+        height: encoded.height,
+        sizeKB,
+        format: "image/jpeg",
+        quality: encoded.quality,
+        compressionPct,
+        orientation: ctx.orientation,
+        strategy,
+        debugInfo,
+      });
+    }
+
+    onProgress?.(95, "Calculating win probability scores & ranking variants...");
+    const recMap = rankAndScoreVariants(
+      selectedStrategies,
+      category,
+      { width: ctx.bbox.width, height: ctx.bbox.height, sizeKB: Math.round(file.size / 1024) },
     );
 
+    for (const res of results) {
+      if (res.strategy) {
+        const rec = recMap.get(res.strategy.id);
+        if (rec) {
+          res.recommendation = rec;
+          res.score = rec.winProbabilityPct;
+        }
+      }
+    }
+
+    onProgress?.(100, "Optimization pipeline complete.");
+    return results;
+  } catch (globalErr) {
+    console.error("[SHIP SMART OPTIMIZER] Emergency pipeline fallback activated:", globalErr);
+    // Global Emergency Fallback: generate variants using native HTML5 Canvas
+    return await generateEmergencyNativeVariants(file, category, onProgress);
+  }
+}
+
+// Emergency Native Canvas Fallback Generator
+async function generateEmergencyNativeVariants(
+  file: File,
+  category: string,
+  onProgress?: (progress: number, message: string) => void,
+): Promise<OptimizedResult[]> {
+  onProgress?.(30, "Using native HTML5 canvas compression fallback...");
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  const targetWidth = Math.min(bitmap.width, 1000);
+  const targetHeight = Math.min(bitmap.height, 1000);
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, targetWidth, targetHeight);
+  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+
+  const targets = [15, 20, 25, 30];
+  const results: OptimizedResult[] = [];
+
+  for (let i = 0; i < targets.length; i++) {
+    const targetKB = targets[i];
+    const encoded = await nativeCanvasFallbackEncode(canvas, targetKB);
     const sizeKB = Math.round((encoded.blob.size / 1024) * 10) / 10;
-    const compressionPct = Math.round(((file.size - encoded.blob.size) / file.size) * 100);
     const url = URL.createObjectURL(encoded.blob);
 
-    const debugInfo = {
-      bbox: ctx.bbox,
-      cropRect: debugRect,
-      frameOccupancyPct: occupancyPct,
-      outputDim: { width: encoded.width, height: encoded.height },
-    };
-
-    console.log(`[SHIPS MART CROP DEBUG] Variant ${strategy.name} (${strategy.targetKB}KB):`, {
-      detectedBoundingBox: `${ctx.bbox.width}x${ctx.bbox.height} at (${ctx.bbox.minX},${ctx.bbox.minY})`,
-      bgSample: `rgb(${ctx.bgSample.r},${ctx.bgSample.g},${ctx.bgSample.b})`,
-      cropRectangle: `${debugRect.width}x${debugRect.height} at (${debugRect.left},${debugRect.top})`,
-      finalFrameOccupancyPct: `${occupancyPct}%`,
-      outputDimensions: `${encoded.width}x${encoded.height}`,
-      targetKB: strategy.targetKB,
-      downloadedKB: sizeKB,
-    });
-
     results.push({
-      targetKB: strategy.targetKB,
+      targetKB,
       blob: encoded.blob,
       url,
       width: encoded.width,
@@ -513,30 +630,45 @@ export async function generateAdaptiveVariants(
       sizeKB,
       format: "image/jpeg",
       quality: encoded.quality,
-      compressionPct,
-      orientation: ctx.orientation,
-      strategy,
-      debugInfo,
+      compressionPct: Math.round(((file.size - encoded.blob.size) / file.size) * 100),
     });
   }
 
-  onProgress?.(95, "Calculating win probability scores & ranking variants...");
-  const recMap = rankAndScoreVariants(
-    selectedStrategies,
-    category,
-    { width: ctx.bbox.width, height: ctx.bbox.height, sizeKB: Math.round(file.size / 1024) },
-  );
+  onProgress?.(100, "Fallback optimization complete.");
+  return results;
+}
 
-  for (const res of results) {
-    if (res.strategy) {
-      const rec = recMap.get(res.strategy.id);
-      if (rec) {
-        res.recommendation = rec;
-        res.score = rec.winProbabilityPct;
-      }
+// Pure HTML5 Canvas Fallback Encoder (Binary Quality Stepping)
+async function nativeCanvasFallbackEncode(
+  canvas: HTMLCanvasElement,
+  targetKB: number,
+): Promise<{ blob: Blob; width: number; height: number; quality: number }> {
+  let lowQ = 0.05;
+  let highQ = 0.95;
+  let bestBlob: Blob = new Blob();
+  let bestQ = 0.7;
+  const targetBytes = targetKB * 1024;
+
+  for (let iter = 0; iter < 10; iter++) {
+    const midQ = (lowQ + highQ) / 2;
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b ?? new Blob()), "image/jpeg", midQ),
+    );
+
+    bestBlob = blob;
+    bestQ = midQ;
+
+    if (blob.size > targetBytes) {
+      highQ = midQ;
+    } else {
+      lowQ = midQ;
     }
   }
 
-  onProgress?.(100, "Optimization pipeline complete.");
-  return results;
+  return {
+    blob: bestBlob,
+    width: canvas.width,
+    height: canvas.height,
+    quality: Math.round(bestQ * 100) / 100,
+  };
 }

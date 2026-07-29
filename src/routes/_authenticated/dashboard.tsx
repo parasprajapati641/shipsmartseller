@@ -34,6 +34,24 @@ import { useAuth } from "@/lib/auth-context";
 import { generateAdaptiveVariants, validateImageFile, type OptimizedResult } from "@/lib/image-optimizer";
 import { MeeshoComparison } from "@/components/meesho-comparison";
 import { PlatformAnalyticsModal } from "@/components/platform-analytics-modal";
+import { ConversionSimulatorModal } from "@/components/conversion-simulator-modal";
+import { analyzeListingConversion, type ConversionSimulationResult } from "@/lib/conversion-simulator";
+import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { AIBusinessSuite } from "@/components/ai-business-suite";
+import { calculateAIListingScore, type DetailedListingScore } from "@/lib/ai-listing-score";
+import { generateVisualHeatmap, type HeatmapAnalysisResult } from "@/lib/ai-heatmap-generator";
+import { scoreAllMarketplaces, type MarketplacePlatformScore } from "@/lib/ai-marketplace-scorer";
+import { calculatePriceSuggestions, type PriceSuggestionResult } from "@/lib/ai-price-suggester";
+import { generateSEOPack, type GeneratedSEOPack } from "@/lib/ai-seo-generator";
+import { checkForDuplicate, computePerceptualHash } from "@/lib/ai-duplicate-detector";
+import { predictShippingCost, type ShippingPredictionResult } from "@/lib/ai-shipping-predictor";
+import { SmartProfitCalculator } from "@/components/smart-profit-calculator";
+import { calculateDynamicShipping } from "@/lib/dynamic-shipping-engine";
+import { calculateAnalyticsSummary } from "@/lib/smart-analytics-engine";
+import { OneClickStudioModal } from "@/components/one-click-studio-modal";
+import { PhotoDirectorWidget } from "@/components/photo-director-widget";
+import { WinnerSimulatorModal } from "@/components/winner-simulator-modal";
+import { createZipArchive, downloadZipFile } from "@/lib/zip-exporter";
 import {
   PRODUCT_CATEGORIES,
   loadAllCategoryStats,
@@ -116,8 +134,45 @@ function Dashboard() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [categoryStats, setCategoryStats] = useState<Record<string, CategoryStats>>({});
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showSimulatorModal, setShowSimulatorModal] = useState(false);
+  const [showStudioModal, setShowStudioModal] = useState(false);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [simulatorData, setSimulatorData] = useState<{
+    url: string;
+    targetKB: number;
+    result: ConversionSimulationResult;
+  } | null>(null);
   const [isAutonomousMode, setIsAutonomousMode] = useState(false);
+  const [sourceCanvas, setSourceCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [listingScore, setListingScore] = useState<DetailedListingScore | null>(null);
+  const [heatmapData, setHeatmapData] = useState<HeatmapAnalysisResult | null>(null);
+  const [marketplaceScores, setMarketplaceScores] = useState<MarketplacePlatformScore[]>([]);
+  const [priceSuggestions, setPriceSuggestions] = useState<PriceSuggestionResult | null>(null);
+  const [seoPack, setSeoPack] = useState<GeneratedSEOPack | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [shippingPrediction, setShippingPrediction] = useState<ShippingPredictionResult | null>(null);
+  const [historyQuery, setHistoryQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleOpenSimulator(resultItem: OptimizedResult) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const cvs = document.createElement("canvas");
+      cvs.width = img.width;
+      cvs.height = img.height;
+      const ctx = cvs.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      const sim = analyzeListingConversion(cvs, category, resultItem.targetKB);
+      setSimulatorData({
+        url: resultItem.url,
+        targetKB: resultItem.targetKB,
+        result: sim,
+      });
+      setShowSimulatorModal(true);
+    };
+    img.src = resultItem.url;
+  }
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -138,13 +193,65 @@ function Dashboard() {
         toast.error(v.error);
         return;
       }
+
+      // Immediately revoke previous blob URLs & reset all image-related states
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      results.forEach((r) => URL.revokeObjectURL(r.url));
+
       setFile(f);
       setResults([]);
       setCurrentRound(1);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(f));
+      setSourceCanvas(null);
+      setListingScore(null);
+      setHeatmapData(null);
+      setMarketplaceScores([]);
+      setPriceSuggestions(null);
+      setSeoPack(null);
+      setShippingPrediction(null);
+      setDuplicateWarning(null);
+
+      const newUrl = URL.createObjectURL(f);
+      setPreviewUrl(newUrl);
+
+      // Run computer vision analysis on image bitmap
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const cvs = document.createElement("canvas");
+        cvs.width = img.width;
+        cvs.height = img.height;
+        const ctx = cvs.getContext("2d");
+        ctx?.drawImage(img, 0, 0);
+        setSourceCanvas(cvs);
+
+        const score = calculateAIListingScore(cvs, 20);
+        setListingScore(score);
+
+        const hData = generateVisualHeatmap(cvs);
+        setHeatmapData(hData);
+
+        const mpScores = scoreAllMarketplaces(score.metrics.backgroundPurityScore, score.metrics.objectFramingScore, true, 20);
+        setMarketplaceScores(mpScores);
+
+        const pSug = calculatePriceSuggestions(699, category, score.overallScore);
+        setPriceSuggestions(pSug);
+
+        const sPack = generateSEOPack(f.name, category);
+        setSeoPack(sPack);
+
+        const dup = checkForDuplicate(cvs, []);
+        if (dup.isDuplicate) {
+          setDuplicateWarning(dup.warningMessage ?? "Duplicate image detected.");
+        } else {
+          setDuplicateWarning(null);
+        }
+
+        const shipPred = predictShippingCost(20, category);
+        setShippingPrediction(shipPred);
+      };
+      img.src = newUrl;
     },
-    [previewUrl],
+    [previewUrl, results, category],
   );
 
   async function handleGenerate(roundToRun: number = 1) {
@@ -154,10 +261,30 @@ function Dashboard() {
     setStatusMessage(`Generating Round ${roundToRun} adaptive variants...`);
     setResults([]);
     setCurrentRound(roundToRun);
-    try {
-      const out = await generateAdaptiveVariants(file, category, (pct) => {
-        setProgress(pct);
-      });
+
+    let attempts = 0;
+    let success = false;
+    let out: OptimizedResult[] = [];
+
+    while (attempts < 3 && !success) {
+      attempts++;
+      try {
+        if (attempts > 1) {
+          setStatusMessage(`Retrying variant generation (Attempt ${attempts}/3)...`);
+        }
+        out = await generateAdaptiveVariants(file, category, (pct) => {
+          setProgress(pct);
+        });
+        if (out && out.length > 0) {
+          success = true;
+        }
+      } catch (err) {
+        console.warn(`[SHIP SMART] Optimization attempt ${attempts} failed:`, err);
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+
+    if (success && out.length > 0) {
       setResults(out);
       toast.success(
         roundToRun === 1
@@ -165,34 +292,37 @@ function Dashboard() {
           : `Generated ${out.length} Round ${roundToRun} Deep-Optimization variants!`,
       );
 
-      const thumb = await blobToDataUrl(out[out.length - 1].blob);
-      const variantData = await Promise.all(
-        out.map(async (r) => ({
-          targetKB: r.targetKB,
-          sizeKB: r.sizeKB,
-          strategyName: r.strategy?.name ?? `${r.targetKB}KB Strategy`,
-          url: await blobToDataUrl(r.blob),
-        })),
-      );
-      const entry: HistoryEntry = {
-        id: crypto.randomUUID(),
-        filename: `${file.name} (R${roundToRun})`,
-        category,
-        createdAt: Date.now(),
-        thumb,
-        variants: variantData,
-      };
-      const next = [entry, ...history];
-      setHistory(next);
-      saveHistory(next);
-
-      setCategoryStats(loadAllCategoryStats());
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Generation failed");
-    } finally {
-      setProcessing(false);
-      setStatusMessage("");
+      try {
+        const thumb = await blobToDataUrl(out[out.length - 1].blob);
+        const variantData = await Promise.all(
+          out.map(async (r) => ({
+            targetKB: r.targetKB,
+            sizeKB: r.sizeKB,
+            strategyName: r.strategy?.name ?? `${r.targetKB}KB Strategy`,
+            url: await blobToDataUrl(r.blob),
+          })),
+        );
+        const entry: HistoryEntry = {
+          id: crypto.randomUUID(),
+          filename: `${file.name} (R${roundToRun})`,
+          category,
+          createdAt: Date.now(),
+          thumb,
+          variants: variantData,
+        };
+        const next = [entry, ...history];
+        setHistory(next);
+        saveHistory(next);
+        setCategoryStats(loadAllCategoryStats());
+      } catch (histErr) {
+        console.warn("History save non-critical warning:", histErr);
+      }
+    } else {
+      toast.error("Failed to optimize image after retries. Please try another image.");
     }
+
+    setProcessing(false);
+    setStatusMessage("");
   }
 
   // Fully Autonomous Multi-Pass Pipeline Trigger
@@ -205,8 +335,6 @@ function Dashboard() {
     setResults([]);
 
     try {
-      const { compareVariantsFn } = await import("@/lib/meesho-actions");
-
       const outcome = await runAutonomousOptimizationPipeline(
         file,
         category,
@@ -224,11 +352,20 @@ function Dashboard() {
               }),
             })),
           );
-          const res = await compareVariantsFn({ data: { variants: inputs } });
-          const lowestCharge = res?.success
-            ? Math.min(...res.variants.map((v) => v.shippingCharge))
-            : 49;
-          return { success: res?.success ?? true, lowestCharge, variants: res?.variants ?? [] };
+
+          let res: any = null;
+          try {
+            const { compareVariantsFn } = await import("@/lib/meesho-actions");
+            res = await compareVariantsFn({ data: { variants: inputs } });
+          } catch (rpcErr) {
+            console.warn("[SHIP SMART] RPC compareVariantsFn fallback to dynamic calculator:", rpcErr);
+          }
+
+          const lowestCharge = res?.success && res?.variants?.length > 0
+            ? Math.min(...res.variants.map((v: any) => v.shippingCharge))
+            : predictShippingCost(genVariants[0]?.targetKB ?? 20, category).estShippingCostINR;
+
+          return { success: true, lowestCharge, variants: res?.variants ?? [] };
         },
         (stepMsg, pct) => {
           setStatusMessage(stepMsg);
@@ -262,11 +399,22 @@ function Dashboard() {
   }
 
   function clearFile() {
-    setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+    results.forEach((r) => URL.revokeObjectURL(r.url));
+    setFile(null);
     setPreviewUrl(null);
     setResults([]);
     setCurrentRound(1);
+    setSourceCanvas(null);
+    setListingScore(null);
+    setHeatmapData(null);
+    setMarketplaceScores([]);
+    setPriceSuggestions(null);
+    setSeoPack(null);
+    setShippingPrediction(null);
+    setDuplicateWarning(null);
+    if (inputRef.current) inputRef.current.value = "";
+    toast.info("Image cleared. Ready to upload a new product photo.");
   }
 
   async function handleSignOut() {
@@ -292,18 +440,18 @@ function Dashboard() {
   const dynamicEpsilon = Math.round(calculateDynamicEpsilon(category) * 100);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#090B14] text-white">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-[#2A3658] bg-[#121826]/90 backdrop-blur-xl shadow-2xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand glow">
-              <Sparkles className="h-4 w-4 text-brand-foreground" />
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-[#6C63FF] text-white font-bold shadow-lg shadow-[#6C63FF]/30">
+              <Sparkles className="h-4 w-4" />
             </div>
-            <span className="text-lg font-semibold">Ship Smart Autonomous Platform</span>
+            <span className="text-lg font-bold tracking-tight text-white">ShipSmart Seller</span>
           </Link>
           <div className="flex items-center gap-3">
-            <button
+            {/* <button
               onClick={() => {
                 import("@/lib/razorpay-checkout").then(({ openRazorpayCheckout }) => {
                   openRazorpayCheckout({
@@ -313,27 +461,27 @@ function Dashboard() {
                   });
                 });
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3.5 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90 transition-opacity glow shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-xs font-extrabold text-slate-950 shadow-lg shadow-amber-500/20 hover:opacity-95 transition-all"
             >
               <Zap className="h-3.5 w-3.5" /> Upgrade to Premium (₹499)
-            </button>
+            </button> */}
             <button
               onClick={() => setShowAnalyticsModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/20 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#2A3658] bg-[#1A2235] px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors"
             >
-              <BarChart3 className="h-3.5 w-3.5" /> AI Intelligence Dashboard
+              <BarChart3 className="h-3.5 w-3.5 text-[#00D4AA]" /> AI Intelligence
             </button>
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1.5">
-              <div className="grid h-6 w-6 place-items-center rounded-full bg-gradient-brand">
-                <UserIcon className="h-3 w-3 text-brand-foreground" />
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#2A3658] bg-[#1A2235] px-3 py-1.5 text-slate-200">
+              <div className="grid h-6 w-6 place-items-center rounded-full bg-[#6C63FF] text-white font-bold">
+                <UserIcon className="h-3 w-3" />
               </div>
-              <span className="text-xs text-muted-foreground max-w-[180px] truncate">
+              <span className="text-xs font-semibold max-w-[180px] truncate">
                 {user?.email}
               </span>
             </div>
             <button
               onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/60 px-3 py-1.5 text-sm hover:bg-accent"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#2A3658] bg-[#1A2235] px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10"
             >
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
@@ -351,19 +499,19 @@ function Dashboard() {
         {/* Main column */}
         <div className="space-y-8">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-brand/15 px-3 py-1 text-xs font-semibold text-brand border border-brand/30 mb-2">
-              <Bot className="h-3.5 w-3.5" /> Autonomous Multi-Pass Optimization Engine Active
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#6C63FF]/15 px-3 py-1 text-xs font-bold text-[#6C63FF] border border-[#6C63FF]/30 mb-2">
+              <Bot className="h-3.5 w-3.5 text-[#00D4AA]" /> Autonomous Multi-Pass Optimization Engine Active
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight">Autonomous Product Image Optimizer</h1>
-            <p className="mt-1 text-muted-foreground text-sm">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">Autonomous Product Image Optimizer</h1>
+            <p className="mt-1 text-slate-400 text-sm">
               Select your product category below. ShipSmart dynamically balances exploration ({dynamicEpsilon}%) & exploitation to find the lowest shipping rate slab for your account.
             </p>
           </div>
 
           {/* Category Selector Pill Row */}
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5 text-brand" /> Product Category (Scales Dynamic Exploration)
+            <label className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+              <Layers className="h-3.5 w-3.5 text-[#6C63FF]" /> Product Category (Scales Dynamic Exploration)
             </label>
             <div className="flex flex-wrap gap-2">
               {PRODUCT_CATEGORIES.map((cat) => {
@@ -376,11 +524,10 @@ function Dashboard() {
                       setCategory(cat.id);
                       if (file) setResults([]);
                     }}
-                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-medium transition-all border ${
-                      isSelected
-                        ? "bg-gradient-brand text-brand-foreground border-transparent glow shadow-md"
-                        : "surface hover:border-brand/40 text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${isSelected
+                      ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
+                      : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
+                      }`}
                   >
                     <IconComponent className="h-3.5 w-3.5" />
                     {cat.label}
@@ -389,6 +536,9 @@ function Dashboard() {
               })}
             </div>
           </div>
+
+          {/* Photo Director Pre-Upload Guidance */}
+          <PhotoDirectorWidget category={category} onCategoryChange={(cat) => setCategory(cat)} />
 
           {/* AI Category Intelligence Summary Banner */}
           {currentCatStats && (
@@ -418,6 +568,14 @@ function Dashboard() {
                   <TrendingDown className="h-3.5 w-3.5" /> Total Category Savings: ₹{currentCatStats.totalSavingsInr}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Duplicate Alert Warning */}
+          {duplicateWarning && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-center justify-between">
+              <span>⚠️ {duplicateWarning}</span>
+              <button onClick={() => setDuplicateWarning(null)} className="underline text-white">Dismiss</button>
             </div>
           )}
 
@@ -466,12 +624,12 @@ function Dashboard() {
               />
             </div>
           ) : (
-            <div className="rounded-2xl surface p-6">
+            <div className="rounded-2xl surface p-6 space-y-6">
               <div className="flex items-start gap-4">
                 <img
                   src={previewUrl!}
                   alt="Preview"
-                  className="h-24 w-24 rounded-xl object-cover border border-border bg-white"
+                  className="h-28 w-28 rounded-xl object-cover border border-border bg-white"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-3">
@@ -485,12 +643,12 @@ function Dashboard() {
                     <button
                       onClick={clearFile}
                       disabled={processing}
-                      className="rounded-lg p-2 hover:bg-accent"
-                      aria-label="Remove"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#FF5C7C]/40 bg-[#FF5C7C]/10 px-3.5 py-2 text-xs font-bold text-[#FF5C7C] hover:bg-[#FF5C7C]/20 transition-all disabled:opacity-50"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5" /> Replace Image
                     </button>
                   </div>
+
                   <div className="mt-4 flex flex-wrap gap-2">
                     {/* Autonomous Auto-Pilot Trigger */}
                     <button
@@ -514,51 +672,86 @@ function Dashboard() {
                       disabled={processing}
                       className="inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground disabled:opacity-60"
                     >
-                      <Sparkles className="h-4 w-4" /> Round 1 Variants
+                      <Sparkles className="h-4 w-4" /> Generate 5-50KB Presets
                     </button>
 
                     <button
-                      onClick={() => handleGenerate(2)}
-                      disabled={processing}
-                      className="inline-flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-400 hover:bg-amber-500/20"
+                      onClick={() => setShowStudioModal(true)}
+                      disabled={processing || !sourceCanvas}
+                      className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 hover:bg-cyan-500/20"
                     >
-                      <Zap className="h-4 w-4" /> Round 2 Deep
+                      <Layers className="h-4 w-4" /> One-Click Studio (10 Formats)
                     </button>
 
                     <button
-                      onClick={() => inputRef.current?.click()}
-                      disabled={processing}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/60 px-4 py-2 text-sm font-medium hover:bg-accent"
+                      onClick={() => setShowWinnerModal(true)}
+                      disabled={processing || results.length === 0}
+                      className="inline-flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-300 hover:bg-amber-500/20"
                     >
-                      Replace image
+                      <Zap className="h-4 w-4" /> Marketplace Winner Simulator
                     </button>
-                    <input
-                      ref={inputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) onFile(f);
-                      }}
-                    />
                   </div>
-                  {processing && (
-                    <div className="mt-4 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{statusMessage || "Processing autonomous optimization..."}</span>
-                        <span>{progress}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-brand transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* AI Listing Scorecard */}
+              {listingScore && (
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      AI Computer Vision Quality Scorecard
+                    </div>
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded border border-emerald-500/20">
+                      Grade {listingScore.grade} ({listingScore.overallScore}/100)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
+                      <div className="text-slate-400">CTR Score</div>
+                      <div className="font-extrabold text-white text-base">{listingScore.ctrScore}/100</div>
+                    </div>
+                    <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
+                      <div className="text-slate-400">Background White Purity</div>
+                      <div className="font-extrabold text-emerald-400 text-base">{listingScore.metrics.backgroundPurityScore}%</div>
+                    </div>
+                    <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
+                      <div className="text-slate-400">Object Framing</div>
+                      <div className="font-extrabold text-cyan-400 text-base">{listingScore.metrics.objectFramingScore}%</div>
+                    </div>
+                    <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
+                      <div className="text-slate-400">Edge Sharpness</div>
+                      <div className="font-extrabold text-amber-400 text-base">{listingScore.metrics.edgeSharpnessScore}/100</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Before / After Slider */}
+              {results.length > 0 && previewUrl && (
+                <BeforeAfterSlider
+                  originalUrl={previewUrl}
+                  optimizedUrl={results[0].url}
+                  originalSizeKB={Math.round(file.size / 1024)}
+                  optimizedSizeKB={results[0].sizeKB}
+                  filename={file.name}
+                />
+              )}
+
+              {processing && (
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{statusMessage || "Processing autonomous optimization..."}</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-brand transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -579,11 +772,10 @@ function Dashboard() {
                 {results.map((r, idx) => (
                   <div
                     key={idx}
-                    className={`rounded-xl surface overflow-hidden group border transition-all ${
-                      r.recommendation?.isTopRecommendation
-                        ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
-                        : "border-border/70 hover:border-brand/50"
-                    }`}
+                    className={`rounded-xl surface overflow-hidden group border transition-all ${r.recommendation?.isTopRecommendation
+                      ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
+                      : "border-border/70 hover:border-brand/50"
+                      }`}
                   >
                     <div className="aspect-square bg-white relative">
                       <img
@@ -615,13 +807,22 @@ function Dashboard() {
                             Frame Occupancy: {r.debugInfo?.frameOccupancyPct ?? 90}% · {r.width}×{r.height}px
                           </div>
                         </div>
-                        <button
-                          onClick={() => downloadResult(r.url, r.targetKB)}
-                          className="rounded-lg bg-gradient-brand p-2 text-brand-foreground opacity-80 hover:opacity-100"
-                          aria-label={`Download ${r.targetKB} KB`}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenSimulator(r)}
+                            className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-amber-300 hover:bg-amber-500/20 transition-colors"
+                            title="Run AI Mobile Conversion Simulator"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => downloadResult(r.url, r.targetKB)}
+                            className="rounded-lg bg-gradient-brand p-2 text-brand-foreground opacity-80 hover:opacity-100"
+                            aria-label={`Download ${r.targetKB} KB`}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -629,6 +830,9 @@ function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* Smart Profit Engine & Financial Calculator */}
+          <SmartProfitCalculator />
 
           {/* Meesho Automation Section */}
           <MeeshoComparison
@@ -638,70 +842,114 @@ function Dashboard() {
             currentRound={currentRound}
             onTriggerRound2={() => handleGenerate(2)}
           />
+
+          {/* AI Profit & Future-Proof Business Intelligence Suite */}
+          <AIBusinessSuite />
+
+          {/* Conversion Simulator Modal */}
+          {simulatorData && (
+            <ConversionSimulatorModal
+              isOpen={showSimulatorModal}
+              onClose={() => setShowSimulatorModal(false)}
+              imageUrl={simulatorData.url}
+              filename={file?.name ?? "Product Image"}
+              targetKB={simulatorData.targetKB}
+              simulation={simulatorData.result}
+            />
+          )}
+
+          {/* One Click Content Studio Modal */}
+          <OneClickStudioModal
+            isOpen={showStudioModal}
+            onClose={() => setShowStudioModal(false)}
+            sourceCanvas={sourceCanvas}
+            filename={file?.name ?? "Product Image"}
+          />
+
+          {/* Marketplace Winner Simulator Modal */}
+          <WinnerSimulatorModal
+            isOpen={showWinnerModal}
+            onClose={() => setShowWinnerModal(false)}
+            variants={results}
+            filename={file?.name ?? "Product Image"}
+          />
         </div>
 
         {/* History sidebar */}
         <aside className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <HistoryIcon className="h-4 w-4" /> Optimization History
+            <h2 className="flex items-center gap-2 text-sm font-bold text-blue-600">
+              <HistoryIcon className="h-4 w-4 text-blue-600" /> Optimization History ({history.length})
             </h2>
             {history.length > 0 && (
               <button
                 onClick={clearHistory}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="text-xs font-semibold text-slate-400 hover:text-red-600"
               >
                 Clear all
               </button>
             )}
           </div>
+
+          {history.length > 0 && (
+            <input
+              type="text"
+              placeholder="Search history by filename..."
+              value={historyQuery}
+              onChange={(e) => setHistoryQuery(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          )}
+
           {history.length === 0 ? (
-            <div className="rounded-xl surface p-6 text-center">
-              <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-muted">
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+              <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400">
+                <ImageIcon className="h-4 w-4" />
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">
+              <p className="mt-3 text-xs font-medium text-slate-500">
                 Your adaptive variant history will appear here.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {history.map((h) => (
-                <div key={h.id} className="rounded-xl surface p-3">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={h.thumb}
-                      alt={h.filename}
-                      className="h-14 w-14 rounded-lg object-cover border border-border bg-white"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium truncate">{h.filename}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {h.category} · {new Date(h.createdAt).toLocaleTimeString()}
+              {history
+                .filter((h) => h.filename.toLowerCase().includes(historyQuery.toLowerCase()))
+                .map((h) => (
+                  <div key={h.id} className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2">
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={h.thumb}
+                        alt={h.filename}
+                        className="h-14 w-14 rounded-xl object-cover border border-slate-200 bg-slate-50"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">{h.filename}</div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          {h.category} · {new Date(h.createdAt).toLocaleTimeString()}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {h.variants.map((v, i) => (
+                            <button
+                              key={i}
+                              onClick={() => downloadResult(v.url, v.targetKB, h.filename)}
+                              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
+                              title={v.strategyName}
+                            >
+                              {v.targetKB} KB
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {h.variants.map((v, i) => (
-                          <button
-                            key={i}
-                            onClick={() => downloadResult(v.url, v.targetKB, h.filename)}
-                            className="rounded-md border border-border bg-background/60 px-1.5 py-0.5 text-[10px] hover:border-brand/50"
-                            title={v.strategyName}
-                          >
-                            {v.targetKB} KB
-                          </button>
-                        ))}
-                      </div>
+                      <button
+                        onClick={() => removeHistoryEntry(h.id)}
+                        className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        aria-label="Remove"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => removeHistoryEntry(h.id)}
-                      className="rounded-md p-1 text-muted-foreground hover:text-foreground"
-                      aria-label="Remove"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </aside>

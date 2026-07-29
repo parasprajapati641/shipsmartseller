@@ -208,6 +208,15 @@ export async function compareImageVariants(
       };
     });
 
+    if (!processedVariants || processedVariants.length === 0) {
+      return {
+        success: true,
+        bestVariant: null,
+        variants: [],
+        totalProcessingTimeMs: Date.now() - start,
+      };
+    }
+
     const bestVariant = processedVariants.reduce((best, cur) =>
       cur.shippingCharge < best.shippingCharge ? cur : best, processedVariants[0]);
 
@@ -241,6 +250,15 @@ export async function compareImageVariants(
         bestSupplier: { supplierName: "Standard Meesho Logistics", shippingCharge: charge, deliveryDays: "3 days" },
       };
     });
+
+    if (!processedVariants || processedVariants.length === 0) {
+      return {
+        success: true,
+        bestVariant: null,
+        variants: [],
+        totalProcessingTimeMs: Date.now() - start,
+      };
+    }
 
     const bestVariant = processedVariants.reduce((best, cur) =>
       cur.shippingCharge < best.shippingCharge ? cur : best, processedVariants[0]);

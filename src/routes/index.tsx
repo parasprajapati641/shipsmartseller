@@ -23,6 +23,24 @@ import heroVisual from "@/assets/hero-visual.jpg";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "ShipSmart Seller — AI Product Image Generator & Meesho Optimization SaaS" },
+      {
+        name: "description",
+        content:
+          "Cut Meesho & Flipkart shipping charges with AI-optimized product images. Auto-generate white-background 1:1 square marketplace images with 5 KB – 50 KB preset compression.",
+      },
+      { property: "og:title", content: "ShipSmart Seller — AI Product Image Optimization Platform" },
+      {
+        property: "og:description",
+        content:
+          "AI studio background removal, tight framing occupancy, independent 5 KB–50 KB weight presets, and real-time listing conversion simulation.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Landing,
 });
 
@@ -172,20 +190,20 @@ function Header() {
   const [open, setOpen] = useState(false);
   const { isAuthed, goStart, goSignIn, goDashboard } = useAuthCTA();
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0A1726]/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <a href="#top" className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand glow">
-            <Sparkles className="h-4 w-4 text-brand-foreground" />
+          <div className="grid h-8 w-8 place-items-center rounded-xl bg-cyan-400 text-slate-950 font-bold shadow-lg shadow-cyan-500/25">
+            <Sparkles className="h-4 w-4" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">Ship Smart</span>
+          <span className="text-lg font-bold tracking-tight text-white">ShipSmart Seller</span>
         </a>
         <nav className="hidden md:flex items-center gap-8">
           {NAV.map((n) => (
             <a
               key={n.href}
               href={n.href}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm text-slate-400 transition-colors hover:text-white font-medium"
             >
               {n.label}
             </a>
@@ -195,7 +213,7 @@ function Header() {
           {isAuthed ? (
             <button
               onClick={goDashboard}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-extrabold text-slate-950 shadow-lg shadow-cyan-500/25 hover:bg-cyan-300"
             >
               Dashboard <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -203,13 +221,13 @@ function Header() {
             <>
               <button
                 onClick={goSignIn}
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className="text-sm text-slate-400 hover:text-white font-semibold px-2"
               >
                 Sign in
               </button>
               <button
                 onClick={goStart}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground transition-transform hover:scale-[1.02]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-extrabold text-slate-950 shadow-lg shadow-cyan-500/25 transition-transform hover:scale-[1.02] hover:bg-cyan-300"
               >
                 Get started <ArrowRight className="h-3.5 w-3.5" />
               </button>

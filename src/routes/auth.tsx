@@ -15,8 +15,8 @@ export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Sign in — Ship Smart" },
-      { name: "description", content: "Sign in or create your Ship Smart account." },
+      { title: "Sign in — ShipSmart Seller" },
+      { name: "description", content: "Sign in or create your ShipSmart Seller account." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -35,7 +35,6 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // If already signed in, bounce to dashboard
   useEffect(() => {
     if (!loading && session) {
       navigate({ to: "/dashboard", replace: true });
@@ -75,7 +74,6 @@ function AuthPage() {
       }
 
       if (mode === "signup") {
-        // 1. Attempt admin direct creation with email_confirm: true (suppresses verification emails)
         try {
           const { createDirectAccountFn } = await import("@/lib/auth-actions");
           const directRes = await createDirectAccountFn({
@@ -89,17 +87,15 @@ function AuthPage() {
             return;
           }
         } catch {
-          // Fallback gracefully to standard auth if server function is not reached
+          // Fallback gracefully
         }
 
-        // 2. Standard sign in immediately logs user into their account
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: emailParsed.data,
           password: passParsed.data,
         });
 
         if (signInError) {
-          // Fallback signUp if account didn't exist yet
           const { error: signUpError } = await supabase.auth.signUp({
             email: emailParsed.data,
             password: passParsed.data,
@@ -107,10 +103,9 @@ function AuthPage() {
           if (signUpError) throw signUpError;
         }
 
-        toast.success("Account created! Welcome to Ship Smart.");
+        toast.success("Account created! Welcome to ShipSmart Seller.");
         navigate({ to: redirectTo, replace: true });
       } else {
-        // Login mode
         const { error } = await supabase.auth.signInWithPassword({
           email: emailParsed.data,
           password: passParsed.data,
@@ -127,54 +122,52 @@ function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{ background: "var(--gradient-radial)" }}
-      />
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#090B14] text-white">
       <div className="w-full max-w-md">
         <Link
           to="/"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-8"
+          className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white mb-8"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to home
         </Link>
 
-        <div className="rounded-2xl surface p-8 shadow-elevated">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand glow">
-              <Sparkles className="h-4 w-4 text-brand-foreground" />
+        <div className="rounded-2xl border border-[#2A3658] bg-[#121826] p-8 shadow-2xl space-y-6">
+          <div className="flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-[#6C63FF] text-white font-bold shadow-lg shadow-[#6C63FF]/30">
+              <Sparkles className="h-4 w-4" />
             </div>
-            <span className="text-lg font-semibold">Ship Smart</span>
+            <span className="text-lg font-bold tracking-tight text-white">ShipSmart Seller</span>
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {mode === "signup"
-              ? "Create your account"
-              : mode === "forgot"
-                ? "Reset your password"
-                : "Welcome back"}
-          </h1>
-          <p className="mt-1 mb-6 text-sm text-muted-foreground">
-            {mode === "signup"
-              ? "Instant access to your seller dashboard. No credit card required."
-              : mode === "forgot"
-                ? "We'll email you a secure reset link."
-                : "Sign in to continue to your dashboard."}
-          </p>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              {mode === "signup"
+                ? "Create your account"
+                : mode === "forgot"
+                  ? "Reset your password"
+                  : "Welcome back"}
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              {mode === "signup"
+                ? "Instant access to your seller dashboard. No credit card required."
+                : mode === "forgot"
+                  ? "We'll email you a secure reset link."
+                  : "Sign in to continue to your dashboard."}
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Email</label>
+              <label className="text-xs font-semibold text-slate-300">Email</label>
               <div className="mt-1.5 relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="email"
                   autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background/60 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-[#2A3658] bg-[#1A2235] pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#6C63FF]"
                   placeholder="you@example.com"
                 />
               </div>
@@ -183,19 +176,19 @@ function AuthPage() {
             {mode !== "forgot" && (
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-muted-foreground">Password</label>
+                  <label className="text-xs font-semibold text-slate-300">Password</label>
                   {mode === "login" && (
                     <button
                       type="button"
                       onClick={() => setMode("forgot")}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="text-xs text-slate-400 hover:text-[#6C63FF]"
                     >
                       Forgot?
                     </button>
                   )}
                 </div>
                 <div className="mt-1.5 relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="password"
                     autoComplete={mode === "signup" ? "new-password" : "current-password"}
@@ -203,7 +196,7 @@ function AuthPage() {
                     minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg border border-input bg-background/60 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full rounded-xl border border-[#2A3658] bg-[#1A2235] pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#6C63FF]"
                     placeholder="••••••••"
                   />
                 </div>
@@ -213,7 +206,7 @@ function AuthPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-brand px-4 py-3 text-sm font-medium text-brand-foreground disabled:opacity-60 transition-opacity hover:opacity-95"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#6C63FF] py-3 text-sm font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:bg-[#5b52e0] disabled:opacity-60 transition-all"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {mode === "signup"
@@ -224,13 +217,13 @@ function AuthPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-slate-400">
             {mode === "login" && (
               <>
-                New to Ship Smart?{" "}
+                New to ShipSmart Seller?{" "}
                 <button
                   onClick={() => setMode("signup")}
-                  className="text-foreground font-medium hover:underline"
+                  className="text-[#6C63FF] font-semibold hover:underline"
                 >
                   Create an account
                 </button>
@@ -241,7 +234,7 @@ function AuthPage() {
                 Already have an account?{" "}
                 <button
                   onClick={() => setMode("login")}
-                  className="text-foreground font-medium hover:underline"
+                  className="text-[#6C63FF] font-semibold hover:underline"
                 >
                   Sign in
                 </button>
@@ -250,7 +243,7 @@ function AuthPage() {
             {mode === "forgot" && (
               <button
                 onClick={() => setMode("login")}
-                className="text-foreground font-medium hover:underline"
+                className="text-[#6C63FF] font-semibold hover:underline"
               >
                 Back to sign in
               </button>

@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
-import { reportAppError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth-context";
 
 function NotFoundComponent() {
@@ -37,11 +36,8 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  console.error("[ShipSmart App Error]", error);
   const router = useRouter();
-  useEffect(() => {
-    reportAppError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

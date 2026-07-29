@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import {
   connectMeesho,
   disconnectMeesho,
@@ -20,16 +21,14 @@ export const getMeeshoStatusFn = createServerFn({ method: "GET" }).handler(async
 });
 
 export const connectMeeshoFn = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
-    try {
-      if (data && typeof data === "object") {
-        return data as { email?: string; password?: string };
-      }
-    } catch {
-      // safe fallback for malformed validator payload
-    }
-    return {};
-  })
+  .validator((data: { email?: string; password?: string }) =>
+    z
+      .object({
+        email: z.string().optional(),
+        password: z.string().optional(),
+      })
+      .parse(data ?? {}),
+  )
   .handler(async ({ data }) => {
     try {
       return await connectMeesho(
@@ -57,16 +56,13 @@ export const disconnectMeeshoFn = createServerFn({ method: "POST" }).handler(asy
 });
 
 export const compareSingleImageFn = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
-    try {
-      if (data && typeof data === "object" && "imagePath" in data) {
-        return data as { imagePath: string };
-      }
-    } catch {
-      // safe fallback
-    }
-    return { imagePath: "" };
-  })
+  .validator((data: { imagePath: string }) =>
+    z
+      .object({
+        imagePath: z.string().default(""),
+      })
+      .parse(data ?? { imagePath: "" }),
+  )
   .handler(async ({ data }) => {
     try {
       return await compareSingleImage(data.imagePath);
@@ -85,20 +81,24 @@ export const compareSingleImageFn = createServerFn({ method: "POST" })
     }
   });
 
+const variantInputSchema = z.object({
+  path: z.string().optional(),
+  name: z.string().optional(),
+  sizeKB: z.number().optional(),
+  base64: z.string().optional(),
+});
+
 export const compareVariantsFn = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
-    try {
-      if (data && typeof data === "object" && "variants" in data && Array.isArray((data as any).variants)) {
-        return data as { variants: VariantInput[] };
-      }
-    } catch {
-      // safe fallback
-    }
-    return { variants: [] };
-  })
+  .validator((data: { variants: Array<{ path?: string; name?: string; sizeKB?: number; base64?: string }> }) =>
+    z
+      .object({
+        variants: z.array(variantInputSchema).default([]),
+      })
+      .parse(data ?? { variants: [] }),
+  )
   .handler(async ({ data }) => {
     try {
-      return await compareImageVariants(data.variants);
+      return await compareImageVariants(data.variants as VariantInput[]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {

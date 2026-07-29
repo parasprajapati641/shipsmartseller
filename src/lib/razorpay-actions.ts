@@ -14,7 +14,12 @@ export const createRazorpayOrderFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    return await createRazorpayOrder(data.plan, data.amountInRupees, data.userEmail);
+    try {
+      return await createRazorpayOrder(data.plan, data.amountInRupees, data.userEmail);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
   });
 
 /** TanStack Start Server Function to verify Razorpay payment signature without localhost 5000 dependency. */
@@ -37,11 +42,16 @@ export const verifyRazorpayPaymentFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    return await verifyRazorpayPayment(
-      data.razorpay_order_id,
-      data.razorpay_payment_id,
-      data.razorpay_signature,
-      data.plan,
-      data.email,
-    );
+    try {
+      return await verifyRazorpayPayment(
+        data.razorpay_order_id,
+        data.razorpay_payment_id,
+        data.razorpay_signature,
+        data.plan,
+        data.email,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
   });

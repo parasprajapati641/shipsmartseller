@@ -121,10 +121,10 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
           toast.dismiss(verifyToastId);
 
           if (verifyRes.success) {
-            toast.success(verifyRes.message || `Welcome to ${planLabel}! Payment successful.`);
+            toast.success((verifyRes as any).message || `Welcome to ${planLabel}! Payment successful.`);
             options.onSuccess?.(response.razorpay_payment_id);
           } else {
-            toast.error(verifyRes.message || "Payment verification failed.");
+            toast.error((verifyRes as any).message || (verifyRes as any).error || "Payment verification failed.");
           }
         } catch (err) {
           toast.dismiss(verifyToastId);
