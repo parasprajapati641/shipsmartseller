@@ -7,7 +7,7 @@ ShipSmart Seller is an enterprise-grade, AI-powered e-commerce image optimizatio
 - **Autonomous AI Image Optimization Engine**: Studio background removal, tight subject bounding-box detection, and unsharp texture preservation.
 - **Independent Target Weight Presets**: Real-time multi-resolution compression matching exact target file sizes (5 KB, 10 KB, 15 KB, 20 KB, 25 KB, 30 KB, 40 KB, 50 KB) to cut seller shipping charges.
 - **AI Marketplace Commerce Intelligence & Conversion Simulator**: Real-time visual heatmaps, buyer focus modeling, catalog health scoring, and shipping charge savings forecast.
-- **Integrated Payment Gateway**: Instant subscription activation with Razorpay (Premium ₹499/mo & Premium Plus ₹999/mo) and automated receipt generation.
+- **Integrated Payment Gateway**: Instant subscription activation with Razorpay (Free Trial & Premium Plus ₹999/mo) and automated receipt generation.
 - **Instant Passwordless Auth**: Instant account activation with zero email verification delay.
 
 ## Stack

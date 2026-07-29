@@ -12,10 +12,7 @@ import {
   selectAdaptiveStrategiesForCategory,
   type OptimizationStrategy,
 } from "./adaptive-learning-store.js";
-import {
-  rankAndScoreVariants,
-  type VariantRecommendation,
-} from "./recommendation-engine.js";
+import { rankAndScoreVariants, type VariantRecommendation } from "./recommendation-engine.js";
 
 const pica = Pica({ features: ["js", "wasm"] });
 
@@ -109,12 +106,20 @@ function detectSubjectBoundingBox(
   const data = imgData.data;
 
   // 1. Border Sampling: Calculate baseline background RGB from outer edges of photo
-  let bgRSum = 0, bgGSum = 0, bgBSum = 0, bgCount = 0;
+  let bgRSum = 0,
+    bgGSum = 0,
+    bgBSum = 0,
+    bgCount = 0;
   const borderMargin = Math.max(3, Math.floor(Math.min(width, height) * 0.03));
 
   for (let y = 0; y < height; y += 2) {
     for (let x = 0; x < width; x += 2) {
-      if (y < borderMargin || y >= height - borderMargin || x < borderMargin || x >= width - borderMargin) {
+      if (
+        y < borderMargin ||
+        y >= height - borderMargin ||
+        x < borderMargin ||
+        x >= width - borderMargin
+      ) {
         const idx = (y * width + x) * 4;
         const a = data[idx + 3];
         if (a > 30) {
@@ -156,7 +161,7 @@ function detectSubjectBoundingBox(
       const isBackground =
         (distToBg < 45 && brightness > 150) ||
         (brightness > 230 && colorDiff < 20) ||
-        (brightness > 245);
+        brightness > 245;
 
       if (!isBackground) {
         if (x < minX) minX = x;
@@ -169,7 +174,13 @@ function detectSubjectBoundingBox(
   }
 
   // Deterministic Fallback: Center saliency crop
-  if (!found || maxX <= minX || maxY <= minY || (maxX - minX < width * 0.1) || (maxY - minY < height * 0.1)) {
+  if (
+    !found ||
+    maxX <= minX ||
+    maxY <= minY ||
+    maxX - minX < width * 0.1 ||
+    maxY - minY < height * 0.1
+  ) {
     const cropMarginX = Math.round(width * 0.12);
     const cropMarginY = Math.round(height * 0.08);
     return {
@@ -190,7 +201,7 @@ function detectSubjectBoundingBox(
 
   // Deterministic Guard: If detected bounding box covers >82% of full canvas, trim outer background margins
   if (bWidth / width > 0.82 || bHeight / height > 0.82) {
-    const trimX = Math.round(width * 0.10);
+    const trimX = Math.round(width * 0.1);
     const trimY = Math.round(height * 0.06);
     minX = Math.min(width / 2 - 10, minX + trimX);
     maxX = Math.max(width / 2 + 10, maxX - trimX);
@@ -272,7 +283,7 @@ function applyAdaptiveSharpening(
 
   // Downsampling naturally softens image details, so scale-aware boost preserves crisp edges & faces
   const baseAmount = level === "high" ? 0.42 : 0.26;
-  const amount = Math.min(0.70, baseAmount + (1.0 - Math.min(1.0, scale)) * 0.22);
+  const amount = Math.min(0.7, baseAmount + (1.0 - Math.min(1.0, scale)) * 0.22);
   const threshold = 5; // Noise gate threshold: preserves smooth skin gradients while sharpening edges & text
 
   const imgData = ctx.getImageData(0, 0, width, height);
@@ -325,14 +336,18 @@ function applyAdaptiveSharpening(
 async function createStrategyCanvas(
   ctx: MasterContext,
   strategy: OptimizationStrategy,
-): Promise<{ croppedCanvas: HTMLCanvasElement; debugRect: { left: number; top: number; width: number; height: number }; occupancyPct: number }> {
+): Promise<{
+  croppedCanvas: HTMLCanvasElement;
+  debugRect: { left: number; top: number; width: number; height: number };
+  occupancyPct: number;
+}> {
   const { bbox, nativeCanvas } = ctx;
 
   // 1. Target aspect ratio (e.g. 3:4 -> 0.75, 1:1 -> 1.0)
   const targetAspect = strategy.aspectRatio === "3:4" ? 3 / 4 : 1 / 1;
 
   // 2. Target subject occupancy in final frame: 88%-92% (leaving 2%-4% margins)
-  const fillRatio = Math.min(0.92, Math.max(0.86, strategy.fillRatio ?? 0.90));
+  const fillRatio = Math.min(0.92, Math.max(0.86, strategy.fillRatio ?? 0.9));
 
   // 3. Calculate minimum frame dimensions to contain the subject at fillRatio
   const minFrameW = bbox.width / fillRatio;
@@ -399,7 +414,12 @@ async function createStrategyCanvas(
 
   return {
     croppedCanvas,
-    debugRect: { left: Math.round(cropLeft), top: Math.round(cropTop), width: renderW, height: renderH },
+    debugRect: {
+      left: Math.round(cropLeft),
+      top: Math.round(cropTop),
+      width: renderW,
+      height: renderH,
+    },
     occupancyPct,
   };
 }
@@ -414,17 +434,18 @@ async function encodeExactTargetKB(
   sharpeningLevel: "none" | "balanced" | "high" = "high",
 ): Promise<{ blob: Blob; width: number; height: number; quality: number }> {
   const targetBytes = targetKB * 1024;
-  
+
   // Strict target bounds: ±0.45 KB of target
   const minAcceptableBytes = Math.max(1024, Math.round((targetKB - 0.45) * 1024));
   const maxAcceptableBytes = Math.round((targetKB + 0.45) * 1024);
 
   // Resolution-preserving scale search array prioritizing higher resolutions
-  const scalesToTry = targetKB >= 30
-    ? [1.0, 0.95, 0.90, 0.85, 0.80, 0.75]
-    : targetKB >= 15
-      ? [1.0, 0.92, 0.85, 0.78, 0.70, 0.62, 0.55]
-      : [0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30, 0.22];
+  const scalesToTry =
+    targetKB >= 30
+      ? [1.0, 0.95, 0.9, 0.85, 0.8, 0.75]
+      : targetKB >= 15
+        ? [1.0, 0.92, 0.85, 0.78, 0.7, 0.62, 0.55]
+        : [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.22];
 
   let closestBlob: Blob | null = null;
   let closestW = strategyCanvas.width;
@@ -568,11 +589,11 @@ export async function generateAdaptiveVariants(
     }
 
     onProgress?.(95, "Calculating win probability scores & ranking variants...");
-    const recMap = rankAndScoreVariants(
-      selectedStrategies,
-      category,
-      { width: ctx.bbox.width, height: ctx.bbox.height, sizeKB: Math.round(file.size / 1024) },
-    );
+    const recMap = rankAndScoreVariants(selectedStrategies, category, {
+      width: ctx.bbox.width,
+      height: ctx.bbox.height,
+      sizeKB: Math.round(file.size / 1024),
+    });
 
     for (const res of results) {
       if (res.strategy) {

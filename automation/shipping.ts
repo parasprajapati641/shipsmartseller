@@ -29,7 +29,10 @@ export async function waitForShippingCalculation(
 
   if (calcVisible) {
     logger.debug("Clicking calculate shipping button");
-    await calcBtn.first().click().catch(() => undefined);
+    await calcBtn
+      .first()
+      .click()
+      .catch(() => undefined);
   }
 
   // Wait for loading indicator to finish
@@ -84,7 +87,10 @@ export async function readShippingCharge(page: Page): Promise<ParsedShippingChar
   const sectionCount = await section.count().catch(() => 0);
   if (sectionCount > 0) {
     for (let i = 0; i < Math.min(sectionCount, 3); i++) {
-      const text = await section.nth(i).innerText().catch(() => "");
+      const text = await section
+        .nth(i)
+        .innerText()
+        .catch(() => "");
       if (text) texts.push(text);
     }
   }
@@ -94,14 +100,20 @@ export async function readShippingCharge(page: Page): Promise<ParsedShippingChar
   const amountCount = await amountEl.count().catch(() => 0);
   if (amountCount > 0) {
     for (let i = 0; i < Math.min(amountCount, 3); i++) {
-      const text = await amountEl.nth(i).innerText().catch(() => "");
+      const text = await amountEl
+        .nth(i)
+        .innerText()
+        .catch(() => "");
       if (text) texts.push(text);
     }
   }
 
   // Fallback: scan visible page text for INR amounts near shipping keywords
   if (texts.length === 0) {
-    const bodyText = await page.locator("body").innerText().catch(() => "");
+    const bodyText = await page
+      .locator("body")
+      .innerText()
+      .catch(() => "");
     const relevantLines = bodyText
       .split("\n")
       .filter((line) => /shipping|logistic|delivery|charge|fee|₹|rs\./i.test(line));

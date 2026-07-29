@@ -55,10 +55,12 @@ async function main() {
   await page.waitForTimeout(3000);
 
   // Also try product page to load its chunks
-  await page.goto("https://supplier.meesho.com/panel/v3/new/cataloguing/single/add", {
-    waitUntil: "networkidle",
-    timeout: 90000,
-  }).catch(() => undefined);
+  await page
+    .goto("https://supplier.meesho.com/panel/v3/new/cataloguing/single/add", {
+      waitUntil: "networkidle",
+      timeout: 90000,
+    })
+    .catch(() => undefined);
   await page.waitForTimeout(3000);
 
   console.log(`Collected ${scriptUrls.size} script URLs`);
@@ -82,11 +84,16 @@ async function main() {
     }
   }
 
-  await fs.writeFile(path.join(OUT, "js-hints.json"), JSON.stringify({ scriptCount: scriptUrls.size, hits }, null, 2));
+  await fs.writeFile(
+    path.join(OUT, "js-hints.json"),
+    JSON.stringify({ scriptCount: scriptUrls.size, hits }, null, 2),
+  );
   console.log(`Found ${hits.length} keyword hits -> js-hints.json`);
 
   // Also dump login page HTML for data attributes
-  await page.goto("https://supplier.meesho.com/panel/v3/new/root/login", { waitUntil: "domcontentloaded" });
+  await page.goto("https://supplier.meesho.com/panel/v3/new/root/login", {
+    waitUntil: "domcontentloaded",
+  });
   const html = await page.content();
   await fs.writeFile(path.join(OUT, "login-page.html"), html);
 

@@ -16,13 +16,19 @@ export function scoreAllMarketplaces(
   targetKB: number,
 ): MarketplacePlatformScore[] {
   // Amazon: Pure White 255, 1:1, 1000px+
-  const amazonScore = Math.round(bgPurityPct * 0.5 + (isSquare ? 30 : 10) + (subjectOccupancyPct >= 85 ? 20 : 10));
+  const amazonScore = Math.round(
+    bgPurityPct * 0.5 + (isSquare ? 30 : 10) + (subjectOccupancyPct >= 85 ? 20 : 10),
+  );
 
   // Meesho: Tight framing 88-92%, <30KB file size
-  const meeshoScore = Math.round(subjectOccupancyPct * 0.45 + (targetKB <= 30 ? 35 : 15) + (isSquare ? 20 : 10));
+  const meeshoScore = Math.round(
+    subjectOccupancyPct * 0.45 + (targetKB <= 30 ? 35 : 15) + (isSquare ? 20 : 10),
+  );
 
   // Flipkart: Pure white background, 80%+ fill
-  const flipkartScore = Math.round(bgPurityPct * 0.45 + subjectOccupancyPct * 0.35 + (isSquare ? 20 : 10));
+  const flipkartScore = Math.round(
+    bgPurityPct * 0.45 + subjectOccupancyPct * 0.35 + (isSquare ? 20 : 10),
+  );
 
   // Shopify: Clean photography, high sharpness
   const shopifyScore = Math.round(bgPurityPct * 0.35 + subjectOccupancyPct * 0.35 + 30);
@@ -39,7 +45,10 @@ export function scoreAllMarketplaces(
       score: Math.min(99, Math.max(70, meeshoScore)),
       status: meeshoScore >= 85 ? "Compliant" : "Needs Adjustment",
       primaryRequirement: "88%–92% Frame Occupancy & <30 KB Target Size",
-      recommendation: targetKB <= 30 ? "Optimal tier for lowest shipping slab." : "Select 15KB or 20KB preset to reduce shipping costs.",
+      recommendation:
+        targetKB <= 30
+          ? "Optimal tier for lowest shipping slab."
+          : "Select 15KB or 20KB preset to reduce shipping costs.",
     },
     {
       platform: "Flipkart",

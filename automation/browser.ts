@@ -28,7 +28,8 @@ async function getChromium() {
 
 /** Get proxy settings from environment if configured (e.g. residential proxy). */
 function getProxyOptions() {
-  const proxyServer = process.env.MEESHO_PROXY_SERVER || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
+  const proxyServer =
+    process.env.MEESHO_PROXY_SERVER || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
   if (!proxyServer) return undefined;
 
   const username = process.env.MEESHO_PROXY_USERNAME;
@@ -75,7 +76,9 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
   // Strategy 1: Remote WebSocket Endpoint (Browserless.io, Render, Railway, EC2, VPS)
   const wsEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT || process.env.BROWSERLESS_WS_ENDPOINT;
   if (wsEndpoint) {
-    logger.info("Connecting to remote Playwright browser via WebSocket CDP", { endpoint: wsEndpoint });
+    logger.info("Connecting to remote Playwright browser via WebSocket CDP", {
+      endpoint: wsEndpoint,
+    });
     try {
       sharedBrowser = await chromium.connectOverCDP(wsEndpoint);
       sharedBrowserHeadless = resolvedHeadless;
@@ -143,7 +146,9 @@ export async function launchBrowser(headless?: boolean): Promise<Browser> {
       return sharedBrowser;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.error("Failed to launch Playwright bundled Chromium in production Linux environment", { error: message });
+      logger.error("Failed to launch Playwright bundled Chromium in production Linux environment", {
+        error: message,
+      });
       throw new Error(`Production Linux Chromium launch failed: ${message}`);
     }
   }

@@ -17,11 +17,7 @@ export {
 
 export { waitForShippingCalculation, getShippingCharge, readShippingCharge } from "./shipping.js";
 
-export {
-  compareImageSuppliers,
-  extractSupplierCards,
-  supplierCardSelectors,
-} from "./compare.js";
+export { compareImageSuppliers, extractSupplierCards, supplierCardSelectors } from "./compare.js";
 
 export {
   extractInrAmount,

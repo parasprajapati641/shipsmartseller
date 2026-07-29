@@ -32,7 +32,6 @@ app.get("/test-email", async (req, res) => {
   }
 });
 
-
 //razorpay genrate orderid
 
 app.post("/order", async (req, res) => {
@@ -66,7 +65,6 @@ app.post("/order", async (req, res) => {
     const order = await razorpay.orders.create(options);
 
     res.json(order);
-
   } catch (error) {
     console.error(error);
 
@@ -77,18 +75,11 @@ app.post("/order", async (req, res) => {
   }
 });
 
-
 const crypto = require("crypto");
 
 app.post("/verify-payment", async (req, res) => {
   try {
-    const {
-      email,
-      razorpay_payment_id,
-      razorpay_order_id,
-      razorpay_signature,
-      plan,
-    } = req.body;
+    const { email, razorpay_payment_id, razorpay_order_id, razorpay_signature, plan } = req.body;
 
     // Verify Razorpay Signature
     const generatedSignature = crypto
@@ -106,18 +97,12 @@ app.post("/verify-payment", async (req, res) => {
     const amount = plan === "premium" ? 1 : 1;
 
     // Send Email
-    await sendEmail(
-      email,
-      razorpay_payment_id,
-      amount,
-      plan
-    );
+    await sendEmail(email, razorpay_payment_id, amount, plan);
 
     res.json({
       success: true,
       message: "Payment verified and email sent successfully",
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({

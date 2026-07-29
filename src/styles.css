@@ -36,45 +36,45 @@
   --color-brand-glow: var(--brand-glow);
   --shadow-glow: 0 0 35px -5px rgba(108, 99, 255, 0.35);
   --shadow-emerald-glow: 0 0 35px -5px rgba(0, 212, 170, 0.35);
-  --shadow-elevated: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px #2A3658;
+  --shadow-elevated: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px #2a3658;
 }
 
 :root {
   --radius: 0.875rem;
   /* ORIGINAL Dark ShipSmart Seller Theme */
-  --background: #090B14;
+  --background: #090b14;
   /* Original Dark Background */
-  --foreground: #F8FAFC;
+  --foreground: #f8fafc;
   /* Primary Slate White Text */
   --card: #121826;
   /* Original Dark Card Surface */
-  --card-foreground: #F8FAFC;
-  --popover: #1A2235;
+  --card-foreground: #f8fafc;
+  --popover: #1a2235;
   /* Secondary Card Surface */
-  --popover-foreground: #F8FAFC;
-  --primary: #6C63FF;
+  --popover-foreground: #f8fafc;
+  --primary: #6c63ff;
   /* Original Accent Indigo / Royal Purple */
-  --primary-foreground: #FFFFFF;
-  --secondary: #1A2235;
+  --primary-foreground: #ffffff;
+  --secondary: #1a2235;
   /* Secondary Card Surface */
-  --secondary-foreground: #94A3B8;
+  --secondary-foreground: #94a3b8;
   /* Secondary Slate Text */
-  --muted: #1A2235;
-  --muted-foreground: #94A3B8;
-  --accent: #00D4AA;
+  --muted: #1a2235;
+  --muted-foreground: #94a3b8;
+  --accent: #00d4aa;
   /* Secondary Accent Teal / Emerald */
-  --accent-foreground: #090B14;
-  --destructive: #FF5C7C;
+  --accent-foreground: #090b14;
+  --destructive: #ff5c7c;
   /* Danger Coral Red */
-  --destructive-foreground: #FFFFFF;
-  --border: #2A3658;
+  --destructive-foreground: #ffffff;
+  --border: #2a3658;
   /* Original Border Color */
-  --input: #2A3658;
-  --ring: #6C63FF;
-  --brand: #6C63FF;
-  --brand-foreground: #FFFFFF;
-  --brand-glow: #00D4AA;
-  --gradient-brand: linear-gradient(135deg, #6C63FF 0%, #00D4AA 100%);
+  --input: #2a3658;
+  --ring: #6c63ff;
+  --brand: #6c63ff;
+  --brand-foreground: #ffffff;
+  --brand-glow: #00d4aa;
+  --gradient-brand: linear-gradient(135deg, #6c63ff 0%, #00d4aa 100%);
   --gradient-card: linear-gradient(145deg, rgba(18, 24, 38, 0.95), rgba(26, 34, 53, 0.98));
 }
 
@@ -92,7 +92,9 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108, 99, 255, 0.15), transparent), radial-gradient(circle at 10% 90%, rgba(0, 212, 170, 0.08), transparent 45%);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108, 99, 255, 0.15), transparent),
+      radial-gradient(circle at 10% 90%, rgba(0, 212, 170, 0.08), transparent 45%);
     background-attachment: fixed;
   }
 
@@ -105,14 +107,14 @@
 }
 
 @utility text-gradient {
-  background: linear-gradient(135deg, #6C63FF 0%, #00D4AA 100%);
+  background: linear-gradient(135deg, #6c63ff 0%, #00d4aa 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 @utility text-gradient-gold {
-  background: linear-gradient(135deg, #FFB020 0%, #FF8A00 100%);
+  background: linear-gradient(135deg, #ffb020 0%, #ff8a00 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -134,7 +136,7 @@
   background: var(--gradient-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid #2A3658;
+  border: 1px solid #2a3658;
   box-shadow: var(--shadow-elevated);
 }
 
@@ -145,21 +147,20 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #090B14;
+  background: #090b14;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1A2235;
+  background: #1a2235;
   border-radius: 4px;
-  border: 1px solid #2A3658;
+  border: 1px solid #2a3658;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6C63FF;
+  background: #6c63ff;
 }
 
 @keyframes pulse-glow {
-
   0%,
   100% {
     box-shadow: 0 0 25px 0 rgba(108, 99, 255, 0.35);

@@ -39,7 +39,8 @@ function sanitizeMeta(meta?: Record<string, unknown>): Record<string, unknown> |
 function formatMessage(level: LogLevel, message: string, meta?: Record<string, unknown>): string {
   const ts = new Date().toISOString();
   const safeMeta = sanitizeMeta(meta);
-  const metaStr = safeMeta && Object.keys(safeMeta).length > 0 ? ` ${JSON.stringify(safeMeta)}` : "";
+  const metaStr =
+    safeMeta && Object.keys(safeMeta).length > 0 ? ` ${JSON.stringify(safeMeta)}` : "";
   return `[${ts}] [meesho-automation] [${level.toUpperCase()}] ${message}${metaStr}`;
 }
 

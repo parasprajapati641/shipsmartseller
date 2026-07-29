@@ -2,17 +2,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Browser, BrowserContext, Page } from "playwright";
 import { dumpDebugHtml, extractSupplierCards, saveStepScreenshot } from "./compare.js";
-import { DEFAULT_TIMEOUTS, MEESHO_URLS, PATHS, SUPPORTED_IMAGE_EXTENSIONS } from "./config/constants.js";
+import {
+  DEFAULT_TIMEOUTS,
+  MEESHO_URLS,
+  PATHS,
+  SUPPORTED_IMAGE_EXTENSIONS,
+} from "./config/constants.js";
 import { productCreationSelectors } from "./config/selectors.js";
-import { isMeeshoAutomationError, LoginError, UploadError, ShippingCalculationError } from "./lib/errors.js";
+import {
+  isMeeshoAutomationError,
+  LoginError,
+  UploadError,
+  ShippingCalculationError,
+} from "./lib/errors.js";
 import { logger } from "./lib/logger.js";
 import { resolveSelector } from "./lib/selectors.js";
 import { createAuthenticatedContext } from "./login.js";
-import {
-  captureVariantScreenshot,
-  removeProductImage,
-  uploadWithErrorCapture,
-} from "./upload.js";
+import { captureVariantScreenshot, removeProductImage, uploadWithErrorCapture } from "./upload.js";
 import type {
   AutomationOptions,
   ProgressInfo,
@@ -54,14 +60,23 @@ async function navigateToProductCreation(page: Page, options: AutomationOptions)
           timeout: timeoutMs,
         });
       } catch {
-        await page.goto(MEESHO_URLS.dashboard, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+        await page.goto(MEESHO_URLS.dashboard, {
+          waitUntil: "domcontentloaded",
+          timeout: timeoutMs,
+        });
       }
 
       const currentUrl = page.url();
-      if (currentUrl.includes("login") || currentUrl.includes("auth") || currentUrl.includes("signup")) {
+      if (
+        currentUrl.includes("login") ||
+        currentUrl.includes("auth") ||
+        currentUrl.includes("signup")
+      ) {
         await saveStepScreenshot(page, "step5-error").catch(() => undefined);
         await dumpDebugHtml(page, "suppliers.html").catch(() => undefined);
-        throw new LoginError("Meesho session expired or unauthenticated. Please authenticate via 'Connect Meesho'.");
+        throw new LoginError(
+          "Meesho session expired or unauthenticated. Please authenticate via 'Connect Meesho'.",
+        );
       }
 
       // 1. Click "Catalog Uploads"
@@ -72,14 +87,19 @@ async function navigateToProductCreation(page: Page, options: AutomationOptions)
       }
 
       // 2. Click "Add Single Catalog"
-      const singleBtn = page.getByRole("button", { name: /add single catalog/i }).or(page.getByText(/add single catalog/i)).first();
+      const singleBtn = page
+        .getByRole("button", { name: /add single catalog/i })
+        .or(page.getByText(/add single catalog/i))
+        .first();
       if (await singleBtn.isVisible({ timeout: 4_000 }).catch(() => false)) {
         await singleBtn.click();
         await page.waitForTimeout(1_500);
       }
 
       // 3. Search category "Sarees" and select item
-      const searchInput = page.locator('input[placeholder*="Try Sarees"], input[placeholder*="search"]').first();
+      const searchInput = page
+        .locator('input[placeholder*="Try Sarees"], input[placeholder*="search"]')
+        .first();
       if (await searchInput.isVisible({ timeout: 4_000 }).catch(() => false)) {
         await searchInput.fill("Sarees");
         await page.waitForTimeout(1_000);
@@ -154,7 +174,10 @@ async function testVariant(
     imageFilePath = await ensureVariantFilePath(variant);
 
     // 1. Upload stage (20s timeout max)
-    reportProgress("upload", `Uploading variant ${variantIndex + 1}/${totalVariants} (${variantName})...`);
+    reportProgress(
+      "upload",
+      `Uploading variant ${variantIndex + 1}/${totalVariants} (${variantName})...`,
+    );
     const uploadStart = Date.now();
     await saveStepScreenshot(page, "step2-upload");
 
@@ -170,7 +193,8 @@ async function testVariant(
     // 2. Read shipping cards stage (20s timeout max)
     reportProgress("shipping", `Extracting shipping rates for ${variantName}...`);
     const shippingStart = Date.now();
-    const shippingTimeoutMs = options.timeouts?.shippingCalculation ?? DEFAULT_TIMEOUTS.shippingCalculation;
+    const shippingTimeoutMs =
+      options.timeouts?.shippingCalculation ?? DEFAULT_TIMEOUTS.shippingCalculation;
 
     const suppliers = await withTimeout(
       extractSupplierCards(page),
@@ -181,8 +205,10 @@ async function testVariant(
 
     await saveStepScreenshot(page, "step4-suppliers");
 
-    const lowestCharge = suppliers.length > 0 ? Math.min(...suppliers.map((s) => s.shippingCharge)) : 49;
-    const bestSupplier = suppliers.find((s) => s.shippingCharge === lowestCharge) ?? suppliers[0] ?? null;
+    const lowestCharge =
+      suppliers.length > 0 ? Math.min(...suppliers.map((s) => s.shippingCharge)) : 49;
+    const bestSupplier =
+      suppliers.find((s) => s.shippingCharge === lowestCharge) ?? suppliers[0] ?? null;
 
     const screenshot = await captureVariantScreenshot(
       page,
@@ -224,7 +250,10 @@ async function testVariant(
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error("Variant test failed — stopping immediately", { name: variantName, error: message });
+    logger.error("Variant test failed — stopping immediately", {
+      name: variantName,
+      error: message,
+    });
 
     const screenshot = await saveStepScreenshot(page, "step5-error").catch(() => "");
     const htmlDump = await dumpDebugHtml(page, "suppliers.html").catch(() => undefined);
@@ -254,7 +283,9 @@ async function testVariant(
 
 /** Pick the variant with the lowest shipping charge from successful results. */
 function selectBestVariant(results: VariantShippingResult[]): VariantShippingResult | null {
-  const successful = results.filter((r) => r.status === "success" && Number.isFinite(r.shippingCharge));
+  const successful = results.filter(
+    (r) => r.status === "success" && Number.isFinite(r.shippingCharge),
+  );
   if (successful.length === 0) return null;
   return successful.reduce((best, current) =>
     current.shippingCharge < best.shippingCharge ? current : best,
@@ -280,7 +311,9 @@ export async function runShippingComparison(
   }
 
   const totalStart = Date.now();
-  logger.info("[TIMER] Starting shipping comparison orchestrator", { variantCount: variants.length });
+  logger.info("[TIMER] Starting shipping comparison orchestrator", {
+    variantCount: variants.length,
+  });
 
   options.onProgress?.({
     stage: "preparing",
@@ -302,7 +335,9 @@ export async function runShippingComparison(
     browser = auth.browser;
     context = auth.context;
     page = auth.page;
-    logger.info(`[TIMER] Browser launch & session verification completed in ${Date.now() - launchStart}ms`);
+    logger.info(
+      `[TIMER] Browser launch & session verification completed in ${Date.now() - launchStart}ms`,
+    );
 
     options.onProgress?.({
       stage: "navigation",
@@ -320,7 +355,9 @@ export async function runShippingComparison(
       results.push(result);
 
       if (result.status === "failed") {
-        logger.warn(`Stopping comparison workflow immediately after variant ${result.variantName} failure`);
+        logger.warn(
+          `Stopping comparison workflow immediately after variant ${result.variantName} failure`,
+        );
         break;
       }
     }
@@ -425,11 +462,7 @@ export async function discoverVariantsFromDirectory(dir: string): Promise<Varian
 
 /** Format comparison result for CLI / logging output. */
 export function formatComparisonSummary(result: ShippingComparisonResult): string {
-  const lines: string[] = [
-    "",
-    "=== Meesho Shipping Comparison Results ===",
-    "",
-  ];
+  const lines: string[] = ["", "=== Meesho Shipping Comparison Results ===", ""];
 
   for (const r of result.variants) {
     const status = r.error ? `FAILED (${r.error})` : `₹${r.shippingCharge}`;
@@ -438,7 +471,9 @@ export function formatComparisonSummary(result: ShippingComparisonResult): strin
 
   lines.push("");
   if (result.bestVariant) {
-    lines.push(`  Best variant: ${result.bestVariant.variantName} — ₹${result.bestVariant.shippingCharge}`);
+    lines.push(
+      `  Best variant: ${result.bestVariant.variantName} — ₹${result.bestVariant.shippingCharge}`,
+    );
     lines.push(`  Image: ${result.bestVariant.imagePath}`);
     if (result.bestVariant.screenshot) {
       lines.push(`  Screenshot: ${result.bestVariant.screenshot}`);

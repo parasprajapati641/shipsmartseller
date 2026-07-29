@@ -12,7 +12,11 @@ export type AnalyticsSummary = {
 };
 
 export function calculateAnalyticsSummary(
-  historyItems: { category: string; createdAt: number; variants: { targetKB: number; sizeKB: number }[] }[],
+  historyItems: {
+    category: string;
+    createdAt: number;
+    variants: { targetKB: number; sizeKB: number }[];
+  }[],
 ): AnalyticsSummary {
   const count = historyItems.length;
 

@@ -25,7 +25,7 @@ function toDosTimeDate(date: Date) {
   const time =
     ((date.getHours() & 0x1f) << 11) |
     ((date.getMinutes() & 0x3f) << 5) |
-    ((Math.floor(date.getSeconds() / 2)) & 0x1f);
+    (Math.floor(date.getSeconds() / 2) & 0x1f);
   const d =
     (((date.getFullYear() - 1980) & 0x7f) << 9) |
     (((date.getMonth() + 1) & 0x0f) << 5) |

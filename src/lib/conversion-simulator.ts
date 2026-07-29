@@ -24,7 +24,8 @@ export type HeatmapPoint = {
 export type ConversionSimulationResult = {
   health: CatalogHealthScore;
   heatmapPoints: HeatmapPoint[];
-  marketplaceTier: "Ultra-Low Shipping Tier (<15 KB)" | "Standard Low Tier (<30 KB)" | "Heavy Tier (>50 KB)";
+  marketplaceTier:
+    "Ultra-Low Shipping Tier (<15 KB)" | "Standard Low Tier (<30 KB)" | "Heavy Tier (>50 KB)";
   rivalListingCTR: number; // e.g. 3.2%
   optimizedListingCTR: number; // e.g. 5.8%
 };
@@ -53,7 +54,10 @@ export function analyzeListingConversion(
   let totalSampled = 0;
   const step = Math.max(1, Math.floor(Math.min(width, height) / 200));
 
-  let minX = width, minY = height, maxX = 0, maxY = 0;
+  let minX = width,
+    minY = height,
+    maxX = 0,
+    maxY = 0;
   let subjectPixelCount = 0;
 
   for (let y = 0; y < height; y += step) {
@@ -157,7 +161,9 @@ export function analyzeListingConversion(
     recommendations.push("Crop to 1:1 square aspect ratio for optimal marketplace grid rendering.");
   }
   if (recommendations.length === 0) {
-    recommendations.push("Listing is 100% optimized for Meesho & Flipkart mobile search algorithms.");
+    recommendations.push(
+      "Listing is 100% optimized for Meesho & Flipkart mobile search algorithms.",
+    );
   }
 
   const ctrBoost = Math.round((score / 100) * 38 + 12);
@@ -205,7 +211,8 @@ function getFallbackSimulation(targetKB: number): ConversionSimulationResult {
       { xPct: 50, yPct: 45, intensity: 0.95, radius: 45 },
       { xPct: 35, yPct: 35, intensity: 0.7, radius: 35 },
     ],
-    marketplaceTier: targetKB <= 15 ? "Ultra-Low Shipping Tier (<15 KB)" : "Standard Low Tier (<30 KB)",
+    marketplaceTier:
+      targetKB <= 15 ? "Ultra-Low Shipping Tier (<15 KB)" : "Standard Low Tier (<30 KB)",
     rivalListingCTR: 2.8,
     optimizedListingCTR: 4.8,
   };

@@ -36,10 +36,14 @@ export function BeforeAfterSlider({
     setSliderPos((x / rect.width) * 100);
   };
 
-  const savingsPct = Math.round(((originalSizeKB - optimizedSizeKB) / Math.max(1, originalSizeKB)) * 100);
+  const savingsPct = Math.round(
+    ((originalSizeKB - optimizedSizeKB) / Math.max(1, originalSizeKB)) * 100,
+  );
 
   return (
-    <div className={`space-y-4 ${isFullscreen ? "fixed inset-0 z-50 bg-[#090B14]/95 p-6 overflow-y-auto backdrop-blur-xl" : ""}`}>
+    <div
+      className={`space-y-4 ${isFullscreen ? "fixed inset-0 z-50 bg-[#090B14]/95 p-6 overflow-y-auto backdrop-blur-xl" : ""}`}
+    >
       {/* Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#2A3658] bg-[#121826] p-3 text-xs shadow-xl">
         <div className="flex items-center gap-2">
@@ -109,7 +113,11 @@ export function BeforeAfterSlider({
           className="absolute inset-0 overflow-hidden border-r-2 border-[#6C63FF] shadow-2xl transition-transform duration-200"
           style={{ width: `${sliderPos}%`, transform: `scale(${zoomLevel})` }}
         >
-          <img src={originalUrl} alt="Original" className="h-full w-full object-contain max-w-none" />
+          <img
+            src={originalUrl}
+            alt="Original"
+            className="h-full w-full object-contain max-w-none"
+          />
           <span className="absolute bottom-3 left-3 rounded-lg bg-[#090B14]/90 px-3 py-1 text-xs font-bold text-slate-300 border border-[#2A3658] backdrop-blur-md">
             BEFORE: {originalSizeKB} KB
           </span>

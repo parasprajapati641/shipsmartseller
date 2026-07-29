@@ -32,7 +32,9 @@ async function dumpDom(page, label) {
       accept: el.getAttribute("accept"),
     });
 
-    const allInputs = [...document.querySelectorAll("input, textarea, select, button, [role='button']")].map(pick);
+    const allInputs = [
+      ...document.querySelectorAll("input, textarea, select, button, [role='button']"),
+    ].map(pick);
     const fileInputs = [...document.querySelectorAll('input[type="file"]')].map(pick);
 
     const shippingTexts = [...document.querySelectorAll("*")]
@@ -40,7 +42,9 @@ async function dumpDom(page, label) {
         const t = (el.textContent || "").trim();
         return (
           el.children.length === 0 &&
-          /shipping|logistic|delivery|charge|weight|gram|₹|rs\.|upload|remove|delete|preview|image/i.test(t) &&
+          /shipping|logistic|delivery|charge|weight|gram|₹|rs\.|upload|remove|delete|preview|image/i.test(
+            t,
+          ) &&
           t.length < 250
         );
       })
@@ -137,8 +141,11 @@ async function main() {
       const label = url.split("/").slice(-2).join("_") || "page";
       const info = await dumpDom(page, `loggedin_${label}`);
       results.push(info);
-      console.log(`  URL: ${info.url}, inputs: ${info.allInputs.length}, files: ${info.fileInputs.length}`);
-      if (info.fileInputs.length) console.log("  FILE INPUTS:", JSON.stringify(info.fileInputs, null, 2));
+      console.log(
+        `  URL: ${info.url}, inputs: ${info.allInputs.length}, files: ${info.fileInputs.length}`,
+      );
+      if (info.fileInputs.length)
+        console.log("  FILE INPUTS:", JSON.stringify(info.fileInputs, null, 2));
       if (info.shippingTexts.length) {
         console.log("  SHIPPING TEXTS:", JSON.stringify(info.shippingTexts.slice(0, 20), null, 2));
       }

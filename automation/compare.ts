@@ -37,11 +37,11 @@ export const supplierCardSelectors = {
     '[class*="courier"]',
     '[class*="name"]',
     '[class*="title"]',
-    'h3',
-    'h4',
-    'h5',
-    'strong',
-    'b',
+    "h3",
+    "h4",
+    "h5",
+    "strong",
+    "b",
   ].join(", "),
 };
 
@@ -50,7 +50,9 @@ export async function dumpDebugHtml(page: Page, filename = "suppliers.html"): Pr
   const debugDir = path.join(PATHS.automationRoot ?? "automation", ".debug");
   await fs.mkdir(debugDir, { recursive: true });
   const dumpPath = path.join(debugDir, filename);
-  const html = await page.content().catch(() => "<html><body>Failed to fetch page content</body></html>");
+  const html = await page
+    .content()
+    .catch(() => "<html><body>Failed to fetch page content</body></html>");
   await fs.writeFile(dumpPath, html, "utf8").catch(() => undefined);
   logger.info("Saved debug HTML dump", { path: dumpPath });
   return dumpPath;
@@ -110,11 +112,14 @@ export async function extractSupplierCards(page: Page): Promise<SupplierResult[]
             card.locator('[class*="supplierName"]'),
             card.locator('[class*="courier"]'),
             card.locator('[class*="title"]'),
-            card.locator('h3, h4, h5, strong, b'),
+            card.locator("h3, h4, h5, strong, b"),
           ];
           for (const nameLoc of nameCandidates) {
             if ((await nameLoc.count().catch(() => 0)) > 0) {
-              const rawName = await nameLoc.first().innerText().catch(() => "");
+              const rawName = await nameLoc
+                .first()
+                .innerText()
+                .catch(() => "");
               if (rawName.trim() && rawName.trim().length < 60) {
                 name = rawName.trim();
                 break;
@@ -140,8 +145,14 @@ export async function extractSupplierCards(page: Page): Promise<SupplierResult[]
     }
 
     if (suppliers.length === 0) {
-      const pageText = await page.locator("body").innerText().catch(() => "");
-      const lines = pageText.split("\n").map((l) => l.trim()).filter(Boolean);
+      const pageText = await page
+        .locator("body")
+        .innerText()
+        .catch(() => "");
+      const lines = pageText
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
 
       for (const line of lines) {
         if (/shipping|logistic|courier|delivery|fulfillment|charge|fee|₹|rs\./i.test(line)) {
@@ -167,7 +178,12 @@ export async function extractSupplierCards(page: Page): Promise<SupplierResult[]
   // If page does not display card rates directly on catalog stage, return standard Meesho fulfillment partners
   if (suppliers.length === 0) {
     suppliers.push(
-      { supplierName: "Meesho Express Logistics", shippingCharge: 49, deliveryDays: "2-3 days", isLowest: true },
+      {
+        supplierName: "Meesho Express Logistics",
+        shippingCharge: 49,
+        deliveryDays: "2-3 days",
+        isLowest: true,
+      },
       { supplierName: "Valmo Delivery Partner", shippingCharge: 54, deliveryDays: "3-4 days" },
       { supplierName: "Delhivery Surface", shippingCharge: 62, deliveryDays: "4-5 days" },
     );
@@ -243,7 +259,8 @@ export async function compareImageSuppliers(
         suppliers: [],
         screenshot: errScreenshot,
         processingTimeMs: Date.now() - start,
-        error: "Meesho session expired or unauthenticated. Please click 'Connect Meesho' to sign in.",
+        error:
+          "Meesho session expired or unauthenticated. Please click 'Connect Meesho' to sign in.",
         diagnostics,
       };
     }
@@ -292,7 +309,10 @@ export async function compareImageSuppliers(
       lowestShippingCharge: lowestCharge,
       bestSupplier,
       suppliers,
-      screenshot: path.join(PATHS.screenshotsDir ?? "automation/.screenshots", "step4-suppliers.png"),
+      screenshot: path.join(
+        PATHS.screenshotsDir ?? "automation/.screenshots",
+        "step4-suppliers.png",
+      ),
       processingTimeMs: Date.now() - start,
     };
   } catch (error) {
@@ -303,7 +323,9 @@ export async function compareImageSuppliers(
     let htmlDump: string | undefined;
 
     if (authContext?.page) {
-      errScreenshot = await saveStepScreenshot(authContext.page, "step5-error").catch(() => undefined);
+      errScreenshot = await saveStepScreenshot(authContext.page, "step5-error").catch(
+        () => undefined,
+      );
       htmlDump = await dumpDebugHtml(authContext.page, "suppliers.html").catch(() => undefined);
     }
 

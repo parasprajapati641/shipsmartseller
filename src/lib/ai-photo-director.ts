@@ -29,7 +29,8 @@ export const DIRECTOR_GUIDANCE_DB: Record<string, PhotoDirectorGuidance> = {
   footwear: {
     category: "Footwear & Shoes",
     recommendedAngle: "Three-quarter 45° side profile with toe pointing toward camera right.",
-    lightingSetup: "High key top light with front fill reflector to highlight leather / mesh textures.",
+    lightingSetup:
+      "High key top light with front fill reflector to highlight leather / mesh textures.",
     backgroundStyle: "Pure white vinyl studio sweep.",
     framingMarginPct: "3% side margin (Shoe length fills 90% horizontal span).",
     lensRecommendation: "90mm macro lens for crisp detail on stitching and sole grips.",
@@ -42,7 +43,8 @@ export const DIRECTOR_GUIDANCE_DB: Record<string, PhotoDirectorGuidance> = {
   electronics: {
     category: "Electronics & Gadgets",
     recommendedAngle: "Straight-on 90° front elevation with slight top tilt.",
-    lightingSetup: "Polarized ring light to prevent glare reflections on screens and glossy plastic.",
+    lightingSetup:
+      "Polarized ring light to prevent glare reflections on screens and glossy plastic.",
     backgroundStyle: "Pure white acrylic sheet.",
     framingMarginPct: "4% margin (88% subject occupancy).",
     lensRecommendation: "60mm macro prime lens.",

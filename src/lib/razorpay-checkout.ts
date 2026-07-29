@@ -41,11 +41,13 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
   const isLoaded = await loadRazorpayScript();
   if (!isLoaded) return;
 
-  const plan = options.plan ?? "premium";
-  const planLabel = plan === "premium_plus" ? "Premium Plus Subscription" : "Premium Subscription";
-  const amountInRupees = options.amountInRupees ?? (plan === "premium_plus" ? 999 : 499);
+  const plan = "premium_plus";
+  const planLabel = "Premium Plus Subscription";
+  const amountInRupees = options.amountInRupees ?? 999;
 
-  const toastId = toast.loading(`Initializing secure Razorpay payment gateway for ${planLabel} (₹${amountInRupees})...`);
+  const toastId = toast.loading(
+    `Initializing secure Razorpay payment gateway for ${planLabel} (₹${amountInRupees})...`,
+  );
 
   try {
     // 1. Create order on server via TanStack Start Server Function
@@ -60,7 +62,9 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
     toast.dismiss(toastId);
 
     if (!orderRes.success || (!orderRes.id && !orderRes.orderId)) {
-      toast.error(orderRes.message || "Could not create payment order. Please check Razorpay Key settings.");
+      toast.error(
+        orderRes.message || "Could not create payment order. Please check Razorpay Key settings.",
+      );
       return;
     }
 
@@ -121,10 +125,27 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
           toast.dismiss(verifyToastId);
 
           if (verifyRes.success) {
-            toast.success((verifyRes as any).message || `Welcome to ${planLabel}! Payment successful.`);
+            try {
+              const { activatePremiumPlusServerFn } =
+                await import("./subscription-server-actions.js");
+              await activatePremiumPlusServerFn({ data: { userEmail: emailToPass } });
+
+              const { activateMonthlyPremiumPlus } = await import("./subscription-store.js");
+              activateMonthlyPremiumPlus(emailToPass);
+            } catch (err) {
+              console.error("Failed to update subscription store:", err);
+            }
+
+            toast.success(
+              (verifyRes as any).message || `Welcome to ${planLabel}! Payment successful.`,
+            );
             options.onSuccess?.(response.razorpay_payment_id);
           } else {
-            toast.error((verifyRes as any).message || (verifyRes as any).error || "Payment verification failed.");
+            toast.error(
+              (verifyRes as any).message ||
+                (verifyRes as any).error ||
+                "Payment verification failed.",
+            );
           }
         } catch (err) {
           toast.dismiss(verifyToastId);
@@ -150,7 +171,10 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
   } catch (error) {
     toast.dismiss(toastId);
     const rawMsg = error instanceof Error ? error.message : String(error);
-    const isHtmlError = rawMsg.includes("<!DOCTYPE") || rawMsg.includes("This page didn't load") || rawMsg.includes("<html");
+    const isHtmlError =
+      rawMsg.includes("<!DOCTYPE") ||
+      rawMsg.includes("This page didn't load") ||
+      rawMsg.includes("<html");
     const cleanMsg = isHtmlError
       ? "Server configuration error. Please verify RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables on your live deployment."
       : rawMsg;

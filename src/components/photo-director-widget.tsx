@@ -20,9 +20,14 @@ export function PhotoDirectorWidget({ category, onCategoryChange }: PhotoDirecto
           </div>
           <div>
             <h4 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
-              AI Product Photo Director <span className="text-[10px] px-2 py-0.5 rounded bg-[#00D4AA]/20 text-[#00D4AA] border border-[#00D4AA]/30">Live Guide</span>
+              AI Product Photo Director{" "}
+              <span className="text-[10px] px-2 py-0.5 rounded bg-[#00D4AA]/20 text-[#00D4AA] border border-[#00D4AA]/30">
+                Live Guide
+              </span>
             </h4>
-            <p className="text-[11px] text-slate-400">Pre-upload camera setup guidance for {category}</p>
+            <p className="text-[11px] text-slate-400">
+              Pre-upload camera setup guidance for {category}
+            </p>
           </div>
         </div>
 

@@ -51,7 +51,12 @@ export const disconnectMeeshoFn = createServerFn({ method: "POST" }).handler(asy
     return await disconnectMeesho();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { success: false, message: "Disconnect failed", error: message, step: "disconnect_handler" };
+    return {
+      success: false,
+      message: "Disconnect failed",
+      error: message,
+      step: "disconnect_handler",
+    };
   }
 });
 
@@ -89,12 +94,15 @@ const variantInputSchema = z.object({
 });
 
 export const compareVariantsFn = createServerFn({ method: "POST" })
-  .validator((data: { variants: Array<{ path?: string; name?: string; sizeKB?: number; base64?: string }> }) =>
-    z
-      .object({
-        variants: z.array(variantInputSchema).default([]),
-      })
-      .parse(data ?? { variants: [] }),
+  .validator(
+    (data: {
+      variants: Array<{ path?: string; name?: string; sizeKB?: number; base64?: string }>;
+    }) =>
+      z
+        .object({
+          variants: z.array(variantInputSchema).default([]),
+        })
+        .parse(data ?? { variants: [] }),
   )
   .handler(async ({ data }) => {
     try {

@@ -7,7 +7,7 @@ const AUTOMATION_ROOT = path.resolve(__dirname, "..");
 
 /** Detect Vercel / AWS Lambda / production serverless runtime. */
 export const IS_SERVERLESS = Boolean(
-  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.VERCEL_ENV
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.VERCEL_ENV,
 );
 
 /**

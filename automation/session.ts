@@ -1,10 +1,5 @@
 import fs from "node:fs/promises";
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  scryptSync,
-} from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 import type { BrowserContext, Page } from "playwright";
 import { DEFAULT_SESSION_TTL_MS, ENV, MEESHO_URLS, PATHS } from "./config/constants.js";
 import { navigationSelectors, resolveSelector } from "./selectors.js";
@@ -156,7 +151,9 @@ export async function sessionExists(sessionPath?: string): Promise<boolean> {
 }
 
 /** Load and decrypt Playwright storageState from disk. */
-export async function loadSessionStorageState(sessionPath?: string): Promise<PlaywrightStorageState> {
+export async function loadSessionStorageState(
+  sessionPath?: string,
+): Promise<PlaywrightStorageState> {
   await migrateLegacySessionIfNeeded();
   const file = getSessionPath(sessionPath);
 
@@ -242,7 +239,10 @@ export async function isSessionValid(page: Page, timeoutMs = 30_000): Promise<bo
     }
 
     const indicator = resolveSelector(page, navigationSelectors.panelRoot);
-    const visible = await indicator.first().isVisible({ timeout: 5_000 }).catch(() => false);
+    const visible = await indicator
+      .first()
+      .isVisible({ timeout: 5_000 })
+      .catch(() => false);
 
     if (visible || url.includes("/panel/v3/new/")) {
       logger.info("Session is valid");

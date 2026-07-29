@@ -31,8 +31,12 @@ export function AIBusinessSuite() {
             <Calculator className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white tracking-tight">AI Seller Profit & Shipping Intelligence</h3>
-            <p className="text-xs text-slate-400">Future-proof financial & catalog health analytics for Indian Sellers</p>
+            <h3 className="text-lg font-bold text-white tracking-tight">
+              AI Seller Profit & Shipping Intelligence
+            </h3>
+            <p className="text-xs text-slate-400">
+              Future-proof financial & catalog health analytics for Indian Sellers
+            </p>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
@@ -45,7 +49,8 @@ export function AIBusinessSuite() {
         <div className="md:col-span-2 space-y-4 rounded-xl border border-white/5 bg-white/5 p-5">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-400" /> Interactive Shipping Savings Calculator
+              <DollarSign className="h-4 w-4 text-emerald-400" /> Interactive Shipping Savings
+              Calculator
             </h4>
             <span className="text-xs text-slate-400">Meesho & Flipkart Tiers</span>
           </div>
@@ -82,14 +87,22 @@ export function AIBusinessSuite() {
           {/* Calculator Output */}
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
-              <div className="text-[11px] text-emerald-300 font-medium">Est. Monthly Shipping Savings</div>
-              <div className="text-xl font-extrabold text-white">₹{monthlySavings.toLocaleString("en-IN")}</div>
+              <div className="text-[11px] text-emerald-300 font-medium">
+                Est. Monthly Shipping Savings
+              </div>
+              <div className="text-xl font-extrabold text-white">
+                ₹{monthlySavings.toLocaleString("en-IN")}
+              </div>
               <div className="text-[10px] text-emerald-400">Saved ₹30 per package tier</div>
             </div>
 
             <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3">
-              <div className="text-[11px] text-indigo-300 font-medium">Annualized Direct Profit Gain</div>
-              <div className="text-xl font-extrabold text-white">₹{annualSavings.toLocaleString("en-IN")}</div>
+              <div className="text-[11px] text-indigo-300 font-medium">
+                Annualized Direct Profit Gain
+              </div>
+              <div className="text-xl font-extrabold text-white">
+                ₹{annualSavings.toLocaleString("en-IN")}
+              </div>
               <div className="text-[10px] text-indigo-400">Pure bottom-line profit increase</div>
             </div>
           </div>
@@ -120,7 +133,9 @@ export function AIBusinessSuite() {
 
           <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-[11px] text-emerald-300 flex items-center gap-2">
             <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-400" />
-            <span>Sellers using 15 KB target images report 24% higher catalog approval on Meesho.</span>
+            <span>
+              Sellers using 15 KB target images report 24% higher catalog approval on Meesho.
+            </span>
           </div>
         </div>
       </div>

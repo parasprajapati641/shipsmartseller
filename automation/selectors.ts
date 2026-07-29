@@ -12,7 +12,10 @@ import type { Locator, Page } from "playwright";
 
 export type SelectorValue =
   | string
-  | { role: "button" | "textbox" | "link" | "heading" | "checkbox" | "combobox"; name: string | RegExp }
+  | {
+      role: "button" | "textbox" | "link" | "heading" | "checkbox" | "combobox";
+      name: string | RegExp;
+    }
   | { testId: string };
 
 export type SelectorCategory = {
@@ -35,8 +38,10 @@ export const productCreationSelectors: SelectorCategory = {
   pageReady: 'input[type="file"], h1, h2, [class*="cataloguing"], [class*="product"]',
   productTitleInput:
     'input[name="name"], input[name="title"], input[placeholder*="product name" i], textarea[name="name"]',
-  categorySelector: '[role="combobox"], input[placeholder*="category" i], [class*="category"] button',
-  priceInput: 'input[name="price"], input[name="mrp"], input[placeholder*="price" i], input[placeholder*="mrp" i]',
+  categorySelector:
+    '[role="combobox"], input[placeholder*="category" i], [class*="category"] button',
+  priceInput:
+    'input[name="price"], input[name="mrp"], input[placeholder*="price" i], input[placeholder*="mrp" i]',
   weightInput:
     'input[name="weight"], input[name="packageWeight"], input[placeholder*="weight" i], input[placeholder*="gram" i]',
   lengthInput: 'input[name="length"], input[placeholder*="length" i]',
@@ -52,7 +57,8 @@ export const imageUploadSelectors: SelectorCategory = {
   imagePreview:
     '[class*="preview"] img, [class*="thumbnail"] img, img[src*="blob:"], img[src*="data:"], [class*="uploaded"] img',
   removeImageButton: { role: "button", name: /remove|delete|clear|close|×|✕/i },
-  removeImageIcon: '[aria-label*="remove" i], [aria-label*="delete" i], [class*="remove"], [class*="delete"], button[class*="close"]',
+  removeImageIcon:
+    '[aria-label*="remove" i], [aria-label*="delete" i], [class*="remove"], [class*="delete"], button[class*="close"]',
   uploadProgress: '[class*="progress"], [class*="uploading"], [role="progressbar"]',
   uploadComplete: '[class*="preview"] img, [class*="thumbnail"] img, img[src*="blob:"]',
 };
@@ -63,8 +69,12 @@ export const shippingChargeSelectors: SelectorCategory = {
     '[class*="shipping"], [class*="logistic"], [class*="delivery"], [data-testid*="shipping"], section:has-text("Shipping"), div:has-text("Shipping charge")',
   chargeAmount:
     '[class*="shipping"] [class*="amount"], [class*="shipping"] [class*="charge"], [class*="logistic"] [class*="fee"], text=/₹\\s*[\\d,]+/',
-  loadingIndicator: '[class*="loading"], [class*="spinner"], [class*="skeleton"], [aria-busy="true"]',
-  calculateButton: { role: "button", name: /calculate|get shipping|shipping charge|check shipping/i },
+  loadingIndicator:
+    '[class*="loading"], [class*="spinner"], [class*="skeleton"], [aria-busy="true"]',
+  calculateButton: {
+    role: "button",
+    name: /calculate|get shipping|shipping charge|check shipping/i,
+  },
   errorMessage: '[class*="error"], [role="alert"]',
 };
 
@@ -72,7 +82,8 @@ export const shippingChargeSelectors: SelectorCategory = {
 export const navigationSelectors: SelectorCategory = {
   addProductLink: { role: "link", name: /add product|new product|single add|cataloguing/i },
   catalogMenu: { role: "link", name: /catalog|products|inventory/i },
-  userMenu: '[class*="profile"], [class*="avatar"], [data-testid*="user"], [class*="header"] [class*="account"]',
+  userMenu:
+    '[class*="profile"], [class*="avatar"], [data-testid*="user"], [class*="header"] [class*="account"]',
   panelRoot: 'a[href*="/panel/v3/new/"]',
 };
 

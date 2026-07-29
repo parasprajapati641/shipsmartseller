@@ -26,13 +26,18 @@ export function calculateDynamicShipping(
   else if (category === "home") catBaseWeight = 1.2;
 
   // Weight slab assignment
-  const slab = catBaseWeight < 0.5 ? "< 500g Lowest Slab" : catBaseWeight <= 1.0 ? "500g - 1kg Standard Slab" : "> 1kg Heavy Slab";
+  const slab =
+    catBaseWeight < 0.5
+      ? "< 500g Lowest Slab"
+      : catBaseWeight <= 1.0
+        ? "500g - 1kg Standard Slab"
+        : "> 1kg Heavy Slab";
 
   // Preset size impact on image CDN bandwidth & listing approval tier
   const isUltraLowPreset = targetKB <= 20;
   const isStandardPreset = targetKB > 20 && targetKB <= 40;
 
-  const baselineCost = Math.round( catBaseWeight < 0.5 ? 68 : catBaseWeight <= 1.0 ? 98 : 145 );
+  const baselineCost = Math.round(catBaseWeight < 0.5 ? 68 : catBaseWeight <= 1.0 ? 98 : 145);
   const discountPerOrder = isUltraLowPreset ? 30 : isStandardPreset ? 16 : 0;
 
   const optimizedCost = Math.max(28, baselineCost - discountPerOrder);

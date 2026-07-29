@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -31,7 +31,10 @@ export const Route = createFileRoute("/")({
         content:
           "Cut Meesho & Flipkart shipping charges with AI-optimized product images. Auto-generate white-background 1:1 square marketplace images with 5 KB – 50 KB preset compression.",
       },
-      { property: "og:title", content: "ShipSmart Seller — AI Product Image Optimization Platform" },
+      {
+        property: "og:title",
+        content: "ShipSmart Seller — AI Product Image Optimization Platform",
+      },
       {
         property: "og:description",
         content:
@@ -641,11 +644,9 @@ function Pricing() {
     };
   }, []);
 
-
-  // razorpay integration
-  const handlePayment = async (plan: "premium" | "premium_plus") => {
+  const handlePayment = async () => {
     if (!isAuthed) {
-      toast.info("Sign in to start your subscription.");
+      toast.info("Sign in to upgrade to Premium Plus.");
       navigate({ to: "/auth", search: { mode: "signup" } });
       return;
     }
@@ -653,8 +654,8 @@ function Pricing() {
     try {
       const { openRazorpayCheckout } = await import("@/lib/razorpay-checkout");
       await openRazorpayCheckout({
-        plan,
-        amountInRupees: plan === "premium_plus" ? 999 : 499,
+        plan: "premium_plus",
+        amountInRupees: 999,
         userEmail: user?.email,
         onSuccess: () => {
           navigate({ to: "/dashboard" });
@@ -668,110 +669,107 @@ function Pricing() {
 
   const plans = [
     {
-      name: "Premium",
-      price: "₹499",
-      period: "per month",
-      tagline: "For serious Meesho sellers.",
+      name: "Free Trial",
+      price: "₹0",
+      period: "10 lifetime generations",
+      tagline: "Included with every new account.",
       features: [
-        "Up to 50 generations",
-        "All size targets (5–50 KB)",
-        "Personal history",
-        "Standard processing queue",
+        "10 Lifetime AI Image Generations",
+        "Target KB Compression (5–50 KB)",
+        "Visual Heatmap & Scorecard",
+        "Standard Processing Speed",
       ],
-      cta: "Upgrade to Premium",
-      onClick: () => handlePayment("premium"),
+      cta: isAuthed ? "Open Dashboard" : "Get Started Free",
+      onClick: goStart,
       highlight: false,
     },
     {
       name: "Premium Plus",
       price: "₹999",
-      period: "per month",
-      tagline: "For serious Meesho sellers.",
+      period: "/ month",
+      tagline: "For high-volume marketplace sellers.",
       features: [
-        "Unlimited generations",
-        "Priority processing queue",
-        "Bulk uploads",
-        "Advanced history & tagging",
-        "Priority support",
+        "Unlimited AI Image Generations",
+        "Unlimited KB Compression & Presets",
+        "One-Click Multi-Format Content Studio",
+        "AI Shipping Intelligence Predictor",
+        "AI Profit Margin & Price Optimizer",
+        "Priority Support & Future Features",
       ],
-      cta: "Upgrade to Premium Plus",
-      onClick: () => handlePayment("premium_plus"),
+      cta: "Upgrade to Premium Plus (₹999 / mo)",
+      onClick: handlePayment,
       highlight: true,
     },
   ];
 
   return (
-    <section id="pricing" className="border-y border-border/60 bg-card/20 scroll-mt-16">
+    <section id="pricing" className="border-y border-[#2A3658] bg-[#090B14] scroll-mt-16">
       <div className="mx-auto max-w-7xl px-6 py-24 md:py-32">
         <div className="max-w-2xl mx-auto text-center">
-          <p className="text-sm font-medium text-gradient">Pricing</p>
-          <h2 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-[#6C63FF]">
+            Transparent Pricing
+          </p>
+          <h2 className="mt-3 text-3xl md:text-5xl font-extrabold tracking-tight text-white">
             Simple, honest pricing.
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            Try free for two weeks. Upgrade when you're ready.
+          <p className="mt-4 text-sm text-slate-400">
+            Start with 10 free lifetime generations. Upgrade to Premium Plus when you are ready to
+            scale.
           </p>
         </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
+        <div className="mt-14 grid gap-8 md:grid-cols-2 max-w-4xl mx-auto items-stretch">
           {plans.map((p) => (
             <div
               key={p.name}
               className={
-                "relative rounded-2xl p-8 " +
+                "relative rounded-2xl p-8 flex flex-col justify-between h-full border transition-all " +
                 (p.highlight
-                  ? "bg-gradient-brand text-brand-foreground shadow-elevated"
-                  : "surface")
+                  ? "border-[#6C63FF] bg-gradient-to-b from-[#121826] to-[#1A2235] text-white shadow-2xl shadow-[#6C63FF]/20 ring-1 ring-[#6C63FF]/50"
+                  : "border-[#2A3658] bg-[#121826] text-slate-200")
               }
             >
-              {p.highlight && (
-                <div className="absolute -top-3 left-8 rounded-full bg-background px-3 py-1 text-xs font-medium text-foreground border border-border">
-                  Most popular
+              <div>
+                {p.highlight && (
+                  <div className="absolute -top-3.5 left-8 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-3.5 py-1 text-[11px] font-extrabold text-white shadow-md">
+                    ⭐ Most Popular
+                  </div>
+                )}
+                <h3 className="text-2xl font-bold tracking-tight text-white">{p.name}</h3>
+                <p className="mt-1.5 text-xs text-slate-400 font-medium">{p.tagline}</p>
+                <div className="mt-6 flex items-baseline gap-2 border-b border-[#2A3658] pb-6">
+                  <span className="text-5xl font-extrabold tracking-tight text-white">
+                    {p.price}
+                  </span>
+                  <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                    {p.period}
+                  </span>
                 </div>
-              )}
-              <h3 className="text-xl font-semibold">{p.name}</h3>
-              <p
-                className={
-                  "mt-1 text-sm " +
-                  (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")
-                }
-              >
-                {p.tagline}
-              </p>
-              <div className="mt-6 flex items-baseline gap-2">
-                <span className="text-5xl font-semibold tracking-tight">{p.price}</span>
-                <span
+                <ul className="mt-6 space-y-3.5">
+                  {p.features.map((f) => (
+                    <li
+                      key={f}
+                      className="flex items-start gap-3 text-xs font-semibold text-slate-200"
+                    >
+                      <Check className="h-4 w-4 mt-0.5 shrink-0 text-[#00D4AA]" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mt-8 pt-4 border-t border-[#2A3658]/50">
+                <button
+                  onClick={p.onClick}
                   className={
-                    "text-sm " +
-                    (p.highlight ? "text-brand-foreground/80" : "text-muted-foreground")
+                    "w-full rounded-xl py-3.5 text-xs font-extrabold transition-all shadow-lg " +
+                    (p.highlight
+                      ? "bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] text-white hover:opacity-95 shadow-[#6C63FF]/30"
+                      : "border border-[#2A3658] bg-[#1A2235] text-slate-200 hover:bg-white/10")
                   }
                 >
-                  {p.period}
-                </span>
+                  {p.cta}
+                </button>
               </div>
-              <ul className="mt-8 space-y-3">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-sm">
-                    <Check
-                      className={
-                        "h-4 w-4 mt-0.5 shrink-0 " +
-                        (p.highlight ? "text-brand-foreground" : "text-brand")
-                      }
-                    />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={p.onClick}
-                className={
-                  "mt-8 w-full rounded-lg px-4 py-3 text-sm font-medium transition-opacity hover:opacity-90 " +
-                  (p.highlight
-                    ? "bg-background text-foreground"
-                    : "bg-gradient-brand text-brand-foreground")
-                }
-              >
-                {p.cta}
-              </button>
             </div>
           ))}
         </div>

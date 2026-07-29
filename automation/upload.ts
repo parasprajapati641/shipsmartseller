@@ -31,24 +31,30 @@ export async function uploadProductImage(
 
   // 1. Direct input#addImages or input[type="file"] handler
   selectorsTried.push("input#addImages", 'input[type="file"]');
-  const fileInput = page.locator('input#addImages, input[id="addImages"], input[type="file"]').first();
+  const fileInput = page
+    .locator('input#addImages, input[id="addImages"], input[type="file"]')
+    .first();
 
   let uploadTriggered = false;
 
   if ((await fileInput.count().catch(() => 0)) > 0) {
     logger.info("Found catalog image input element");
     try {
-      await fileInput.evaluate((el) => {
-        (el as HTMLElement).style.display = "block";
-        (el as HTMLElement).style.visibility = "visible";
-        (el as HTMLElement).style.opacity = "1";
-      }).catch(() => undefined);
+      await fileInput
+        .evaluate((el) => {
+          (el as HTMLElement).style.display = "block";
+          (el as HTMLElement).style.visibility = "visible";
+          (el as HTMLElement).style.opacity = "1";
+        })
+        .catch(() => undefined);
 
       await fileInput.setInputFiles(absolutePath);
       uploadTriggered = true;
       logger.info("File attached via setInputFiles");
     } catch (e) {
-      logger.warn("setInputFiles failed, attempting FileChooser event fallback", { error: String(e) });
+      logger.warn("setInputFiles failed, attempting FileChooser event fallback", {
+        error: String(e),
+      });
     }
   }
 
@@ -67,7 +73,12 @@ export async function uploadProductImage(
     for (const target of uploadTargets) {
       const targetName = String(target);
       selectorsTried.push(targetName);
-      if (await target.first().isVisible({ timeout: 1_000 }).catch(() => false)) {
+      if (
+        await target
+          .first()
+          .isVisible({ timeout: 1_000 })
+          .catch(() => false)
+      ) {
         logger.info("Attempting click for FileChooser event", { target: targetName });
         try {
           const chooserPromise = page.waitForEvent("filechooser", { timeout: 5_000 });
@@ -88,23 +99,36 @@ export async function uploadProductImage(
   if (!uploadTriggered) {
     logger.info("Attempting real DragEvent dispatch with DataTransfer");
     selectorsTried.push("dragAndDropDispatch");
-    const dropzone = page.locator('[class*="dropzone"], [class*="upload-box"], label[for="addImages"]').first();
+    const dropzone = page
+      .locator('[class*="dropzone"], [class*="upload-box"], label[for="addImages"]')
+      .first();
     if (await dropzone.isVisible({ timeout: 2_000 }).catch(() => false)) {
       const buffer = await fs.readFile(absolutePath);
       const fileName = path.basename(absolutePath);
       const mimeType = fileName.endsWith(".png") ? "image/png" : "image/jpeg";
 
-      await dropzone.evaluate(async (el, { base64, name, type }) => {
-        const res = await fetch(`data:${type};base64,${base64}`);
-        const blob = await res.blob();
-        const file = new File([blob], name, { type });
-        const dt = new DataTransfer();
-        dt.items.add(file);
+      await dropzone
+        .evaluate(
+          async (el, { base64, name, type }) => {
+            const res = await fetch(`data:${type};base64,${base64}`);
+            const blob = await res.blob();
+            const file = new File([blob], name, { type });
+            const dt = new DataTransfer();
+            dt.items.add(file);
 
-        el.dispatchEvent(new DragEvent("dragenter", { bubbles: true, cancelable: true, dataTransfer: dt }));
-        el.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
-        el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
-      }, { base64: buffer.toString("base64"), name: fileName, type: mimeType }).catch(() => undefined);
+            el.dispatchEvent(
+              new DragEvent("dragenter", { bubbles: true, cancelable: true, dataTransfer: dt }),
+            );
+            el.dispatchEvent(
+              new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }),
+            );
+            el.dispatchEvent(
+              new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }),
+            );
+          },
+          { base64: buffer.toString("base64"), name: fileName, type: mimeType },
+        )
+        .catch(() => undefined);
 
       uploadTriggered = true;
       logger.info("Dispatched DragEvent with DataTransfer");
@@ -112,10 +136,17 @@ export async function uploadProductImage(
   }
 
   // 4. Strict Upload Success Verification
-  logger.info("Verifying upload completion (spinner detached, thumbnail visible, delete button active)");
+  logger.info(
+    "Verifying upload completion (spinner detached, thumbnail visible, delete button active)",
+  );
 
   // Wait for loading spinners to clear
-  await page.waitForSelector('[class*="spinner"], [class*="loading"], [class*="progress"]', { state: "detached", timeout: 8_000 }).catch(() => undefined);
+  await page
+    .waitForSelector('[class*="spinner"], [class*="loading"], [class*="progress"]', {
+      state: "detached",
+      timeout: 8_000,
+    })
+    .catch(() => undefined);
   await page.waitForTimeout(2_000);
 
   const thumbnailLocators = [
@@ -129,7 +160,10 @@ export async function uploadProductImage(
   let thumbnailVisible = false;
   for (const thumbLoc of thumbnailLocators) {
     if ((await thumbLoc.count().catch(() => 0)) > 0) {
-      thumbnailVisible = await thumbLoc.first().isVisible({ timeout: 3_000 }).catch(() => false);
+      thumbnailVisible = await thumbLoc
+        .first()
+        .isVisible({ timeout: 3_000 })
+        .catch(() => false);
       if (thumbnailVisible) break;
     }
   }
@@ -145,13 +179,20 @@ export async function uploadProductImage(
   let removeBtnVisible = false;
   for (const rmLoc of removeBtnLocators) {
     if ((await rmLoc.count().catch(() => 0)) > 0) {
-      removeBtnVisible = await rmLoc.first().isVisible({ timeout: 2_000 }).catch(() => false);
+      removeBtnVisible = await rmLoc
+        .first()
+        .isVisible({ timeout: 2_000 })
+        .catch(() => false);
       if (removeBtnVisible) break;
     }
   }
 
   if (!thumbnailVisible && !removeBtnVisible) {
-    const screenshot = await captureFailureScreenshot(page, "upload_verification_failed", options.screenshotsDir);
+    const screenshot = await captureFailureScreenshot(
+      page,
+      "upload_verification_failed",
+      options.screenshotsDir,
+    );
     const url = page.url();
     const title = await page.title().catch(() => "unknown");
     throw new UploadError(
@@ -181,9 +222,15 @@ export async function removeProductImage(
 
   for (const btnLoc of removeBtnCandidates) {
     if ((await btnLoc.count().catch(() => 0)) > 0) {
-      const visible = await btnLoc.first().isVisible({ timeout: 1_000 }).catch(() => false);
+      const visible = await btnLoc
+        .first()
+        .isVisible({ timeout: 1_000 })
+        .catch(() => false);
       if (visible) {
-        await btnLoc.first().click().catch(() => undefined);
+        await btnLoc
+          .first()
+          .click()
+          .catch(() => undefined);
         await page.waitForTimeout(1_000);
         logger.debug("Clicked remove image button");
         return;
@@ -221,7 +268,11 @@ export async function uploadWithErrorCapture(
   try {
     await uploadProductImage(page, imagePath, options);
   } catch (error) {
-    const screenshot = await captureFailureScreenshot(page, "upload_failure", options.screenshotsDir);
+    const screenshot = await captureFailureScreenshot(
+      page,
+      "upload_failure",
+      options.screenshotsDir,
+    );
     throw new UploadError(
       `Failed to upload ${imagePath}: ${error instanceof Error ? error.message : String(error)}`,
       { screenshotPath: screenshot, cause: error },

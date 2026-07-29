@@ -33,13 +33,19 @@ export function ConversionSimulatorModal({
               <Smartphone className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">AI Mobile Conversion & Visual Feed Simulator</h2>
+              <h2 className="text-xl font-bold tracking-tight">
+                AI Mobile Conversion & Visual Feed Simulator
+              </h2>
               <p className="text-xs text-slate-500">
-                Predictive Marketplace Feed & Heatmap for <span className="font-semibold text-slate-900">{filename}</span> ({targetKB} KB)
+                Predictive Marketplace Feed & Heatmap for{" "}
+                <span className="font-semibold text-slate-900">{filename}</span> ({targetKB} KB)
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -67,7 +73,9 @@ export function ConversionSimulatorModal({
                   <div className="font-bold truncate">Premium Product Package</div>
                   <div className="text-emerald-700 font-extrabold flex items-center justify-between">
                     <span>₹499</span>
-                    <span className="text-[9px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-800">4.8 ★</span>
+                    <span className="text-[9px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-800">
+                      4.8 ★
+                    </span>
                   </div>
                   <button className="w-full rounded-lg bg-pink-600 text-white py-1 font-bold text-[10px]">
                     Buy Now
@@ -89,22 +97,32 @@ export function ConversionSimulatorModal({
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
                 <div className="text-slate-600 font-medium">Estimated CTR %</div>
-                <div className="text-2xl font-extrabold text-emerald-700">{simulation.optimizedListingCTR}%</div>
+                <div className="text-2xl font-extrabold text-emerald-700">
+                  {simulation.optimizedListingCTR}%
+                </div>
               </div>
 
               <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
                 <div className="text-slate-600 font-medium">Estimated CTR Boost</div>
-                <div className="text-2xl font-extrabold text-blue-700">+{simulation.health.predictedCTRBoostPct}%</div>
+                <div className="text-2xl font-extrabold text-blue-700">
+                  +{simulation.health.predictedCTRBoostPct}%
+                </div>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-xs">
-              <div className="font-bold text-slate-900">Visual Focus Points (Highest Attention)</div>
+              <div className="font-bold text-slate-900">
+                Visual Focus Points (Highest Attention)
+              </div>
               <ul className="space-y-1 text-slate-600">
                 {simulation.heatmapPoints.map((pt, i) => (
                   <li key={i} className="flex justify-between border-b border-slate-200/60 pb-1">
-                    <span>Focus Region #{i + 1} ({Math.round(pt.xPct)}%, {Math.round(pt.yPct)}%)</span>
-                    <span className="font-bold text-slate-900">{Math.round(pt.intensity * 100)}% Focus Intensity</span>
+                    <span>
+                      Focus Region #{i + 1} ({Math.round(pt.xPct)}%, {Math.round(pt.yPct)}%)
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {Math.round(pt.intensity * 100)}% Focus Intensity
+                    </span>
                   </li>
                 ))}
               </ul>

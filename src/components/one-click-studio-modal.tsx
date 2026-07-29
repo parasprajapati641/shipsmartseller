@@ -101,13 +101,19 @@ export function OneClickStudioModal({
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-white">One-Click Multi-Format Content Studio</h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">
+                One-Click Multi-Format Content Studio
+              </h2>
               <p className="text-xs text-slate-400">
-                Auto-generate 10 marketing & marketplace canvas sizes for <span className="text-[#00D4AA] font-bold">{filename}</span>
+                Auto-generate 10 marketing & marketplace canvas sizes for{" "}
+                <span className="text-[#00D4AA] font-bold">{filename}</span>
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -115,7 +121,9 @@ export function OneClickStudioModal({
         {/* Action Controls */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#6C63FF]/30 bg-[#6C63FF]/10 p-4">
           <div className="text-xs text-slate-200">
-            <strong>10 Formats Generated Live:</strong> Meesho Square, Amazon Main, Flipkart Catalog, Instagram Post, Instagram Story, Facebook Marketplace, WhatsApp Product, Product Banner, White Background Product, Premium HD Catalog.
+            <strong>10 Formats Generated Live:</strong> Meesho Square, Amazon Main, Flipkart
+            Catalog, Instagram Post, Instagram Story, Facebook Marketplace, WhatsApp Product,
+            Product Banner, White Background Product, Premium HD Catalog.
           </div>
 
           <div className="flex items-center gap-3">
@@ -124,7 +132,11 @@ export function OneClickStudioModal({
               disabled={isGenerating || !sourceCanvas}
               className="inline-flex items-center gap-2 rounded-xl bg-[#6C63FF] px-5 py-2.5 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:bg-[#5b52e0] disabled:opacity-50"
             >
-              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
               {isGenerating ? "Generating Fresh Formats..." : "Re-Generate 10 Formats"}
             </button>
 
@@ -134,7 +146,11 @@ export function OneClickStudioModal({
                 disabled={downloadingZip}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#00D4AA] px-5 py-2.5 text-xs font-extrabold text-[#090B14] shadow-lg shadow-[#00D4AA]/30 hover:bg-[#00b894] disabled:opacity-50"
               >
-                {downloadingZip ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+                {downloadingZip ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Archive className="h-4 w-4" />
+                )}
                 Download All as ZIP Archive
               </button>
             )}
@@ -145,17 +161,24 @@ export function OneClickStudioModal({
         {isGenerating ? (
           <div className="rounded-2xl border-2 border-dashed border-[#2A3658] p-12 text-center text-slate-400 bg-[#1A2235]/50 space-y-3">
             <Loader2 className="mx-auto h-8 w-8 text-[#6C63FF] animate-spin" />
-            <p className="text-xs font-semibold text-slate-300">Rendering 10 multi-format assets for {filename}...</p>
+            <p className="text-xs font-semibold text-slate-300">
+              Rendering 10 multi-format assets for {filename}...
+            </p>
           </div>
         ) : formats.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-[#2A3658] p-12 text-center text-slate-400 bg-[#1A2235]/50">
             <ImageIcon className="mx-auto h-10 w-10 text-[#6C63FF] mb-2" />
-            <p className="text-xs font-semibold text-slate-300">Click "Re-Generate 10 Formats" to render fresh marketplace layouts.</p>
+            <p className="text-xs font-semibold text-slate-300">
+              Click "Re-Generate 10 Formats" to render fresh marketplace layouts.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {formats.map((f) => (
-              <div key={f.key} className="rounded-xl border border-[#2A3658] bg-[#1A2235] overflow-hidden shadow-xl flex flex-col justify-between">
+              <div
+                key={f.key}
+                className="rounded-xl border border-[#2A3658] bg-[#1A2235] overflow-hidden shadow-xl flex flex-col justify-between"
+              >
                 <div className="aspect-square bg-white relative border-b border-[#2A3658] p-2 flex items-center justify-center">
                   <img src={f.url} alt={f.label} className="max-h-full max-w-full object-contain" />
                 </div>

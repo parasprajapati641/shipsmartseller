@@ -41,7 +41,8 @@ export function calculateSmartProfit(input: ProfitCalculatorInput): ProfitCalcul
   const returnCost = shipping * (input.returnRatePct / 100);
 
   const grossProfit = sellingPrice - costPrice - packaging - shipping;
-  const totalCosts = costPrice + packaging + shipping + marketplaceFee + gstAmount + adSpend + returnCost;
+  const totalCosts =
+    costPrice + packaging + shipping + marketplaceFee + gstAmount + adSpend + returnCost;
   const netProfit = sellingPrice - totalCosts;
   const profitMarginPct = Number(((netProfit / sellingPrice) * 100).toFixed(1));
 

@@ -61,7 +61,10 @@ export async function fillMinimalProductFields(
     .isVisible({ timeout: 1_000 })
     .catch(() => false);
   if (isVisible) {
-    await titleInput.first().fill("Test Product").catch(() => undefined);
+    await titleInput
+      .first()
+      .fill("Test Product")
+      .catch(() => undefined);
   }
 }
 
@@ -92,7 +95,11 @@ async function captureFullDiagnostics(
 ): Promise<DiagnosticDetail> {
   const url = page.url();
   const title = await page.title().catch(() => "unknown");
-  const screenshot = await captureFailureScreenshot(page, `login_${stepName}_failure`, screenshotsDir);
+  const screenshot = await captureFailureScreenshot(
+    page,
+    `login_${stepName}_failure`,
+    screenshotsDir,
+  );
 
   const debugDir = path.join(PATHS.automationRoot ?? "automation", ".debug");
   await fs.mkdir(debugDir, { recursive: true });
@@ -163,7 +170,9 @@ export async function handleOtpInteractively(
   while (Date.now() < deadline) {
     const url = page.url();
     if (
-      (url.includes("/panel/v3/new/") || url.includes("/dashboard") || url.includes("/cataloguing")) &&
+      (url.includes("/panel/v3/new/") ||
+        url.includes("/dashboard") ||
+        url.includes("/cataloguing")) &&
       !url.includes("login") &&
       !url.includes("otp") &&
       !url.includes("auth")
@@ -194,9 +203,17 @@ export async function automatedLogin(
 
   let response = null;
   try {
-    response = await page.goto(MEESHO_URLS.login, { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT });
+    response = await page.goto(MEESHO_URLS.login, {
+      waitUntil: "domcontentloaded",
+      timeout: STEP_TIMEOUT,
+    });
   } catch {
-    response = await page.goto("https://supplier.meesho.com/", { waitUntil: "domcontentloaded", timeout: STEP_TIMEOUT }).catch(() => null);
+    response = await page
+      .goto("https://supplier.meesho.com/", {
+        waitUntil: "domcontentloaded",
+        timeout: STEP_TIMEOUT,
+      })
+      .catch(() => null);
   }
 
   // 1. Detect Access Denied / 403 / IP Block before trying to locate any input fields
@@ -214,17 +231,28 @@ export async function automatedLogin(
     content.toLowerCase().includes("block script");
 
   if (isIpBlocked) {
-    logger.error("Meesho IP block / Access Denied detected on navigation", { title, statusCode, url: page.url() });
+    logger.error("Meesho IP block / Access Denied detected on navigation", {
+      title,
+      statusCode,
+      url: page.url(),
+    });
     const diag = await captureFullDiagnostics(page, "ip_blocked");
-    throw new IpBlockedError(
-      "Meesho blocked this server IP before the login page loaded.",
-      { screenshotPath: diag.screenshot },
-    );
+    throw new IpBlockedError("Meesho blocked this server IP before the login page loaded.", {
+      screenshotPath: diag.screenshot,
+    });
   }
 
   const loginLink = page.getByRole("link", { name: /login/i }).or(page.locator('a[href*="login"]'));
-  if (await loginLink.first().isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await loginLink.first().click().catch(() => undefined);
+  if (
+    await loginLink
+      .first()
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false)
+  ) {
+    await loginLink
+      .first()
+      .click()
+      .catch(() => undefined);
     await page.waitForTimeout(2_000);
   }
 
@@ -253,7 +281,9 @@ export async function automatedLogin(
 
   if (!emailInput) {
     const diag = await captureFullDiagnostics(page, "email_input_missing");
-    throw new LoginError(`Could not locate email/phone input. URL: ${diag.url} | Title: "${diag.title}" | Screenshot: ${diag.screenshot}`);
+    throw new LoginError(
+      `Could not locate email/phone input. URL: ${diag.url} | Title: "${diag.title}" | Screenshot: ${diag.screenshot}`,
+    );
   }
 
   await emailInput.fill(credentials.email);
@@ -313,7 +343,9 @@ export async function automatedLogin(
   while (Date.now() < deadline) {
     const url = page.url();
     if (
-      (url.includes("/panel/v3/new/") || url.includes("/dashboard") || url.includes("/cataloguing")) &&
+      (url.includes("/panel/v3/new/") ||
+        url.includes("/dashboard") ||
+        url.includes("/cataloguing")) &&
       !url.includes("login") &&
       !url.includes("auth")
     ) {
@@ -324,7 +356,10 @@ export async function automatedLogin(
   }
 
   const loggedInIndicator = page.locator('a[href*="/panel/v3/new/"], nav, [class*="sidebar"]');
-  const loggedIn = await loggedInIndicator.first().isVisible({ timeout: 3_000 }).catch(() => false);
+  const loggedIn = await loggedInIndicator
+    .first()
+    .isVisible({ timeout: 3_000 })
+    .catch(() => false);
 
   if (loggedIn) {
     logger.info("Automated login verified via panel indicator");
@@ -332,7 +367,9 @@ export async function automatedLogin(
   }
 
   const diag = await captureFullDiagnostics(page, "login_redirect_timeout");
-  throw new LoginError(`Login timed out — stayed at URL: ${diag.url} | Title: "${diag.title}" | Screenshot: ${diag.screenshot}`);
+  throw new LoginError(
+    `Login timed out — stayed at URL: ${diag.url} | Title: "${diag.title}" | Screenshot: ${diag.screenshot}`,
+  );
 }
 
 /**
@@ -349,7 +386,9 @@ export async function login(
   const credentials = options.credentials ?? getCredentialsFromEnv();
 
   if (!credentials) {
-    throw new LoginError("No credentials provided for Meesho login. Enter email and password in the dashboard.");
+    throw new LoginError(
+      "No credentials provided for Meesho login. Enter email and password in the dashboard.",
+    );
   }
 
   logger.info("Launching browser for login", { headless });
@@ -372,7 +411,11 @@ export async function login(
     const savedPath = await saveSession(context, sessionPath);
     return { browser, context, page, sessionPath: savedPath };
   } catch (error) {
-    const screenshot = await captureFailureScreenshot(page, "login_failure", options.screenshotsDir);
+    const screenshot = await captureFailureScreenshot(
+      page,
+      "login_failure",
+      options.screenshotsDir,
+    );
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
     await clearSession(sessionPath);

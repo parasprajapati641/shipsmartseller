@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { DollarSign, TrendingUp, Sparkles, PieChart, ShieldCheck, ArrowUpRight } from "lucide-react";
+import {
+  DollarSign,
+  TrendingUp,
+  Sparkles,
+  PieChart,
+  ShieldCheck,
+  ArrowUpRight,
+} from "lucide-react";
 import { calculateSmartProfit } from "@/lib/smart-profit-engine";
 
 export function SmartProfitCalculator() {
@@ -35,9 +42,14 @@ export function SmartProfitCalculator() {
           </div>
           <div>
             <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-              AI Seller Profit Engine <span className="text-xs px-2 py-0.5 rounded-full bg-[#00D4AA]/20 text-[#00D4AA] font-extrabold border border-[#00D4AA]/30">Dynamic</span>
+              AI Seller Profit Engine{" "}
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#00D4AA]/20 text-[#00D4AA] font-extrabold border border-[#00D4AA]/30">
+                Dynamic
+              </span>
             </h3>
-            <p className="text-xs text-slate-400">Live breakdown of marketplace commission, GST, ad spend & net profit margins</p>
+            <p className="text-xs text-slate-400">
+              Live breakdown of marketplace commission, GST, ad spend & net profit margins
+            </p>
           </div>
         </div>
 
@@ -154,7 +166,9 @@ export function SmartProfitCalculator() {
         <div className="lg:col-span-5 space-y-4 rounded-2xl border border-[#2A3658] bg-[#1A2235]/90 p-5 flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Live Financial Output</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Live Financial Output
+              </span>
               <span className="text-xs font-extrabold text-[#00D4AA] bg-[#00D4AA]/20 px-2.5 py-0.5 rounded-full border border-[#00D4AA]/30">
                 {profit.profitMarginPct}% Net Margin
               </span>
@@ -167,8 +181,12 @@ export function SmartProfitCalculator() {
               </div>
 
               <div className="rounded-xl border border-[#6C63FF]/30 bg-[#6C63FF]/10 p-3">
-                <div className="text-[11px] text-[#6C63FF] font-semibold">Est. Monthly Net Profit</div>
-                <div className="text-2xl font-extrabold text-[#6C63FF]">₹{profit.monthlyProfitINR.toLocaleString("en-IN")}</div>
+                <div className="text-[11px] text-[#6C63FF] font-semibold">
+                  Est. Monthly Net Profit
+                </div>
+                <div className="text-2xl font-extrabold text-[#6C63FF]">
+                  ₹{profit.monthlyProfitINR.toLocaleString("en-IN")}
+                </div>
               </div>
             </div>
 
@@ -194,7 +212,12 @@ export function SmartProfitCalculator() {
 
           <div className="rounded-xl border border-[#00D4AA]/30 bg-[#00D4AA]/10 p-3 text-xs text-emerald-200 flex items-center gap-2">
             <ArrowUpRight className="h-4 w-4 shrink-0 text-[#00D4AA]" />
-            <span>Annual profit forecast at current volume: <strong className="text-white">₹{profit.annualProfitINR.toLocaleString("en-IN")}</strong></span>
+            <span>
+              Annual profit forecast at current volume:{" "}
+              <strong className="text-white">
+                ₹{profit.annualProfitINR.toLocaleString("en-IN")}
+              </strong>
+            </span>
           </div>
         </div>
       </div>

@@ -21,7 +21,11 @@ export function predictShippingCost(
   const savings = baselineCost - cost;
 
   return {
-    estimatedWeightSlab: isUltraLow ? "< 500g Lowest Tier" : isStandard ? "500g - 1kg Standard Tier" : "> 1kg Heavy Tier",
+    estimatedWeightSlab: isUltraLow
+      ? "< 500g Lowest Tier"
+      : isStandard
+        ? "500g - 1kg Standard Tier"
+        : "> 1kg Heavy Tier",
     presetTargetKB: targetKB,
     estShippingCostINR: cost,
     potentialSavingsINR: savings,

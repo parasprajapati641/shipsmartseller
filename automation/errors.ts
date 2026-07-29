@@ -4,7 +4,11 @@ export class MeeshoAutomationError extends Error {
   readonly screenshotPath?: string;
   readonly cause?: unknown;
 
-  constructor(message: string, code: string, options?: { screenshotPath?: string; cause?: unknown }) {
+  constructor(
+    message: string,
+    code: string,
+    options?: { screenshotPath?: string; cause?: unknown },
+  ) {
     super(message);
     this.name = "MeeshoAutomationError";
     this.code = code;

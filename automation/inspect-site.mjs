@@ -35,7 +35,9 @@ async function extractPageInfo(page, label) {
       href: el.getAttribute("href"),
     });
 
-    const inputs = [...document.querySelectorAll("input, textarea, select, button, a, [role='button']")]
+    const inputs = [
+      ...document.querySelectorAll("input, textarea, select, button, a, [role='button']"),
+    ]
       .slice(0, 80)
       .map(pick);
 

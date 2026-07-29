@@ -22,8 +22,22 @@ export function generateVisualHeatmap(canvas: HTMLCanvasElement): HeatmapAnalysi
   if (!ctx) {
     return {
       spots: [
-        { label: "Product Center", xPct: 50, yPct: 48, intensity: 0.95, radius: 55, type: "product" },
-        { label: "Texture Accent", xPct: 42, yPct: 38, intensity: 0.75, radius: 40, type: "product" },
+        {
+          label: "Product Center",
+          xPct: 50,
+          yPct: 48,
+          intensity: 0.95,
+          radius: 55,
+          type: "product",
+        },
+        {
+          label: "Texture Accent",
+          xPct: 42,
+          yPct: 38,
+          intensity: 0.75,
+          radius: 40,
+          type: "product",
+        },
       ],
       deadSpacePct: 12,
       productFocusPct: 88,

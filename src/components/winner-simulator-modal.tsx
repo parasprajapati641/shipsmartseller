@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { X, Trophy, ShoppingBag, Eye, TrendingUp, ShieldCheck, Check } from "lucide-react";
 import { scoreAllMarketplaces, type MarketplacePlatformScore } from "@/lib/ai-marketplace-scorer";
-import { analyzeCompetitorVariants, type VariantCompetitorAnalysis } from "@/lib/ai-competitor-analyzer";
+import {
+  analyzeCompetitorVariants,
+  type VariantCompetitorAnalysis,
+} from "@/lib/ai-competitor-analyzer";
 
 interface WinnerSimulatorModalProps {
   isOpen: boolean;
@@ -25,8 +28,10 @@ export function WinnerSimulatorModal({
   const platformScores = scoreAllMarketplaces(96, 90, true, 20);
   const competitorAnalysis = analyzeCompetitorVariants(variants);
 
-  const activePlatformInfo = platformScores.find((p) => p.platform === selectedPlatform) ?? platformScores[0];
-  const winningVariant = competitorAnalysis.find((c) => c.isWinningVariant) ?? competitorAnalysis[0];
+  const activePlatformInfo =
+    platformScores.find((p) => p.platform === selectedPlatform) ?? platformScores[0];
+  const winningVariant =
+    competitorAnalysis.find((c) => c.isWinningVariant) ?? competitorAnalysis[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090B14]/90 p-4 backdrop-blur-xl animate-in fade-in duration-200">
@@ -38,13 +43,19 @@ export function WinnerSimulatorModal({
               <Trophy className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-white">AI Marketplace Winner Simulator</h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">
+                AI Marketplace Winner Simulator
+              </h2>
               <p className="text-xs text-slate-400">
-                Multi-Platform Search Feed Simulation & CTR Predictor for <span className="text-[#6C63FF] font-semibold">{filename}</span>
+                Multi-Platform Search Feed Simulation & CTR Predictor for{" "}
+                <span className="text-[#6C63FF] font-semibold">{filename}</span>
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -69,7 +80,9 @@ export function WinnerSimulatorModal({
         {/* Platform Readiness Badge Banner */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#6C63FF]/30 bg-[#6C63FF]/10 p-4">
           <div>
-            <div className="text-xs text-[#6C63FF] font-semibold">Readiness Score for {selectedPlatform}</div>
+            <div className="text-xs text-[#6C63FF] font-semibold">
+              Readiness Score for {selectedPlatform}
+            </div>
             <div className="text-3xl font-extrabold text-white flex items-baseline gap-2">
               <span>{activePlatformInfo.score} / 100</span>
               <span className="text-xs font-bold text-[#00D4AA] bg-[#00D4AA]/20 px-2 py-0.5 rounded border border-[#00D4AA]/30">
@@ -79,7 +92,9 @@ export function WinnerSimulatorModal({
           </div>
 
           <div className="text-right text-xs space-y-0.5">
-            <div className="text-slate-200 font-semibold">{activePlatformInfo.primaryRequirement}</div>
+            <div className="text-slate-200 font-semibold">
+              {activePlatformInfo.primaryRequirement}
+            </div>
             <div className="text-slate-400">{activePlatformInfo.recommendation}</div>
           </div>
         </div>

@@ -5,6 +5,7 @@ Production-grade Playwright + TypeScript automation for comparing Meesho shippin
 ## Overview
 
 This module:
+
 1. Logs into the Meesho Seller portal **once** and persists the session
 2. For each image variant: uploads → waits for shipping calculation → reads charge → saves screenshot → removes image
 3. Returns the variant with the **lowest shipping charge**
@@ -24,12 +25,12 @@ npx playwright install chromium
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `MEESHO_SELLER_EMAIL` | For automated login | Seller account email or mobile |
-| `MEESHO_SELLER_PASSWORD` | For automated login | Seller account password |
-| `MEESHO_HEADED` | No | Set to `1` to show browser window (needed for OTP / interactive login) |
-| `MEESHO_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error` (default: `info`) |
+| Variable                 | Required            | Description                                                            |
+| ------------------------ | ------------------- | ---------------------------------------------------------------------- |
+| `MEESHO_SELLER_EMAIL`    | For automated login | Seller account email or mobile                                         |
+| `MEESHO_SELLER_PASSWORD` | For automated login | Seller account password                                                |
+| `MEESHO_HEADED`          | No                  | Set to `1` to show browser window (needed for OTP / interactive login) |
+| `MEESHO_LOG_LEVEL`       | No                  | `debug`, `info`, `warn`, or `error` (default: `info`)                  |
 
 If credentials are not set, the login flow falls back to **interactive mode** — a browser window opens and you complete login manually.
 
@@ -145,11 +146,11 @@ All selectors in `config/selectors.ts` are **placeholders** based on common Mees
 
 ### URLs to verify
 
-| Constant | Current Value | Action |
-|---|---|---|
-| `MEESHO_URLS.login` | `https://supplier.meesho.com/` | Verify login URL |
+| Constant                      | Current Value                               | Action                 |
+| ----------------------------- | ------------------------------------------- | ---------------------- |
+| `MEESHO_URLS.login`           | `https://supplier.meesho.com/`              | Verify login URL       |
 | `MEESHO_URLS.productCreation` | `https://supplier.meesho.com/panel/v3/new/` | Verify add-product URL |
-| `MEESHO_URLS.dashboard` | `https://supplier.meesho.com/panel/v3/home` | Verify dashboard URL |
+| `MEESHO_URLS.dashboard`       | `https://supplier.meesho.com/panel/v3/home` | Verify dashboard URL   |
 
 Update `automation/config/constants.ts` if Meesho has changed these paths.
 
@@ -162,13 +163,13 @@ Update `automation/config/constants.ts` if Meesho has changed these paths.
 
 ## Troubleshooting
 
-| Issue | Solution |
-|---|---|
-| Session expired | Run `npm run automation:login` again |
-| OTP required | Set `MEESHO_HEADED=1` and complete OTP in browser |
-| Selectors not found | Update `config/selectors.ts` after inspecting live Meesho UI |
+| Issue                      | Solution                                                        |
+| -------------------------- | --------------------------------------------------------------- |
+| Session expired            | Run `npm run automation:login` again                            |
+| OTP required               | Set `MEESHO_HEADED=1` and complete OTP in browser               |
+| Selectors not found        | Update `config/selectors.ts` after inspecting live Meesho UI    |
 | Shipping charge not parsed | Check screenshot in `.screenshots/`, update parser or selectors |
-| Browser not installed | Run `npx playwright install chromium` |
+| Browser not installed      | Run `npx playwright install chromium`                           |
 
 ## Gitignored Artifacts
 
@@ -181,9 +182,11 @@ The public API in `automation/index.ts` is designed for a future server endpoint
 
 ```typescript
 // Example future API route (not implemented yet)
-POST /api/shipping/compare
-Body: { variants: [{ name, path }] }
-Response: ShippingComparisonResult
+POST / api / shipping / compare;
+Body: {
+  variants: [{ name, path }];
+}
+Response: ShippingComparisonResult;
 ```
 
 Keep automation logic in this module; expose thin HTTP wrapper in the React app when ready.

@@ -93,7 +93,9 @@ export function renderSubscriptionReceiptHtml(payload: SendEmailPayload): string
 /**
  * Dispatches high-deliverability transactional email for confirmed purchases.
  */
-export async function sendSubscriptionConfirmationEmail(payload: SendEmailPayload): Promise<{ success: boolean; message?: string }> {
+export async function sendSubscriptionConfirmationEmail(
+  payload: SendEmailPayload,
+): Promise<{ success: boolean; message?: string }> {
   try {
     const htmlBody = renderSubscriptionReceiptHtml(payload);
 

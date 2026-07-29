@@ -28,7 +28,8 @@ export type SelectorCategory = {
 /** Login page selectors. */
 export const loginSelectors: SelectorCategory = {
   /** Email / mobile input on login form. */
-  emailInput: 'input[type="email"], input[name="email"], input[placeholder*="mail" i], input[placeholder*="mobile" i]',
+  emailInput:
+    'input[type="email"], input[name="email"], input[placeholder*="mail" i], input[placeholder*="mobile" i]',
   /** Password input. */
   passwordInput: 'input[type="password"], input[name="password"]',
   /** Primary login / sign-in button. */
@@ -46,11 +47,13 @@ export const productCreationSelectors: SelectorCategory = {
   /** Page heading or container confirming product creation form loaded. */
   pageReady: 'h1, h2, [class*="product"], [data-testid*="product"]',
   /** Product title / name input (may be required before shipping calc). */
-  productTitleInput: 'input[name="title"], input[placeholder*="title" i], input[placeholder*="product name" i]',
+  productTitleInput:
+    'input[name="title"], input[placeholder*="title" i], input[placeholder*="product name" i]',
   /** Category selector trigger. */
   categorySelector: '[data-testid*="category"], [class*="category"]',
   /** MRP / price input that may trigger shipping recalculation. */
-  priceInput: 'input[name="price"], input[name="mrp"], input[placeholder*="price" i], input[placeholder*="mrp" i]',
+  priceInput:
+    'input[name="price"], input[name="mrp"], input[placeholder*="price" i], input[placeholder*="mrp" i]',
   /** Weight input (grams) — shipping charge often depends on weight. */
   weightInput: 'input[name="weight"], input[placeholder*="weight" i], input[placeholder*="gram" i]',
   /** Save / continue button on product form. */
@@ -68,13 +71,15 @@ export const imageUploadSelectors: SelectorCategory = {
   /** Remove / delete image button on preview. */
   removeImageButton: { role: "button", name: /remove|delete|close|×|✕/i },
   /** Alternative remove via icon button. */
-  removeImageIcon: '[aria-label*="remove" i], [aria-label*="delete" i], [class*="remove"], [class*="delete"]',
+  removeImageIcon:
+    '[aria-label*="remove" i], [aria-label*="delete" i], [class*="remove"], [class*="delete"]',
 };
 
 /** Shipping charge display selectors. */
 export const shippingChargeSelectors: SelectorCategory = {
   /** Container showing shipping / logistics charge. */
-  shippingSection: '[class*="shipping"], [class*="logistics"], [data-testid*="shipping"], [data-testid*="logistic"]',
+  shippingSection:
+    '[class*="shipping"], [class*="logistics"], [data-testid*="shipping"], [data-testid*="logistic"]',
   /** Text node or element containing the charge amount. */
   chargeAmount: '[class*="shipping"] [class*="amount"], [class*="charge"], [class*="fee"]',
   /** Loading indicator while shipping is being calculated. */

@@ -27,7 +27,9 @@ async function extractPageInfo(page) {
     return {
       url: location.href,
       title: document.title,
-      inputs: [...document.querySelectorAll("input, textarea, select, button")].slice(0, 100).map(pick),
+      inputs: [...document.querySelectorAll("input, textarea, select, button")]
+        .slice(0, 100)
+        .map(pick),
       fileInputs: [...document.querySelectorAll('input[type="file"]')].map(pick),
       links: [...document.querySelectorAll("a[href]")]
         .slice(0, 30)

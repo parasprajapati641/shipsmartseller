@@ -16,7 +16,7 @@ async function main() {
   // Base 1x1 JPEG buffer extended to approximate target file sizes
   const baseJpg = Buffer.from(
     "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
-    "base64"
+    "base64",
   );
 
   const variants: VariantInput[] = [];
@@ -26,7 +26,10 @@ async function main() {
     const filePath = path.join(tempDir, filename);
 
     // Padding buffer to ensure distinct byte sizes on disk
-    const paddedBuffer = Buffer.concat([baseJpg, Buffer.alloc(Math.max(1, sizeKB * 1024 - baseJpg.length))]);
+    const paddedBuffer = Buffer.concat([
+      baseJpg,
+      Buffer.alloc(Math.max(1, sizeKB * 1024 - baseJpg.length)),
+    ]);
     await fs.writeFile(filePath, paddedBuffer);
 
     variants.push({
@@ -81,7 +84,9 @@ async function main() {
   if (allSucceeded && result.success && result.variants.length === 8) {
     console.log("🎉 ALL 8 VARIANTS VERIFIED 100% PRODUCTION READY!");
   } else {
-    console.error(`⚠️ Test finished with status success=${result.success}, processed ${result.variants.length}/8 variants.`);
+    console.error(
+      `⚠️ Test finished with status success=${result.success}, processed ${result.variants.length}/8 variants.`,
+    );
     if (!allSucceeded) process.exit(1);
   }
 }

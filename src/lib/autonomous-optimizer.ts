@@ -68,7 +68,9 @@ export async function runAutonomousOptimizationPipeline(
   file: File,
   category: string = "general",
   maxRounds: number = 3,
-  compareFn: (variants: OptimizedResult[]) => Promise<{ success: boolean; lowestCharge: number; variants: any[] }>,
+  compareFn: (
+    variants: OptimizedResult[],
+  ) => Promise<{ success: boolean; lowestCharge: number; variants: any[] }>,
   onProgressStep?: (step: string, progressPct: number) => void,
 ): Promise<AutonomousOptimizationResult> {
   const logs: string[] = [];
@@ -78,7 +80,9 @@ export async function runAutonomousOptimizationPipeline(
   let anomalyDetected = false;
   let totalTested = 0;
 
-  logs.push(`[AUTONOMOUS ENGINE] Initializing autonomous pass for category '${category}' (Max Rounds: ${maxRounds})`);
+  logs.push(
+    `[AUTONOMOUS ENGINE] Initializing autonomous pass for category '${category}' (Max Rounds: ${maxRounds})`,
+  );
 
   while (currentRound <= maxRounds) {
     const epsilon = calculateDynamicEpsilon(category);
@@ -88,15 +92,11 @@ export async function runAutonomousOptimizationPipeline(
     );
 
     logs.push(`[PASS ${currentRound}] Generating strategy matrix (Epsilon = ${epsilon})...`);
-    
+
     // Generate variants for this round
-    const variants = await generateAdaptiveVariants(
-      file,
-      category,
-      (pct, msg) => {
-        // sub progress
-      },
-    );
+    const variants = await generateAdaptiveVariants(file, category, (pct, msg) => {
+      // sub progress
+    });
 
     totalTested += variants.length;
     onProgressStep?.(
@@ -112,25 +112,37 @@ export async function runAutonomousOptimizationPipeline(
 
       if (detectShippingAnomaly(roundLowest)) {
         anomalyDetected = true;
-        logs.push(`[ANOMALY DETECTED] Shipping quote ₹${roundLowest} exceeds expected baseline. Spawning anomaly bypass strategies.`);
+        logs.push(
+          `[ANOMALY DETECTED] Shipping quote ₹${roundLowest} exceeds expected baseline. Spawning anomaly bypass strategies.`,
+        );
       }
 
       if (roundLowest < bestOverallCharge) {
         bestOverallCharge = roundLowest;
-        
+
         // Match variant
-        const winningIdx = comparisonResult.variants.findIndex((v) => v.shippingCharge === roundLowest);
+        const winningIdx = comparisonResult.variants.findIndex(
+          (v) => v.shippingCharge === roundLowest,
+        );
         winningVariant = variants[winningIdx >= 0 ? winningIdx : 0];
 
         // Record positive reinforcement
         if (winningVariant?.strategy) {
-          recordOptimizationOutcome(category, winningVariant.strategy, roundLowest, 65, currentRound as 1 | 2);
+          recordOptimizationOutcome(
+            category,
+            winningVariant.strategy,
+            roundLowest,
+            65,
+            currentRound as 1 | 2,
+          );
         }
       }
 
       // Early success exit condition: rate drop achieved (≤ ₹54) and no anomaly
       if (bestOverallCharge <= 54 && !anomalyDetected) {
-        logs.push(`[SUCCESS EXIT] Target shipping slab ₹${bestOverallCharge} achieved in Pass ${currentRound}.`);
+        logs.push(
+          `[SUCCESS EXIT] Target shipping slab ₹${bestOverallCharge} achieved in Pass ${currentRound}.`,
+        );
         break;
       }
     } else {
@@ -141,7 +153,10 @@ export async function runAutonomousOptimizationPipeline(
   }
 
   const baseline = 65;
-  const savingsInr = Math.max(0, baseline - (bestOverallCharge < Infinity ? bestOverallCharge : baseline));
+  const savingsInr = Math.max(
+    0,
+    baseline - (bestOverallCharge < Infinity ? bestOverallCharge : baseline),
+  );
   const isRateReduced = savingsInr > 0 || bestOverallCharge <= 54;
 
   return {

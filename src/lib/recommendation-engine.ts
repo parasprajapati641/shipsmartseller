@@ -27,9 +27,9 @@ export type VisualImageSignals = {
   height: number;
   sizeKB: number;
   subjectCoverageRatio?: number; // 0.1 - 1.0
-  colorVariance?: number;        // 0 - 100
-  edgeContrastDensity?: number;  // 0 - 100
-  backgroundPurityPct?: number;  // 0 - 100
+  colorVariance?: number; // 0 - 100
+  edgeContrastDensity?: number; // 0 - 100
+  backgroundPurityPct?: number; // 0 - 100
 };
 
 /**

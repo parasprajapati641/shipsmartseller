@@ -38,7 +38,7 @@ function getRazorpayKeys() {
 
 /** Create a new Razorpay Order for Premium or Premium Plus Subscription. */
 export async function createRazorpayOrder(
-  plan: "premium" | "premium_plus" | string = "premium",
+  plan: "premium_plus" | string = "premium_plus",
   amountInRupees?: number,
   userEmail?: string,
 ): Promise<RazorpayOrderResponse> {
@@ -49,12 +49,13 @@ export async function createRazorpayOrder(
       console.error("[RAZORPAY ERROR] Missing Key ID on server.");
       return {
         success: false,
-        message: "Razorpay Key ID is missing. Please verify RAZORPAY_KEY_ID in server environment variables.",
+        message:
+          "Razorpay Key ID is missing. Please verify RAZORPAY_KEY_ID in server environment variables.",
         error: "MISSING_RAZORPAY_KEY_ID",
       };
     }
 
-    const defaultAmount = plan === "premium_plus" ? 999 : 499;
+    const defaultAmount = 999;
     const finalAmountInRupees = amountInRupees ?? defaultAmount;
     const amountInPaise = Math.round(finalAmountInRupees * 100);
     const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -91,7 +92,9 @@ export async function createRazorpayOrder(
         message: "Razorpay order created successfully",
       };
     } else {
-      const errJson = (await apiRes.json().catch(() => ({}))) as { error?: { description?: string } };
+      const errJson = (await apiRes.json().catch(() => ({}))) as {
+        error?: { description?: string };
+      };
       console.error("[RAZORPAY REST API ERROR]", errJson);
       const errorDesc = errJson?.error?.description || "Razorpay API order creation failed";
       return {
@@ -116,7 +119,7 @@ export async function verifyRazorpayPayment(
   razorpay_order_id: string,
   razorpay_payment_id: string,
   razorpay_signature: string,
-  plan: string = "premium",
+  plan: string = "premium_plus",
   email?: string,
 ): Promise<RazorpayVerificationResponse> {
   try {
@@ -131,10 +134,7 @@ export async function verifyRazorpayPayment(
     const { keySecret } = getRazorpayKeys();
     if (keySecret) {
       const text = `${razorpay_order_id}|${razorpay_payment_id}`;
-      const expectedSignature = crypto
-        .createHmac("sha256", keySecret)
-        .update(text)
-        .digest("hex");
+      const expectedSignature = crypto.createHmac("sha256", keySecret).update(text).digest("hex");
 
       if (expectedSignature !== razorpay_signature) {
         return {
@@ -144,7 +144,9 @@ export async function verifyRazorpayPayment(
         };
       }
     } else {
-      console.warn("[RAZORPAY WARNING] Key Secret missing on server — verified signature via payload parameters.");
+      console.warn(
+        "[RAZORPAY WARNING] Key Secret missing on server — verified signature via payload parameters.",
+      );
     }
 
     console.log(
@@ -152,8 +154,8 @@ export async function verifyRazorpayPayment(
     );
 
     if (email) {
-      const planName = plan === "premium_plus" ? "Premium Plus Subscription" : "Premium Subscription";
-      const amountPaid = plan === "premium_plus" ? "₹999" : "₹499";
+      const planName = "Premium Plus Subscription";
+      const amountPaid = "₹999";
       try {
         const { sendSubscriptionConfirmationEmail } = await import("./email-service.js");
         await sendSubscriptionConfirmationEmail({
@@ -171,7 +173,7 @@ export async function verifyRazorpayPayment(
 
     return {
       success: true,
-      message: `Payment verified successfully! Welcome to ${plan === "premium_plus" ? "Premium Plus" : "Premium"}.`,
+      message: "Payment verified successfully! Welcome to Premium Plus.",
       paymentId: razorpay_payment_id,
       orderId: razorpay_order_id,
     };

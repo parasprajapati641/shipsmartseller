@@ -47,7 +47,11 @@ async function dumpDom(page, label) {
       href: el.getAttribute("href"),
     });
 
-    const allInputs = [...document.querySelectorAll("input, textarea, select, button, [role='button'], [role='textbox']")].map(pick);
+    const allInputs = [
+      ...document.querySelectorAll(
+        "input, textarea, select, button, [role='button'], [role='textbox']",
+      ),
+    ].map(pick);
     const fileInputs = [...document.querySelectorAll('input[type="file"]')].map(pick);
     const labels = [...document.querySelectorAll("label")].slice(0, 40).map(pick);
 
@@ -56,7 +60,9 @@ async function dumpDom(page, label) {
         const t = (el.textContent || "").trim();
         return (
           el.children.length === 0 &&
-          /shipping|logistic|delivery charge|shipping charge|weight|gram|₹|rs\.|upload image|remove|delete image|catalog/i.test(t) &&
+          /shipping|logistic|delivery charge|shipping charge|weight|gram|₹|rs\.|upload image|remove|delete image|catalog/i.test(
+            t,
+          ) &&
           t.length < 200
         );
       })
@@ -94,7 +100,10 @@ async function main() {
 
   const pages = [
     { url: "https://supplier.meesho.com/panel/v3/new/root/login", label: "login" },
-    { url: "https://supplier.meesho.com/panel/v3/new/cataloguing/single/add", label: "product_add" },
+    {
+      url: "https://supplier.meesho.com/panel/v3/new/cataloguing/single/add",
+      label: "product_add",
+    },
     { url: "https://supplier.meesho.com/panel/v3/home", label: "dashboard" },
   ];
 

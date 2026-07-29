@@ -51,8 +51,10 @@ export function calculatePlatformAnalytics(): PlatformAnalyticsSummary {
   const successful = history.filter((h) => h.isSuccess || h.savingsInr > 0);
   const totalSavingsInr = history.reduce((acc, h) => acc + h.savingsInr, 0);
 
-  const overallSuccessRatePct = totalComparisons > 0 ? Math.round((successful.length / totalComparisons) * 100) : 85;
-  const averageSavingsInr = successful.length > 0 ? Math.round((totalSavingsInr / successful.length) * 10) / 10 : 16.5;
+  const overallSuccessRatePct =
+    totalComparisons > 0 ? Math.round((successful.length / totalComparisons) * 100) : 85;
+  const averageSavingsInr =
+    successful.length > 0 ? Math.round((totalSavingsInr / successful.length) * 10) / 10 : 16.5;
 
   // Calculate model accuracy over time (predictive precision)
   let accuratePredictions = 0;
@@ -62,7 +64,10 @@ export function calculatePlatformAnalytics(): PlatformAnalyticsSummary {
       accuratePredictions += 1;
     }
   });
-  const modelAccuracyPct = totalComparisons > 0 ? Math.min(98, Math.max(75, Math.round((accuratePredictions / totalComparisons) * 100))) : 91;
+  const modelAccuracyPct =
+    totalComparisons > 0
+      ? Math.min(98, Math.max(75, Math.round((accuratePredictions / totalComparisons) * 100)))
+      : 91;
 
   // Category performance matrix
   const categoryPerformance = Object.entries(categoryStatsMap).map(([cat, stats]) => {
@@ -86,12 +91,17 @@ export function calculatePlatformAnalytics(): PlatformAnalyticsSummary {
       totalRuns: catRuns || stats.totalComparisons,
       successRatePct,
       avgSavingsInr,
-      topStrategyName: stats.topStrategyId ? stats.topStrategyId.replace(/_/g, " ") : "Adaptive Matrix",
+      topStrategyName: stats.topStrategyId
+        ? stats.topStrategyId.replace(/_/g, " ")
+        : "Adaptive Matrix",
     };
   });
 
   // Top overall strategies
-  const strategyAggregator = new Map<string, { name: string; wins: number; total: number; totalSavings: number }>();
+  const strategyAggregator = new Map<
+    string,
+    { name: string; wins: number; total: number; totalSavings: number }
+  >();
 
   history.forEach((h) => {
     const id = h.strategy.id;

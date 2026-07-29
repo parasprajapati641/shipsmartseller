@@ -51,7 +51,15 @@ export async function getMeeshoStatus(): Promise<MeeshoConnectionStatus> {
 /** Authenticate and persist session for Meesho Seller portal. */
 export async function connectMeesho(
   credentials?: MeeshoCredentials,
-): Promise<{ success: boolean; requiresOtp?: boolean; reason?: string; message: string; status: MeeshoConnectionStatus; step?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  requiresOtp?: boolean;
+  reason?: string;
+  message: string;
+  status: MeeshoConnectionStatus;
+  step?: string;
+  error?: string;
+}> {
   // If live login is disabled / feature-flagged, bypass anti-bot blocks and return Connected immediately
   if (!LIVE_LOGIN_ENABLED) {
     return {
@@ -83,7 +91,10 @@ export async function connectMeesho(
   try {
     const { getConnectionStatus, login } = await loadAutomationModule();
     // Check if session is already valid
-    const existingStatus = await getConnectionStatus().catch(() => ({ connected: false, sessionExpired: false }));
+    const existingStatus = await getConnectionStatus().catch(() => ({
+      connected: false,
+      sessionExpired: false,
+    }));
     if (existingStatus.connected && !existingStatus.sessionExpired) {
       return {
         success: true,
@@ -102,8 +113,11 @@ export async function connectMeesho(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const isBlocked = (error as any)?.code === "MEESHO_IP_BLOCKED" || message.includes("blocked this server IP") || message.includes("Access Denied");
-    
+    const isBlocked =
+      (error as any)?.code === "MEESHO_IP_BLOCKED" ||
+      message.includes("blocked this server IP") ||
+      message.includes("Access Denied");
+
     // In production, fallback smoothly so the user is never blocked by Akamai IP restrictions
     return {
       success: true,
@@ -114,7 +128,11 @@ export async function connectMeesho(
 }
 
 /** Disconnect / clear saved Meesho session. */
-export async function disconnectMeesho(): Promise<{ success: boolean; message: string; error?: string }> {
+export async function disconnectMeesho(): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
+}> {
   if (AUTOMATION_API_URL && LIVE_LOGIN_ENABLED) {
     try {
       const res = await fetch(`${AUTOMATION_API_URL}/meesho/disconnect`, { method: "POST" });
@@ -134,15 +152,17 @@ export async function disconnectMeesho(): Promise<{ success: boolean; message: s
 }
 
 /** Compare shipping charges across supplier cards for a single image. */
-export async function compareSingleImage(
-  imagePath: string,
-): Promise<SingleImageComparisonResult> {
+export async function compareSingleImage(imagePath: string): Promise<SingleImageComparisonResult> {
   if (!LIVE_LOGIN_ENABLED) {
     return {
       success: true,
       imagePath,
       lowestShippingCharge: 49,
-      bestSupplier: { supplierName: "Standard Meesho Logistics", shippingCharge: 49, deliveryDays: "3 days" },
+      bestSupplier: {
+        supplierName: "Standard Meesho Logistics",
+        shippingCharge: 49,
+        deliveryDays: "3 days",
+      },
       suppliers: [
         { supplierName: "Standard Meesho Logistics", shippingCharge: 49, deliveryDays: "3 days" },
         { supplierName: "Express Meesho Logistics", shippingCharge: 54, deliveryDays: "2 days" },
@@ -160,7 +180,11 @@ export async function compareSingleImage(
       success: true,
       imagePath,
       lowestShippingCharge: 49,
-      bestSupplier: { supplierName: "Standard Meesho Logistics", shippingCharge: 49, deliveryDays: "3 days" },
+      bestSupplier: {
+        supplierName: "Standard Meesho Logistics",
+        shippingCharge: 49,
+        deliveryDays: "3 days",
+      },
       suppliers: [
         { supplierName: "Standard Meesho Logistics", shippingCharge: 49, deliveryDays: "3 days" },
         { supplierName: "Express Meesho Logistics", shippingCharge: 54, deliveryDays: "2 days" },
@@ -183,7 +207,9 @@ export async function compareImageVariants(
       });
       return await res.json();
     } catch (err) {
-      console.warn("Automation microservice call failed — falling back to standard comparison calculation");
+      console.warn(
+        "Automation microservice call failed — falling back to standard comparison calculation",
+      );
     }
   }
 
@@ -201,10 +227,22 @@ export async function compareImageVariants(
         processingTimeMs: 800 + i * 200,
         status: "success" as const,
         suppliers: [
-          { supplierName: "Standard Meesho Logistics", shippingCharge: charge, deliveryDays: "3 days" },
-          { supplierName: "Express Meesho Logistics", shippingCharge: charge + 5, deliveryDays: "2 days" },
+          {
+            supplierName: "Standard Meesho Logistics",
+            shippingCharge: charge,
+            deliveryDays: "3 days",
+          },
+          {
+            supplierName: "Express Meesho Logistics",
+            shippingCharge: charge + 5,
+            deliveryDays: "2 days",
+          },
         ],
-        bestSupplier: { supplierName: "Standard Meesho Logistics", shippingCharge: charge, deliveryDays: "3 days" },
+        bestSupplier: {
+          supplierName: "Standard Meesho Logistics",
+          shippingCharge: charge,
+          deliveryDays: "3 days",
+        },
       };
     });
 
@@ -217,8 +255,10 @@ export async function compareImageVariants(
       };
     }
 
-    const bestVariant = processedVariants.reduce((best, cur) =>
-      cur.shippingCharge < best.shippingCharge ? cur : best, processedVariants[0]);
+    const bestVariant = processedVariants.reduce(
+      (best, cur) => (cur.shippingCharge < best.shippingCharge ? cur : best),
+      processedVariants[0],
+    );
 
     return {
       success: true,
@@ -245,9 +285,17 @@ export async function compareImageVariants(
         processingTimeMs: 800 + i * 200,
         status: "success" as const,
         suppliers: [
-          { supplierName: "Standard Meesho Logistics", shippingCharge: charge, deliveryDays: "3 days" },
+          {
+            supplierName: "Standard Meesho Logistics",
+            shippingCharge: charge,
+            deliveryDays: "3 days",
+          },
         ],
-        bestSupplier: { supplierName: "Standard Meesho Logistics", shippingCharge: charge, deliveryDays: "3 days" },
+        bestSupplier: {
+          supplierName: "Standard Meesho Logistics",
+          shippingCharge: charge,
+          deliveryDays: "3 days",
+        },
       };
     });
 
@@ -260,8 +308,10 @@ export async function compareImageVariants(
       };
     }
 
-    const bestVariant = processedVariants.reduce((best, cur) =>
-      cur.shippingCharge < best.shippingCharge ? cur : best, processedVariants[0]);
+    const bestVariant = processedVariants.reduce(
+      (best, cur) => (cur.shippingCharge < best.shippingCharge ? cur : best),
+      processedVariants[0],
+    );
 
     return {
       success: true,

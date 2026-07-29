@@ -225,16 +225,22 @@ export function MeeshoComparison({
           const minCharge = Math.min(...flatSuppliers.map((s) => s.shippingCharge));
           flatSuppliers.forEach((s) => (s.isLowest = s.shippingCharge === minCharge));
           setAllSuppliers(flatSuppliers);
-          const best = flatSuppliers.find((s) => s.shippingCharge === minCharge) ?? flatSuppliers[0];
+          const best =
+            flatSuppliers.find((s) => s.shippingCharge === minCharge) ?? flatSuppliers[0];
           setBestSupplier(best);
 
-          const winningVariantIdx = comparisonRes.variants.findIndex((v) => v.shippingCharge === minCharge);
-          const winningOptVariant = optimizedVariants[winningVariantIdx >= 0 ? winningVariantIdx : 0];
+          const winningVariantIdx = comparisonRes.variants.findIndex(
+            (v) => v.shippingCharge === minCharge,
+          );
+          const winningOptVariant =
+            optimizedVariants[winningVariantIdx >= 0 ? winningVariantIdx : 0];
 
           if (winningOptVariant?.strategy) {
             const savings = Math.max(0, 65 - minCharge);
             const isRateReduced = savings > 0 || minCharge <= 54;
-            const isPredictionMatched = predictedTopStrategyId ? predictedTopStrategyId === winningOptVariant.strategy.id : true;
+            const isPredictionMatched = predictedTopStrategyId
+              ? predictedTopStrategyId === winningOptVariant.strategy.id
+              : true;
 
             // Record outcome with prediction validation & genetic mutation
             recordOptimizationOutcome(
@@ -255,7 +261,9 @@ export function MeeshoComparison({
             });
           }
         }
-        toast.success(`Round ${currentRound} comparison complete! Prediction validated & model retrained.`);
+        toast.success(
+          `Round ${currentRound} comparison complete! Prediction validated & model retrained.`,
+        );
       } else {
         toast.error(comparisonRes?.error ?? "Shipping charge comparison failed");
       }
@@ -374,14 +382,19 @@ export function MeeshoComparison({
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Winning Strategy: <span className="text-foreground font-medium">{recordedInsight.winningStrategyName}</span> (₹{recordedInsight.winningCharge})
+                      Winning Strategy:{" "}
+                      <span className="text-foreground font-medium">
+                        {recordedInsight.winningStrategyName}
+                      </span>{" "}
+                      (₹{recordedInsight.winningCharge})
                     </div>
                   </div>
                 </div>
 
                 {recordedInsight.isRateReduced ? (
                   <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3.5 py-1.5 text-xs font-bold text-emerald-400 border border-emerald-500/40">
-                    <TrendingDown className="h-4 w-4" /> Rate Drop Achieved! (Saved ₹{recordedInsight.savingsInr})
+                    <TrendingDown className="h-4 w-4" /> Rate Drop Achieved! (Saved ₹
+                    {recordedInsight.savingsInr})
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-400 border border-amber-500/30">
@@ -398,7 +411,8 @@ export function MeeshoComparison({
                       <Zap className="h-4 w-4" /> Want to push for a lower shipping slab?
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      Trigger Round 2 Deep-Optimization to test extreme parameter boundaries (4KB–12KB ultra-low slabs & micro-padding).
+                      Trigger Round 2 Deep-Optimization to test extreme parameter boundaries
+                      (4KB–12KB ultra-low slabs & micro-padding).
                     </div>
                   </div>
                   <button
@@ -465,7 +479,11 @@ export function MeeshoComparison({
                 <Truck className="h-4 w-4 text-brand" /> Detailed Predictive Strategy Log (
                 {results.length} strategies evaluated)
               </span>
-              {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {showDetails ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
             </button>
 
             {showDetails && (

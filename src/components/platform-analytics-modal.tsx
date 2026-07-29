@@ -47,7 +47,8 @@ export function PlatformAnalyticsModal({ isOpen, onClose }: PlatformAnalyticsMod
               ShipSmart Platform Analytics
             </h2>
             <p className="text-xs text-muted-foreground">
-              Real-world success metrics, predictive model precision, and category optimization learning outcomes.
+              Real-world success metrics, predictive model precision, and category optimization
+              learning outcomes.
             </p>
           </div>
           <button

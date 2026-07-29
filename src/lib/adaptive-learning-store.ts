@@ -64,24 +64,159 @@ const STORAGE_KEY_OUTCOMES = "shipsmart_outcomes_history_v1";
 
 /** Default Base Strategies covering the design space. */
 export const DEFAULT_STRATEGIES: OptimizationStrategy[] = [
-  { id: "max_tight_15kb_square", name: "Max Subject Frame 15KB (1:1)", fillRatio: 0.95, aspectRatio: "1:1", targetKB: 15, paddingRatio: 0.02, sharpeningLevel: "high", weight: 1.5 },
-  { id: "full_body_20kb_portrait", name: "Full Person Portrait 20KB (3:4)", fillRatio: 0.94, aspectRatio: "3:4", targetKB: 20, paddingRatio: 0.03, sharpeningLevel: "high", weight: 1.4 },
-  { id: "sharp_25kb_square", name: "Sharp High-Res 25KB (1:1)", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 25, paddingRatio: 0.03, sharpeningLevel: "balanced", weight: 1.2 },
-  { id: "studio_30kb_square", name: "Studio Focus 30KB (1:1)", fillRatio: 0.90, aspectRatio: "1:1", targetKB: 30, paddingRatio: 0.04, sharpeningLevel: "balanced", weight: 1.0 },
-  { id: "compact_5kb_square", name: "Ultra-Crisp 5KB (1:1)", fillRatio: 0.96, aspectRatio: "1:1", targetKB: 5, paddingRatio: 0.02, sharpeningLevel: "high", weight: 1.4 },
-  { id: "apparel_30kb_portrait", name: "Apparel HD 30KB (3:4)", fillRatio: 0.93, aspectRatio: "3:4", targetKB: 30, paddingRatio: 0.03, sharpeningLevel: "high", weight: 1.3 },
-  { id: "standard_50kb_square", name: "Maximum Clarity 50KB", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 50, paddingRatio: 0.03, sharpeningLevel: "high", weight: 1.1 },
+  {
+    id: "max_tight_15kb_square",
+    name: "Max Subject Frame 15KB (1:1)",
+    fillRatio: 0.95,
+    aspectRatio: "1:1",
+    targetKB: 15,
+    paddingRatio: 0.02,
+    sharpeningLevel: "high",
+    weight: 1.5,
+  },
+  {
+    id: "full_body_20kb_portrait",
+    name: "Full Person Portrait 20KB (3:4)",
+    fillRatio: 0.94,
+    aspectRatio: "3:4",
+    targetKB: 20,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    weight: 1.4,
+  },
+  {
+    id: "sharp_25kb_square",
+    name: "Sharp High-Res 25KB (1:1)",
+    fillRatio: 0.92,
+    aspectRatio: "1:1",
+    targetKB: 25,
+    paddingRatio: 0.03,
+    sharpeningLevel: "balanced",
+    weight: 1.2,
+  },
+  {
+    id: "studio_30kb_square",
+    name: "Studio Focus 30KB (1:1)",
+    fillRatio: 0.9,
+    aspectRatio: "1:1",
+    targetKB: 30,
+    paddingRatio: 0.04,
+    sharpeningLevel: "balanced",
+    weight: 1.0,
+  },
+  {
+    id: "compact_5kb_square",
+    name: "Ultra-Crisp 5KB (1:1)",
+    fillRatio: 0.96,
+    aspectRatio: "1:1",
+    targetKB: 5,
+    paddingRatio: 0.02,
+    sharpeningLevel: "high",
+    weight: 1.4,
+  },
+  {
+    id: "apparel_30kb_portrait",
+    name: "Apparel HD 30KB (3:4)",
+    fillRatio: 0.93,
+    aspectRatio: "3:4",
+    targetKB: 30,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    weight: 1.3,
+  },
+  {
+    id: "standard_50kb_square",
+    name: "Maximum Clarity 50KB",
+    fillRatio: 0.92,
+    aspectRatio: "1:1",
+    targetKB: 50,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    weight: 1.1,
+  },
 ];
 
 export const ROUND_2_DEEP_STRATEGIES: OptimizationStrategy[] = [
-  { id: "deep_ultra_4kb_square", name: "Deep Ultra-Crisp 4KB (1:1)", fillRatio: 0.96, aspectRatio: "1:1", targetKB: 4, paddingRatio: 0.02, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_apparel_12kb_portrait", name: "Deep Apparel HD 12KB (3:4)", fillRatio: 0.95, aspectRatio: "3:4", targetKB: 12, paddingRatio: 0.02, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_contrast_18kb_square", name: "Deep Edge-Sharp 18KB", fillRatio: 0.93, aspectRatio: "1:1", targetKB: 18, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_wide_35kb_square", name: "Deep Full Frame 35KB", fillRatio: 0.92, aspectRatio: "1:1", targetKB: 35, paddingRatio: 0.04, sharpeningLevel: "balanced", isRound2Deep: true },
-  { id: "deep_portrait_40kb", name: "Deep Portrait HD 40KB (3:4)", fillRatio: 0.94, aspectRatio: "3:4", targetKB: 40, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_compact_8kb_square", name: "Deep Compact 8KB", fillRatio: 0.95, aspectRatio: "1:1", targetKB: 8, paddingRatio: 0.02, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_balanced_22kb_square", name: "Deep Tuned 22KB", fillRatio: 0.91, aspectRatio: "1:1", targetKB: 22, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
-  { id: "deep_max_45kb_portrait", name: "Deep Max-Detail 45KB (3:4)", fillRatio: 0.93, aspectRatio: "3:4", targetKB: 45, paddingRatio: 0.03, sharpeningLevel: "high", isRound2Deep: true },
+  {
+    id: "deep_ultra_4kb_square",
+    name: "Deep Ultra-Crisp 4KB (1:1)",
+    fillRatio: 0.96,
+    aspectRatio: "1:1",
+    targetKB: 4,
+    paddingRatio: 0.02,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_apparel_12kb_portrait",
+    name: "Deep Apparel HD 12KB (3:4)",
+    fillRatio: 0.95,
+    aspectRatio: "3:4",
+    targetKB: 12,
+    paddingRatio: 0.02,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_contrast_18kb_square",
+    name: "Deep Edge-Sharp 18KB",
+    fillRatio: 0.93,
+    aspectRatio: "1:1",
+    targetKB: 18,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_wide_35kb_square",
+    name: "Deep Full Frame 35KB",
+    fillRatio: 0.92,
+    aspectRatio: "1:1",
+    targetKB: 35,
+    paddingRatio: 0.04,
+    sharpeningLevel: "balanced",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_portrait_40kb",
+    name: "Deep Portrait HD 40KB (3:4)",
+    fillRatio: 0.94,
+    aspectRatio: "3:4",
+    targetKB: 40,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_compact_8kb_square",
+    name: "Deep Compact 8KB",
+    fillRatio: 0.95,
+    aspectRatio: "1:1",
+    targetKB: 8,
+    paddingRatio: 0.02,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_balanced_22kb_square",
+    name: "Deep Tuned 22KB",
+    fillRatio: 0.91,
+    aspectRatio: "1:1",
+    targetKB: 22,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
+  {
+    id: "deep_max_45kb_portrait",
+    name: "Deep Max-Detail 45KB (3:4)",
+    fillRatio: 0.93,
+    aspectRatio: "3:4",
+    targetKB: 45,
+    paddingRatio: 0.03,
+    sharpeningLevel: "high",
+    isRound2Deep: true,
+  },
 ];
 
 export const PRODUCT_CATEGORIES = [
@@ -143,11 +278,17 @@ export function saveOutcomeRecord(record: OptimizationOutcomeRecord): void {
  */
 export function mutateWinningStrategy(parent: OptimizationStrategy): OptimizationStrategy {
   const fillShift = (Math.random() - 0.5) * 0.06; // +/- 3% fill shift
-  const padShift = (Math.random() - 0.5) * 0.04;  // +/- 2% pad shift
+  const padShift = (Math.random() - 0.5) * 0.04; // +/- 2% pad shift
   const kbShift = Math.floor((Math.random() - 0.5) * 6); // +/- 3KB shift
 
-  const newFill = Math.min(0.96, Math.max(0.68, Math.round((parent.fillRatio + fillShift) * 100) / 100));
-  const newPad = Math.min(0.2, Math.max(0.02, Math.round((parent.paddingRatio + padShift) * 100) / 100));
+  const newFill = Math.min(
+    0.96,
+    Math.max(0.68, Math.round((parent.fillRatio + fillShift) * 100) / 100),
+  );
+  const newPad = Math.min(
+    0.2,
+    Math.max(0.02, Math.round((parent.paddingRatio + padShift) * 100) / 100),
+  );
   const newKB = Math.min(50, Math.max(4, parent.targetKB + kbShift));
 
   const mutateId = `mutated_${parent.id}_${Date.now().toString(36).substring(4, 8)}`;
@@ -180,7 +321,11 @@ export function selectAdaptiveStrategiesForCategory(
   const catStats = statsMap[category];
   const pool = [...DEFAULT_STRATEGIES, ...(catStats?.mutatedStrategies ?? [])];
 
-  if (!catStats || !catStats.strategySuccessMap || Object.keys(catStats.strategySuccessMap).length === 0) {
+  if (
+    !catStats ||
+    !catStats.strategySuccessMap ||
+    Object.keys(catStats.strategySuccessMap).length === 0
+  ) {
     return DEFAULT_STRATEGIES;
   }
 
@@ -228,7 +373,9 @@ export function recordOptimizationOutcome(
 ): void {
   const savings = Math.max(0, baselineCharge - winningCharge);
   const isSuccess = savings > 0 || winningCharge <= 54;
-  const isPredictionMatch = predictedStrategyId ? predictedStrategyId === winningStrategy.id : undefined;
+  const isPredictionMatch = predictedStrategyId
+    ? predictedStrategyId === winningStrategy.id
+    : undefined;
   const now = new Date().toISOString();
 
   const outcomeRecord: OptimizationOutcomeRecord = {
@@ -284,7 +431,9 @@ export function recordOptimizationOutcome(
     sStat.predictionMatches += 1;
   }
 
-  sStat.avgCharge = Math.round((sStat.avgCharge * (sStat.totalRuns - 1) + winningCharge) / sStat.totalRuns);
+  sStat.avgCharge = Math.round(
+    (sStat.avgCharge * (sStat.totalRuns - 1) + winningCharge) / sStat.totalRuns,
+  );
   sStat.successRatePct = Math.round((sStat.wins / sStat.totalRuns) * 100);
   existing.strategySuccessMap[winningStrategy.id] = sStat;
 
@@ -295,7 +444,8 @@ export function recordOptimizationOutcome(
     totalPredictions += st.totalRuns;
     correctPredictions += st.predictionMatches;
   });
-  existing.predictionAccuracyPct = totalPredictions > 0 ? Math.round((correctPredictions / totalPredictions) * 100) : 85;
+  existing.predictionAccuracyPct =
+    totalPredictions > 0 ? Math.round((correctPredictions / totalPredictions) * 100) : 85;
 
   // Mutate winning strategy if it won and generate a new offspring variant
   if (isSuccess && (!existing.mutatedStrategies || existing.mutatedStrategies.length < 10)) {
@@ -311,7 +461,10 @@ export function recordOptimizationOutcome(
   let minCharge = Infinity;
 
   for (const [sId, data] of Object.entries(existing.strategySuccessMap)) {
-    if (data.successRatePct > maxSuccessPct || (data.successRatePct === maxSuccessPct && data.avgCharge < minCharge)) {
+    if (
+      data.successRatePct > maxSuccessPct ||
+      (data.successRatePct === maxSuccessPct && data.avgCharge < minCharge)
+    ) {
       maxSuccessPct = data.successRatePct;
       minCharge = data.avgCharge;
       bestId = sId;

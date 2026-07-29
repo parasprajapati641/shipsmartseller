@@ -31,11 +31,18 @@ import {
   Play,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { generateAdaptiveVariants, validateImageFile, type OptimizedResult } from "@/lib/image-optimizer";
+import {
+  generateAdaptiveVariants,
+  validateImageFile,
+  type OptimizedResult,
+} from "@/lib/image-optimizer";
 import { MeeshoComparison } from "@/components/meesho-comparison";
 import { PlatformAnalyticsModal } from "@/components/platform-analytics-modal";
 import { ConversionSimulatorModal } from "@/components/conversion-simulator-modal";
-import { analyzeListingConversion, type ConversionSimulationResult } from "@/lib/conversion-simulator";
+import {
+  analyzeListingConversion,
+  type ConversionSimulationResult,
+} from "@/lib/conversion-simulator";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { AIBusinessSuite } from "@/components/ai-business-suite";
 import { calculateAIListingScore, type DetailedListingScore } from "@/lib/ai-listing-score";
@@ -51,6 +58,16 @@ import { calculateAnalyticsSummary } from "@/lib/smart-analytics-engine";
 import { OneClickStudioModal } from "@/components/one-click-studio-modal";
 import { PhotoDirectorWidget } from "@/components/photo-director-widget";
 import { WinnerSimulatorModal } from "@/components/winner-simulator-modal";
+import {
+  loadSubscriptionState,
+  incrementFreeGenerations,
+  type UserSubscriptionState,
+} from "@/lib/subscription-store";
+import {
+  getSubscriptionServerStateFn,
+  validateAndRecordGenerationFn,
+} from "@/lib/subscription-server-actions";
+import { UpgradeModal } from "@/components/upgrade-modal";
 import { createZipArchive, downloadZipFile } from "@/lib/zip-exporter";
 import {
   PRODUCT_CATEGORIES,
@@ -66,7 +83,10 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — Autonomous AI Optimization Platform" },
-      { name: "description", content: "Upload and optimize your Meesho product images with autonomous AI strategies." },
+      {
+        name: "description",
+        content: "Upload and optimize your Meesho product images with autonomous AI strategies.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -137,6 +157,35 @@ function Dashboard() {
   const [showSimulatorModal, setShowSimulatorModal] = useState(false);
   const [showStudioModal, setShowStudioModal] = useState(false);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [subState, setSubState] = useState<UserSubscriptionState>(() =>
+    loadSubscriptionState(user?.email),
+  );
+
+  useEffect(() => {
+    setSubState(loadSubscriptionState(user?.email));
+    getSubscriptionServerStateFn({ data: { userEmail: user?.email } })
+      .then((res) => {
+        if (res.success && res.state) {
+          setSubState(res.state as any);
+        }
+      })
+      .catch(() => { });
+  }, [user?.email]);
+
+  const refreshSubState = useCallback(() => {
+    getSubscriptionServerStateFn({ data: { userEmail: user?.email } })
+      .then((res) => {
+        if (res.success && res.state) {
+          setSubState(res.state as any);
+        } else {
+          setSubState(loadSubscriptionState(user?.email));
+        }
+      })
+      .catch(() => {
+        setSubState(loadSubscriptionState(user?.email));
+      });
+  }, [user?.email]);
   const [simulatorData, setSimulatorData] = useState<{
     url: string;
     targetKB: number;
@@ -150,7 +199,9 @@ function Dashboard() {
   const [priceSuggestions, setPriceSuggestions] = useState<PriceSuggestionResult | null>(null);
   const [seoPack, setSeoPack] = useState<GeneratedSEOPack | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const [shippingPrediction, setShippingPrediction] = useState<ShippingPredictionResult | null>(null);
+  const [shippingPrediction, setShippingPrediction] = useState<ShippingPredictionResult | null>(
+    null,
+  );
   const [historyQuery, setHistoryQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -230,7 +281,12 @@ function Dashboard() {
         const hData = generateVisualHeatmap(cvs);
         setHeatmapData(hData);
 
-        const mpScores = scoreAllMarketplaces(score.metrics.backgroundPurityScore, score.metrics.objectFramingScore, true, 20);
+        const mpScores = scoreAllMarketplaces(
+          score.metrics.backgroundPurityScore,
+          score.metrics.objectFramingScore,
+          true,
+          20,
+        );
         setMarketplaceScores(mpScores);
 
         const pSug = calculatePriceSuggestions(699, category, score.overallScore);
@@ -256,6 +312,35 @@ function Dashboard() {
 
   async function handleGenerate(roundToRun: number = 1) {
     if (!file) return;
+
+    // Server-Side Strict Entitlement Check & Count Enforcement
+    try {
+      const serverCheck = await validateAndRecordGenerationFn({ data: { userEmail: user?.email } });
+      if (!serverCheck.allowed) {
+        toast.info(
+          "Free trial limit reached (10/10 used). Upgrade to Premium Plus for unlimited AI generations.",
+        );
+        if (serverCheck.state) {
+          setSubState(serverCheck.state as any);
+        }
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      if (serverCheck.state) {
+        setSubState(serverCheck.state as any);
+      }
+    } catch {
+      // Local fallback check
+      if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
+        toast.info(
+          "Free trial limit reached (10/10 used). Upgrade to Premium Plus for unlimited AI generations.",
+        );
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+
     setProcessing(true);
     setProgress(0);
     setStatusMessage(`Generating Round ${roundToRun} adaptive variants...`);
@@ -285,6 +370,10 @@ function Dashboard() {
     }
 
     if (success && out.length > 0) {
+      if (!subState.isUnlimited) {
+        const nextSub = incrementFreeGenerations(user?.email);
+        setSubState(nextSub);
+      }
       setResults(out);
       toast.success(
         roundToRun === 1
@@ -328,6 +417,15 @@ function Dashboard() {
   // Fully Autonomous Multi-Pass Pipeline Trigger
   async function handleAutonomousAutoPilot() {
     if (!file) return;
+
+    if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
+      toast.info(
+        "Free trial limit reached (10/10 used). Upgrade to Premium Plus for unlimited AI generations.",
+      );
+      setShowUpgradeModal(true);
+      return;
+    }
+
     setProcessing(true);
     setIsAutonomousMode(true);
     setProgress(5);
@@ -358,12 +456,16 @@ function Dashboard() {
             const { compareVariantsFn } = await import("@/lib/meesho-actions");
             res = await compareVariantsFn({ data: { variants: inputs } });
           } catch (rpcErr) {
-            console.warn("[SHIP SMART] RPC compareVariantsFn fallback to dynamic calculator:", rpcErr);
+            console.warn(
+              "[SHIP SMART] RPC compareVariantsFn fallback to dynamic calculator:",
+              rpcErr,
+            );
           }
 
-          const lowestCharge = res?.success && res?.variants?.length > 0
-            ? Math.min(...res.variants.map((v: any) => v.shippingCharge))
-            : predictShippingCost(genVariants[0]?.targetKB ?? 20, category).estShippingCostINR;
+          const lowestCharge =
+            res?.success && res?.variants?.length > 0
+              ? Math.min(...res.variants.map((v: any) => v.shippingCharge))
+              : predictShippingCost(genVariants[0]?.targetKB ?? 20, category).estShippingCostINR;
 
           return { success: true, lowestCharge, variants: res?.variants ?? [] };
         },
@@ -373,10 +475,19 @@ function Dashboard() {
         },
       );
 
+      if (!subState.isUnlimited) {
+        const nextSub = incrementFreeGenerations(user?.email);
+        setSubState(nextSub);
+      }
+
       if (outcome.isRateReduced) {
-        toast.success(`Autonomous Auto-Pilot Complete! Achieved ₹${outcome.lowestShippingCharge} rate slab.`);
+        toast.success(
+          `Autonomous Auto-Pilot Complete! Achieved ₹${outcome.lowestShippingCharge} rate slab.`,
+        );
       } else {
-        toast.info(`Autonomous evaluation complete. Best rate slab: ₹${outcome.lowestShippingCharge}.`);
+        toast.info(
+          `Autonomous evaluation complete. Best rate slab: ₹${outcome.lowestShippingCharge}.`,
+        );
       }
 
       setCategoryStats(loadAllCategoryStats());
@@ -436,7 +547,8 @@ function Dashboard() {
   }
 
   const currentCatStats = categoryStats[category];
-  const activeCategoryObj = PRODUCT_CATEGORIES.find((c) => c.id === category) ?? PRODUCT_CATEGORIES[0];
+  const activeCategoryObj =
+    PRODUCT_CATEGORIES.find((c) => c.id === category) ?? PRODUCT_CATEGORIES[0];
   const dynamicEpsilon = Math.round(calculateDynamicEpsilon(category) * 100);
 
   return (
@@ -451,20 +563,41 @@ function Dashboard() {
             <span className="text-lg font-bold tracking-tight text-white">ShipSmart Seller</span>
           </Link>
           <div className="flex items-center gap-3">
-            {/* <button
-              onClick={() => {
-                import("@/lib/razorpay-checkout").then(({ openRazorpayCheckout }) => {
-                  openRazorpayCheckout({
-                    plan: "premium",
-                    amountInRupees: 499,
-                    userEmail: user?.email,
-                  });
-                });
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-xs font-extrabold text-slate-950 shadow-lg shadow-amber-500/20 hover:opacity-95 transition-all"
-            >
-              <Zap className="h-3.5 w-3.5" /> Upgrade to Premium (₹499)
-            </button> */}
+            {/* Free Trial, Premium Active, or Expired Status Badges */}
+            {subState.isUnlimited ? (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-extrabold text-emerald-400">
+                <Zap className="h-3.5 w-3.5 fill-emerald-400" /> Premium Plus Active &bull;
+                Unlimited
+              </div>
+            ) : subState.expiresAt !== null ? (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3.5 py-2 text-xs font-extrabold text-rose-400">
+                <X className="h-3.5 w-3.5" /> Premium Expired — Renew Now
+              </div>
+            ) : subState.remainingGenerations <= 0 ? (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-extrabold text-amber-400 animate-pulse">
+                <X className="h-3.5 w-3.5" /> ✨ Free Trial: 0 / 10 Images Remaining
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3.5 py-2 text-xs font-extrabold text-[#6C63FF]">
+                <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" /> ✨ Free Trial:{" "}
+                <span className="text-white font-bold">
+                  {subState.remainingGenerations} / 10 Images Remaining
+                </span>
+              </div>
+            )}
+
+            {/* {!subState.isUnlimited && (
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-3.5 py-2 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:opacity-95 transition-all"
+              >
+                <Zap className="h-3.5 w-3.5" />{" "}
+                {subState.expiresAt !== null
+                  ? "Renew Premium Plus (₹999 / mo)"
+                  : "Upgrade to Premium Plus (₹999 / mo)"}
+              </button>
+            )} */}
+
             <button
               onClick={() => setShowAnalyticsModal(true)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#2A3658] bg-[#1A2235] px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors"
@@ -475,9 +608,7 @@ function Dashboard() {
               <div className="grid h-6 w-6 place-items-center rounded-full bg-[#6C63FF] text-white font-bold">
                 <UserIcon className="h-3 w-3" />
               </div>
-              <span className="text-xs font-semibold max-w-[180px] truncate">
-                {user?.email}
-              </span>
+              <span className="text-xs font-semibold max-w-[180px] truncate">{user?.email}</span>
             </div>
             <button
               onClick={handleSignOut}
@@ -500,18 +631,24 @@ function Dashboard() {
         <div className="space-y-8">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-[#6C63FF]/15 px-3 py-1 text-xs font-bold text-[#6C63FF] border border-[#6C63FF]/30 mb-2">
-              <Bot className="h-3.5 w-3.5 text-[#00D4AA]" /> Autonomous Multi-Pass Optimization Engine Active
+              <Bot className="h-3.5 w-3.5 text-[#00D4AA]" /> Autonomous Multi-Pass Optimization
+              Engine Active
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">Autonomous Product Image Optimizer</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              Autonomous Product Image Optimizer
+            </h1>
             <p className="mt-1 text-slate-400 text-sm">
-              Select your product category below. ShipSmart dynamically balances exploration ({dynamicEpsilon}%) & exploitation to find the lowest shipping rate slab for your account.
+              Select your product category below. ShipSmart dynamically balances exploration (
+              {dynamicEpsilon}%) & exploitation to find the lowest shipping rate slab for your
+              account.
             </p>
           </div>
 
           {/* Category Selector Pill Row */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5 text-[#6C63FF]" /> Product Category (Scales Dynamic Exploration)
+              <Layers className="h-3.5 w-3.5 text-[#6C63FF]" /> Product Category (Scales Dynamic
+              Exploration)
             </label>
             <div className="flex flex-wrap gap-2">
               {PRODUCT_CATEGORIES.map((cat) => {
@@ -548,11 +685,17 @@ function Dashboard() {
                   <BrainCircuit className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold">Category Model: {activeCategoryObj.label}</div>
+                  <div className="text-xs font-semibold">
+                    Category Model: {activeCategoryObj.label}
+                  </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Exploration Rate: <span className="text-brand font-semibold">{dynamicEpsilon}%</span> · Top Strategy:{" "}
+                    Exploration Rate:{" "}
+                    <span className="text-brand font-semibold">{dynamicEpsilon}%</span> · Top
+                    Strategy:{" "}
                     <span className="text-foreground font-medium">
-                      {currentCatStats.topStrategyId ? currentCatStats.topStrategyId.replace(/_/g, " ") : "Multi-Armed Bandit Routing"}
+                      {currentCatStats.topStrategyId
+                        ? currentCatStats.topStrategyId.replace(/_/g, " ")
+                        : "Multi-Armed Bandit Routing"}
                     </span>
                   </div>
                 </div>
@@ -565,7 +708,8 @@ function Dashboard() {
                   <BarChart3 className="h-3.5 w-3.5" /> View Analytics
                 </button>
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-                  <TrendingDown className="h-3.5 w-3.5" /> Total Category Savings: ₹{currentCatStats.totalSavingsInr}
+                  <TrendingDown className="h-3.5 w-3.5" /> Total Category Savings: ₹
+                  {currentCatStats.totalSavingsInr}
                 </div>
               </div>
             </div>
@@ -575,7 +719,9 @@ function Dashboard() {
           {duplicateWarning && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-center justify-between">
               <span>⚠️ {duplicateWarning}</span>
-              <button onClick={() => setDuplicateWarning(null)} className="underline text-white">Dismiss</button>
+              <button onClick={() => setDuplicateWarning(null)} className="underline text-white">
+                Dismiss
+              </button>
             </div>
           )}
 
@@ -637,7 +783,8 @@ function Dashboard() {
                       <div className="text-sm font-medium truncate">{file.name}</div>
                       <div className="text-xs text-muted-foreground">
                         {(file.size / 1024).toFixed(1)} KB ·{" "}
-                        {file.type.replace("image/", "").toUpperCase()} · Category: {activeCategoryObj.label}
+                        {file.type.replace("image/", "").toUpperCase()} · Category:{" "}
+                        {activeCategoryObj.label}
                       </div>
                     </div>
                     <button
@@ -709,19 +856,27 @@ function Dashboard() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                     <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
                       <div className="text-slate-400">CTR Score</div>
-                      <div className="font-extrabold text-white text-base">{listingScore.ctrScore}/100</div>
+                      <div className="font-extrabold text-white text-base">
+                        {listingScore.ctrScore}/100
+                      </div>
                     </div>
                     <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
                       <div className="text-slate-400">Background White Purity</div>
-                      <div className="font-extrabold text-emerald-400 text-base">{listingScore.metrics.backgroundPurityScore}%</div>
+                      <div className="font-extrabold text-emerald-400 text-base">
+                        {listingScore.metrics.backgroundPurityScore}%
+                      </div>
                     </div>
                     <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
                       <div className="text-slate-400">Object Framing</div>
-                      <div className="font-extrabold text-cyan-400 text-base">{listingScore.metrics.objectFramingScore}%</div>
+                      <div className="font-extrabold text-cyan-400 text-base">
+                        {listingScore.metrics.objectFramingScore}%
+                      </div>
                     </div>
                     <div className="rounded-lg bg-white/5 p-2.5 space-y-1">
                       <div className="text-slate-400">Edge Sharpness</div>
-                      <div className="font-extrabold text-amber-400 text-base">{listingScore.metrics.edgeSharpnessScore}/100</div>
+                      <div className="font-extrabold text-amber-400 text-base">
+                        {listingScore.metrics.edgeSharpnessScore}/100
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -761,10 +916,12 @@ function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-brand" /> Evaluated Predictive AI Variants ({results.length})
+                    <Sparkles className="h-4 w-4 text-brand" /> Evaluated Predictive AI Variants (
+                    {results.length})
                   </h2>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Variants scored with Win Probability % and AI Confidence. Run shipping comparison to test rates on Meesho.
+                    Variants scored with Win Probability % and AI Confidence. Run shipping
+                    comparison to test rates on Meesho.
                   </p>
                 </div>
               </div>
@@ -802,9 +959,12 @@ function Dashboard() {
                     <div className="p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-semibold text-gradient">{r.targetKB} KB Preset ({r.sizeKB} KB File)</div>
+                          <div className="text-xs font-semibold text-gradient">
+                            {r.targetKB} KB Preset ({r.sizeKB} KB File)
+                          </div>
                           <div className="text-[10px] text-muted-foreground">
-                            Frame Occupancy: {r.debugInfo?.frameOccupancyPct ?? 90}% · {r.width}×{r.height}px
+                            Frame Occupancy: {r.debugInfo?.frameOccupancyPct ?? 90}% · {r.width}×
+                            {r.height}px
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -879,7 +1039,8 @@ function Dashboard() {
         <aside className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-bold text-blue-600">
-              <HistoryIcon className="h-4 w-4 text-blue-600" /> Optimization History ({history.length})
+              <HistoryIcon className="h-4 w-4 text-blue-600" /> Optimization History (
+              {history.length})
             </h2>
             {history.length > 0 && (
               <button
@@ -915,7 +1076,10 @@ function Dashboard() {
               {history
                 .filter((h) => h.filename.toLowerCase().includes(historyQuery.toLowerCase()))
                 .map((h) => (
-                  <div key={h.id} className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2">
+                  <div
+                    key={h.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2"
+                  >
                     <div className="flex items-start gap-3">
                       <img
                         src={h.thumb}
@@ -923,7 +1087,9 @@ function Dashboard() {
                         className="h-14 w-14 rounded-xl object-cover border border-slate-200 bg-slate-50"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-slate-900 truncate">{h.filename}</div>
+                        <div className="text-xs font-bold text-slate-900 truncate">
+                          {h.filename}
+                        </div>
                         <div className="text-[10px] text-slate-500 font-medium">
                           {h.category} · {new Date(h.createdAt).toLocaleTimeString()}
                         </div>
@@ -954,6 +1120,15 @@ function Dashboard() {
           )}
         </aside>
       </main>
+
+      {/* Free Trial Exhausted Upgrade Popup Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        userEmail={user?.email}
+        isExpired={subState.status === "expired" && subState.expiresAt !== null}
+        onUpgradeSuccess={() => refreshSubState()}
+      />
     </div>
   );
 }

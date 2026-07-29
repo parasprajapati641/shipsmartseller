@@ -11,7 +11,7 @@ async function main() {
 
   const dummyJpg = Buffer.from(
     "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
-    "base64"
+    "base64",
   );
 
   const sampleVariants: VariantInput[] = [
@@ -24,7 +24,10 @@ async function main() {
     if (v.path) await fs.writeFile(v.path, dummyJpg);
   }
 
-  console.log("Testing 3 image variants:", sampleVariants.map((v) => v.name));
+  console.log(
+    "Testing 3 image variants:",
+    sampleVariants.map((v) => v.name),
+  );
 
   const result = await runShippingComparison(sampleVariants, { headless: true });
 

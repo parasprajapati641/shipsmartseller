@@ -37,7 +37,10 @@ export function calculateAIListingScore(
   let minLuminance = 255;
   let maxLuminance = 0;
 
-  let minX = width, minY = height, maxX = 0, maxY = 0;
+  let minX = width,
+    minY = height,
+    maxX = 0,
+    maxY = 0;
 
   const step = Math.max(1, Math.floor(Math.min(width, height) / 250));
 
@@ -86,16 +89,30 @@ export function calculateAIListingScore(
   const contrastRatioScore = Math.min(100, Math.max(65, Math.round((contrastRange / 255) * 100)));
 
   const avgLum = totalLuminance / Math.max(1, totalSampled);
-  const lightingExposureScore = Math.min(100, Math.max(70, Math.round(100 - Math.abs(185 - avgLum) * 0.4)));
+  const lightingExposureScore = Math.min(
+    100,
+    Math.max(70, Math.round(100 - Math.abs(185 - avgLum) * 0.4)),
+  );
 
   // 4. Edge Sharpness Estimation
-  const edgeSharpnessScore = Math.min(99, Math.round((contrastRatioScore * 0.6 + backgroundPurityScore * 0.4)));
+  const edgeSharpnessScore = Math.min(
+    99,
+    Math.round(contrastRatioScore * 0.6 + backgroundPurityScore * 0.4),
+  );
 
   // Composite Scores
-  const professionalScore = Math.round(backgroundPurityScore * 0.4 + edgeSharpnessScore * 0.3 + lightingExposureScore * 0.3);
-  const marketplaceScore = Math.round(objectFramingScore * 0.4 + backgroundPurityScore * 0.4 + (targetKB <= 30 ? 20 : 10));
-  const ctrScore = Math.round(objectFramingScore * 0.5 + contrastRatioScore * 0.3 + professionalScore * 0.2);
-  const overallScore = Math.round(professionalScore * 0.35 + marketplaceScore * 0.35 + ctrScore * 0.3);
+  const professionalScore = Math.round(
+    backgroundPurityScore * 0.4 + edgeSharpnessScore * 0.3 + lightingExposureScore * 0.3,
+  );
+  const marketplaceScore = Math.round(
+    objectFramingScore * 0.4 + backgroundPurityScore * 0.4 + (targetKB <= 30 ? 20 : 10),
+  );
+  const ctrScore = Math.round(
+    objectFramingScore * 0.5 + contrastRatioScore * 0.3 + professionalScore * 0.2,
+  );
+  const overallScore = Math.round(
+    professionalScore * 0.35 + marketplaceScore * 0.35 + ctrScore * 0.3,
+  );
 
   let grade: DetailedListingScore["grade"] = "A+";
   if (overallScore >= 95) grade = "S";
@@ -106,16 +123,24 @@ export function calculateAIListingScore(
 
   const suggestions: string[] = [];
   if (backgroundPurityScore < 90) {
-    suggestions.push("Background contains non-white noise. Apply 100% Studio White background isolation.");
+    suggestions.push(
+      "Background contains non-white noise. Apply 100% Studio White background isolation.",
+    );
   }
   if (occupancy < 84) {
-    suggestions.push(`Subject occupies only ${occupancy}% of frame. Crop closer to reach target 88%–92% framing.`);
+    suggestions.push(
+      `Subject occupies only ${occupancy}% of frame. Crop closer to reach target 88%–92% framing.`,
+    );
   }
   if (lightingExposureScore < 82) {
-    suggestions.push("Adjust key lighting to balance shadows and improve subject highlight contrast.");
+    suggestions.push(
+      "Adjust key lighting to balance shadows and improve subject highlight contrast.",
+    );
   }
   if (suggestions.length === 0) {
-    suggestions.push("Listing image is 100% studio-ready and optimized for marketplace algorithms.");
+    suggestions.push(
+      "Listing image is 100% studio-ready and optimized for marketplace algorithms.",
+    );
   }
 
   return {
