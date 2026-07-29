@@ -93,9 +93,7 @@ export async function runAutonomousOptimizationPipeline(
     const variants = await generateAdaptiveVariants(
       file,
       category,
-      currentRound as 1 | 2,
-      undefined,
-      (pct) => {
+      (pct, msg) => {
         // sub progress
       },
     );

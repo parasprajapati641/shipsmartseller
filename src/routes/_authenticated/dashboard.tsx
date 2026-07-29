@@ -155,7 +155,7 @@ function Dashboard() {
     setResults([]);
     setCurrentRound(roundToRun);
     try {
-      const out = await generateAdaptiveVariants(file, category, roundToRun as 1 | 2, undefined, (pct) => {
+      const out = await generateAdaptiveVariants(file, category, (pct) => {
         setProgress(pct);
       });
       setResults(out);

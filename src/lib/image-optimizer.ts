@@ -3,12 +3,12 @@
 // Pipeline Architecture:
 //  1. Single-Pass Image Decoding: Decode raw input file (JPG, PNG, WEBP) exactly once via createImageBitmap with "from-image" orientation.
 //  2. Metadata & EXIF Stripping: Output stream strips all EXIF tags, comments, and redundant ICC profiles, mapping pixels directly to sRGB space.
-//  3. Computer Vision Subject Detection: Analyze pixel alpha & color variance to isolate subject bounding box (minX, minY, maxX, maxY).
-//  4. Aspect & Orientation Classification: Identify subject ratio as 'square', 'portrait', or 'landscape'.
-//  5. Auto-Centering & Adaptive Padding: Fit cropped subject into canvas on pure white (#FFFFFF) with dynamic safe padding.
-//  6. Multi-Resolution Resizing & Canvas Cache: Use Pica Lanczos3 filter for downscaling.
-//  7. Adaptive Edge-Preserving Sharpening: Scale-factor aware unsharp masking.
-//  8. Predictive Win Probability & AI Confidence Scoring Engine.
+//  3. Computer Vision Subject Detection: Scan pixel alpha & color variance to isolate subject bounding box (minX, minY, maxX, maxY).
+//  4. Tight Auto-Cropping (88%-92% Subject Occupancy): Crop tightly around subject with minimal 2%-4% padding before scaling/compression.
+//  5. Aspect Ratio Preservation: Maintain requested 1:1 or 3:4 target aspect ratios without distortion.
+//  6. Multi-Resolution Resizing & Canvas Cache: Use Pica Lanczos3 filter for high-clarity downscaling.
+//  7. Scale-Factor Aware Sharpening: Apply unsharp masking to preserve fine facial & fabric details.
+//  8. Precision KB Compression (±0.5 KB Target Matching): Binary-search JPEG compression to hit exact target preset size.
 
 import Pica from "pica";
 import {
@@ -42,10 +42,6 @@ export type OptimizedResult = {
 
 export const TARGET_SIZES = [5, 10, 15, 20, 25, 30, 40, 50];
 
-const MIN_QUALITY = 0.5;
-const MAX_QUALITY = 0.98;
-const BINARY_SEARCH_ITERATIONS = 14;
-
 type SubjectBoundingBox = {
   minX: number;
   minY: number;
@@ -64,19 +60,6 @@ type MasterContext = {
   bbox: SubjectBoundingBox;
   nativeCanvas: HTMLCanvasElement;
   resizeCache: Map<string, HTMLCanvasElement>;
-};
-
-type EncodeCandidate = {
-  blob: Blob;
-  quality: number;
-  dim: number;
-  score: number;
-};
-
-type UnsharpSettings = {
-  unsharpAmount: number;
-  unsharpRadius: number;
-  unsharpThreshold: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -104,8 +87,8 @@ async function decodeOnce(file: File | Blob): Promise<ImageBitmap> {
 
 function makeCanvas(width: number, height: number = width): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
   return canvas;
 }
 
@@ -137,13 +120,13 @@ function detectSubjectBoundingBox(
       const b = data[idx + 2];
       const a = data[idx + 3];
 
-      const isTransparent = a < 20;
+      const isTransparent = a < 25;
       const brightness = (r + g + b) / 3;
       const colorDiff = Math.max(r, g, b) - Math.min(r, g, b);
 
-      const isPureWhite = brightness > 245 && colorDiff < 10;
+      const isLightBackground = brightness > 238 && colorDiff < 16;
 
-      if (!isTransparent && !isPureWhite) {
+      if (!isTransparent && !isLightBackground) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -157,8 +140,8 @@ function detectSubjectBoundingBox(
     return { minX: 0, minY: 0, maxX: width, maxY: height, width, height };
   }
 
-  const marginX = Math.round(width * 0.01);
-  const marginY = Math.round(height * 0.01);
+  const marginX = Math.round(width * 0.005);
+  const marginY = Math.round(height * 0.005);
 
   minX = Math.max(0, minX - marginX);
   minY = Math.max(0, minY - marginY);
@@ -218,7 +201,7 @@ async function prepareMaster(file: File): Promise<MasterContext> {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Custom Strategy Master Composition & High-Clarity Engine
+// 4. Custom Strategy Master Composition & Tight Subject Cropping (88%-92%)
 // ---------------------------------------------------------------------------
 
 /** High-Precision Edge Sharpening Pass (Unsharp Mask) to preserve fine facial & fabric textures. */
@@ -252,82 +235,93 @@ function applyAdaptiveSharpening(
       }
     }
   }
+
   ctx.putImageData(imgData, 0, 0);
 }
 
+/**
+ * Creates a tightly cropped canvas around the detected subject.
+ * The subject fills 88%-92% of the final frame with minimal 2%-4% padding,
+ * matching Amazon/Meesho listing aesthetics without excessive whitespace.
+ */
 async function createStrategyCanvas(
   ctx: MasterContext,
   strategy: OptimizationStrategy,
 ): Promise<HTMLCanvasElement> {
-  const { bbox, nativeCanvas, masterSize } = ctx;
+  const { bbox, nativeCanvas } = ctx;
 
-  let canvasW = masterSize;
-  let canvasH = strategy.aspectRatio === "3:4" ? Math.round(masterSize * (4 / 3)) : masterSize;
+  // 1. Target aspect ratio (e.g. 3:4 -> 0.75, 1:1 -> 1.0)
+  const targetAspect = strategy.aspectRatio === "3:4" ? 3 / 4 : 1 / 1;
 
-  // Small safe margin (3%) so the subject fills the frame cleanly
-  const padRatio = Math.min(strategy.paddingRatio, 0.03);
-  const padPixels = Math.round(canvasW * padRatio);
-  const innerW = canvasW - padPixels * 2;
-  const innerH = canvasH - padPixels * 2;
+  // 2. Target subject occupancy in final frame: 88%-92% (leaving 2%-4% margins)
+  const fillRatio = Math.min(0.92, Math.max(0.86, strategy.fillRatio ?? 0.90));
 
-  // Make subject 10%-15% larger than original default while keeping the exact original layout
-  const fillRatio = Math.max(strategy.fillRatio, 0.90);
-  const longestSide = Math.max(bbox.width, bbox.height);
-  const maxInnerDim = Math.min(innerW, innerH);
-  const desiredSize = maxInnerDim * fillRatio;
+  // 3. Calculate minimum frame dimensions to contain the subject at fillRatio
+  const minFrameW = bbox.width / fillRatio;
+  const minFrameH = bbox.height / fillRatio;
 
-  const scale = Math.min(desiredSize / longestSide, 1);
-  const targetW = Math.max(1, Math.round(bbox.width * scale));
-  const targetH = Math.max(1, Math.round(bbox.height * scale));
+  let frameW: number;
+  let frameH: number;
 
-  const cropCanvas = makeCanvas(bbox.width, bbox.height);
-  const cctx = cropCanvas.getContext("2d")!;
-  cctx.drawImage(
-    nativeCanvas,
-    bbox.minX,
-    bbox.minY,
-    bbox.width,
-    bbox.height,
-    0,
-    0,
-    bbox.width,
-    bbox.height,
-  );
-
-  let scaledProductCanvas: HTMLCanvasElement;
-  if (scale < 0.999) {
-    scaledProductCanvas = makeCanvas(targetW, targetH);
-    const spCtx = scaledProductCanvas.getContext("2d")!;
-    spCtx.fillStyle = "#ffffff";
-    spCtx.fillRect(0, 0, targetW, targetH);
-    await pica.resize(cropCanvas, scaledProductCanvas, { filter: "lanczos3" });
+  if (minFrameW / minFrameH > targetAspect) {
+    frameW = minFrameW;
+    frameH = minFrameW / targetAspect;
   } else {
-    scaledProductCanvas = cropCanvas;
+    frameH = minFrameH;
+    frameW = minFrameH * targetAspect;
   }
 
-  const master = makeCanvas(canvasW, canvasH);
-  const mctx = master.getContext("2d")!;
-  mctx.fillStyle = "#ffffff";
-  mctx.fillRect(0, 0, canvasW, canvasH);
+  // 4. Center crop box around subject center
+  const bboxCenterX = bbox.minX + bbox.width / 2;
+  const bboxCenterY = bbox.minY + bbox.height / 2;
 
-  const offsetX = Math.round((canvasW - scaledProductCanvas.width) / 2);
-  const offsetY = Math.round((canvasH - scaledProductCanvas.height) / 2);
+  const cropLeft = bboxCenterX - frameW / 2;
+  const cropTop = bboxCenterY - frameH / 2;
 
-  mctx.drawImage(scaledProductCanvas, offsetX, offsetY);
+  // 5. Construct high-resolution canvas matching target aspect ratio
+  const renderW = Math.round(frameW);
+  const renderH = Math.round(frameH);
+
+  const croppedCanvas = makeCanvas(renderW, renderH);
+  const cctx = croppedCanvas.getContext("2d")!;
+  cctx.fillStyle = "#ffffff";
+  cctx.fillRect(0, 0, renderW, renderH);
+
+  // Source & dest coordinates
+  const srcX = Math.round(cropLeft);
+  const srcY = Math.round(cropTop);
+  const srcW = renderW;
+  const srcH = renderH;
+
+  const drawX = Math.max(0, -srcX);
+  const drawY = Math.max(0, -srcY);
+  const realSrcX = Math.max(0, srcX);
+  const realSrcY = Math.max(0, srcY);
+  const realSrcW = Math.min(nativeCanvas.width - realSrcX, srcW - drawX);
+  const realSrcH = Math.min(nativeCanvas.height - realSrcY, srcH - drawY);
+
+  if (realSrcW > 0 && realSrcH > 0) {
+    cctx.drawImage(
+      nativeCanvas,
+      realSrcX,
+      realSrcY,
+      realSrcW,
+      realSrcH,
+      drawX,
+      drawY,
+      realSrcW,
+      realSrcH,
+    );
+  }
 
   // Apply high-clarity detail sharpening
-  applyAdaptiveSharpening(mctx, canvasW, canvasH, strategy.sharpeningLevel ?? "high");
+  applyAdaptiveSharpening(cctx, renderW, renderH, strategy.sharpeningLevel ?? "high");
 
-  return master;
+  return croppedCanvas;
 }
 
-// ---------------------------------------------------------------------------
-// 5. Encoding & Precision Target KB Engine
-// ---------------------------------------------------------------------------
-
 /**
- * Adaptively scales canvas dimensions and binary-searches JPEG quality to hit targetKB with high precision (within 90%-99.5% of budget),
- * ensuring every preset produces its distinct target file size with maximum subject resolution and sharpness.
+ * Encodes the strategy canvas to hit the exact target KB preset size within ±0.5 KB tolerance.
  */
 async function encodeExactTargetKB(
   strategyCanvas: HTMLCanvasElement,
@@ -335,10 +329,12 @@ async function encodeExactTargetKB(
   sharpeningLevel: "none" | "balanced" | "high" = "high",
 ): Promise<{ blob: Blob; width: number; height: number; quality: number }> {
   const targetBytes = targetKB * 1024;
-  const minAcceptableBytes = Math.max(1024, Math.round(targetBytes * 0.90));
-  const maxAcceptableBytes = Math.round(targetBytes * 0.995);
+  
+  // Target file size within ±0.5 KB of preset (e.g. 5KB -> 4.5KB - 5.5KB, 10KB -> 9.5KB - 10.5KB)
+  const minAcceptableBytes = Math.max(1024, Math.round((targetKB - 0.5) * 1024));
+  const maxAcceptableBytes = Math.round((targetKB + 0.45) * 1024);
 
-  // Calculate ideal initial canvas scale factor derived from targetKB to prevent preset duplication
+  // Estimate initial canvas pixel capacity for targetKB
   const estimatedPixelCapacity = (targetBytes * 3.4) / 0.55;
   const currentPixelArea = strategyCanvas.width * strategyCanvas.height;
   const initialScale = Math.min(1.0, Math.sqrt(estimatedPixelCapacity / currentPixelArea));
@@ -365,12 +361,12 @@ async function encodeExactTargetKB(
     sctx.drawImage(strategyCanvas, 0, 0, nw, nh);
     applyAdaptiveSharpening(sctx, nw, nh, sharpeningLevel);
 
-    let lo = 0.40;
-    let hi = 0.97;
+    let lo = 0.35;
+    let hi = 0.98;
     let bestBlob: Blob | null = null;
     let bestQ = lo;
 
-    for (let iter = 0; iter < 14; iter++) {
+    for (let iter = 0; iter < 16; iter++) {
       const q = (lo + hi) / 2;
       const blob = await pica.toBlob(candidateCanvas, "image/jpeg", q);
 
@@ -386,121 +382,104 @@ async function encodeExactTargetKB(
       }
     }
 
-    if (bestBlob && bestBlob.size <= maxAcceptableBytes) {
+    if (bestBlob && bestBlob.size <= maxAcceptableBytes && bestBlob.size >= minAcceptableBytes) {
       return { blob: bestBlob, width: nw, height: nh, quality: Math.round(bestQ * 100) / 100 };
     }
   }
 
-  // Fallback fit
-  const fallbackBlob = await pica.toBlob(strategyCanvas, "image/jpeg", 0.70);
-  return { blob: fallbackBlob, width: strategyCanvas.width, height: strategyCanvas.height, quality: 0.60 };
-}
+  // Fallback fit if image compresses extremely small or large
+  let lo = 0.30;
+  let hi = 0.98;
+  let bestFallback: Blob | null = null;
+  let bestQ = 0.70;
 
-function scoreCandidateImage(
-  candidateDim: number,
-  masterSize: number,
-  quality: number,
-  blobSize: number,
-  targetBytes: number,
-): number {
-  const dimRatio = candidateDim / masterSize;
-  const resolutionScore = Math.min(100, dimRatio * 100);
-  const qualityScore = quality * 100;
-  const budgetUsage = blobSize / targetBytes;
-  const efficiencyScore = budgetUsage >= 0.85 ? 100 : budgetUsage * 100;
-
-  return Math.round((resolutionScore * 0.45 + qualityScore * 0.45 + efficiencyScore * 0.1) * 10) / 10;
-}
-
-async function encodeStrategyVariant(
-  ctx: MasterContext,
-  strategy: OptimizationStrategy,
-): Promise<OptimizedResult> {
-  const targetKB = strategy.targetKB;
-  const targetBytes = targetKB * 1024;
-
-  const strategyCanvas = await createStrategyCanvas(ctx, strategy);
-  const encoded = await encodeExactTargetKB(strategyCanvas, targetKB, strategy.sharpeningLevel ?? "high");
-
-  const finalBlob = encoded.blob;
-  const quality = encoded.quality;
-  const sizeKB = Math.round((finalBlob.size / 1024) * 10) / 10;
-  const compressionPct = Math.max(0, Math.round((1 - finalBlob.size / ctx.fileSize) * 1000) / 10);
-  const score = scoreCandidateImage(encoded.width, ctx.masterSize, quality, finalBlob.size, targetBytes);
-
-  return {
-    targetKB,
-    blob: finalBlob,
-    url: URL.createObjectURL(finalBlob),
-    width: encoded.width,
-    height: encoded.height,
-    sizeKB,
-    format: "image/jpeg",
-    quality,
-    compressionPct,
-    orientation: ctx.orientation,
-    score,
-    strategy,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// 6. Public API & Predictive Adaptive Variant Generation
-// ---------------------------------------------------------------------------
-
-/**
- * Generate adaptive, multi-strategy candidate variants tailored for a product category.
- * Integrates predictive Win Probability & AI Confidence Scoring.
- */
-export async function generateAdaptiveVariants(
-  file: File,
-  category: string = "general",
-  round: 1 | 2 = 1,
-  customStrategies?: OptimizationStrategy[],
-  onProgress?: (pct: number) => void,
-): Promise<OptimizedResult[]> {
-  const ctx = await prepareMaster(file);
-  const strategies = customStrategies ?? selectAdaptiveStrategiesForCategory(category, round);
-  
-  // Calculate predictive recommendation scores
-  const recommendationsMap = rankAndScoreVariants(strategies, category, {
-    width: ctx.masterSize,
-    height: ctx.masterSize,
-    sizeKB: Math.round(file.size / 1024),
-  });
-
-  const results: OptimizedResult[] = [];
-
-  for (let i = 0; i < strategies.length; i++) {
-    const s = strategies[i];
-    const encoded = await encodeStrategyVariant(ctx, s);
-    encoded.recommendation = recommendationsMap.get(s.id);
-    results.push(encoded);
-    onProgress?.(Math.round(((i + 1) / strategies.length) * 100));
+  for (let iter = 0; iter < 10; iter++) {
+    const q = (lo + hi) / 2;
+    const blob = await pica.toBlob(strategyCanvas, "image/jpeg", q);
+    if (blob.size <= maxAcceptableBytes) {
+      bestFallback = blob;
+      bestQ = q;
+      lo = q;
+    } else {
+      hi = q;
+    }
   }
 
-  return results;
-}
-
-/** Optimize a single image into all 8 standard Meesho target sizes. */
-export async function optimizeAllSizes(
-  file: File,
-  onProgress?: (pct: number) => void,
-): Promise<OptimizedResult[]> {
-  return generateAdaptiveVariants(file, "general", 1, undefined, onProgress);
-}
-
-/** Optimize a single image to one target KB size. */
-export async function optimizeToTarget(file: File, targetKB: number): Promise<OptimizedResult> {
-  const ctx = await prepareMaster(file);
-  const defaultStrategy: OptimizationStrategy = {
-    id: `custom_${targetKB}kb`,
-    name: `Target ${targetKB}KB`,
-    fillRatio: 0.95,
-    aspectRatio: "1:1",
-    targetKB,
-    paddingRatio: 0.02,
-    sharpeningLevel: "high",
+  const finalBlob = bestFallback || (await pica.toBlob(strategyCanvas, "image/jpeg", 0.70));
+  return {
+    blob: finalBlob,
+    width: strategyCanvas.width,
+    height: strategyCanvas.height,
+    quality: Math.round(bestQ * 100) / 100,
   };
-  return encodeStrategyVariant(ctx, defaultStrategy);
+}
+
+// ---------------------------------------------------------------------------
+// 5. Adaptive Exploration & Optimization Pipeline
+// ---------------------------------------------------------------------------
+
+export async function generateAdaptiveVariants(
+  file: File,
+  category: string,
+  onProgress?: (progress: number, message: string) => void,
+): Promise<OptimizedResult[]> {
+  onProgress?.(5, "Decoding input image...");
+  const ctx = await prepareMaster(file);
+
+  onProgress?.(15, `Categorizing ${category} dataset & selecting strategies...`);
+  const selectedStrategies = selectAdaptiveStrategiesForCategory(category, 1);
+
+  const total = selectedStrategies.length;
+  const results: OptimizedResult[] = [];
+
+  for (let i = 0; i < total; i++) {
+    const strategy = selectedStrategies[i];
+    const stepPct = Math.round(15 + ((i + 1) / total) * 75);
+    onProgress?.(stepPct, `Tuning strategy: ${strategy.name} (${strategy.targetKB}KB target)...`);
+
+    const strategyCanvas = await createStrategyCanvas(ctx, strategy);
+    const encoded = await encodeExactTargetKB(
+      strategyCanvas,
+      strategy.targetKB,
+      strategy.sharpeningLevel ?? "high",
+    );
+
+    const sizeKB = Math.round((encoded.blob.size / 1024) * 10) / 10;
+    const compressionPct = Math.round(((file.size - encoded.blob.size) / file.size) * 100);
+    const url = URL.createObjectURL(encoded.blob);
+
+    results.push({
+      targetKB: strategy.targetKB,
+      blob: encoded.blob,
+      url,
+      width: encoded.width,
+      height: encoded.height,
+      sizeKB,
+      format: "image/jpeg",
+      quality: encoded.quality,
+      compressionPct,
+      orientation: ctx.orientation,
+      strategy,
+    });
+  }
+
+  onProgress?.(95, "Calculating win probability scores & ranking variants...");
+  const recMap = rankAndScoreVariants(
+    selectedStrategies,
+    category,
+    { width: ctx.bbox.width, height: ctx.bbox.height, sizeKB: Math.round(file.size / 1024) },
+  );
+
+  for (const res of results) {
+    if (res.strategy) {
+      const rec = recMap.get(res.strategy.id);
+      if (rec) {
+        res.recommendation = rec;
+        res.score = rec.winProbabilityPct;
+      }
+    }
+  }
+
+  onProgress?.(100, "Optimization pipeline complete.");
+  return results;
 }
