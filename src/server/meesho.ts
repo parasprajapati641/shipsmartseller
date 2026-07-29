@@ -49,9 +49,7 @@ export async function getMeeshoStatus(): Promise<MeeshoConnectionStatus> {
 }
 
 /** Authenticate and persist session for Meesho Seller portal. */
-export async function connectMeesho(
-  credentials?: MeeshoCredentials,
-): Promise<{
+export async function connectMeesho(credentials?: MeeshoCredentials): Promise<{
   success: boolean;
   requiresOtp?: boolean;
   reason?: string;

@@ -66,7 +66,7 @@ export function UpgradeModal({
               <p className="text-xs text-slate-400 mt-0.5">
                 {isExpired
                   ? "Your monthly Premium Plus subscription has ended. Renew now to restore unlimited access."
-                  : "You have used all 10 complimentary AI image generations included with your ShipSmart Seller account."}
+                  : "You have used all 10 complimentary AI image generations included with your ShipSmart Seller account. Upgrade to Premium Plus to continue."}
               </p>
             </div>
           </div>
@@ -78,16 +78,24 @@ export function UpgradeModal({
           </button>
         </div>
 
-        {/* Feature Checklist */}
+        {/* Benefits Checklist */}
         <div className="space-y-3 rounded-xl border border-[#6C63FF]/30 bg-[#6C63FF]/10 p-4 text-xs">
           <div className="font-extrabold text-[#6C63FF] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" /> Upgrade to Premium Plus to unlock
+            <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" /> Benefits Included with Premium Plus
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5 text-slate-200">
+          <div className="grid grid-cols-1 gap-2 text-slate-200">
             <div className="flex items-center gap-2.5 font-semibold">
               <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
-              <span>Unlimited AI Image Generation</span>
+              <span>Unlimited Image Generation</span>
+            </div>
+            <div className="flex items-center gap-2.5 font-semibold">
+              <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
+              <span>Unlimited AI Auto Pilot</span>
+            </div>
+            <div className="flex items-center gap-2.5 font-semibold">
+              <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
+              <span>Unlimited One Click Studio</span>
             </div>
             <div className="flex items-center gap-2.5 font-semibold">
               <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
@@ -95,15 +103,7 @@ export function UpgradeModal({
             </div>
             <div className="flex items-center gap-2.5 font-semibold">
               <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
-              <span>One-Click Multi Format Studio</span>
-            </div>
-            <div className="flex items-center gap-2.5 font-semibold">
-              <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
-              <span>AI Shipping Intelligence</span>
-            </div>
-            <div className="flex items-center gap-2.5 font-semibold">
-              <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
-              <span>AI Profit Optimizer</span>
+              <span>Priority Processing</span>
             </div>
             <div className="flex items-center gap-2.5 font-semibold">
               <Check className="h-4 w-4 text-[#00D4AA] shrink-0" />
@@ -120,8 +120,8 @@ export function UpgradeModal({
               <span className="text-2xl font-extrabold text-white">Premium Plus</span>
             </div>
             <div className="text-right">
-              <span className="text-xs text-slate-400 block font-semibold">Price</span>
               <span className="text-3xl font-extrabold text-[#00D4AA]">₹999</span>
+              <span className="text-xs text-slate-400 block font-semibold">/ Month</span>
             </div>
           </div>
 
@@ -139,7 +139,7 @@ export function UpgradeModal({
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] py-3 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:opacity-95 disabled:opacity-50 transition-all"
             >
               {isExpired ? <RefreshCw className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-              {isExpired ? "Renew Premium Plus" : "Upgrade Now"}
+              {isExpired ? "Renew Premium" : "Upgrade Now"}
             </button>
           </div>
         </div>

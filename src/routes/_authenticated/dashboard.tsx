@@ -65,7 +65,8 @@ import {
 } from "@/lib/subscription-store";
 import {
   getSubscriptionServerStateFn,
-  validateAndRecordGenerationFn,
+  checkGenerationEntitlementFn,
+  recordGenerationSuccessFn,
 } from "@/lib/subscription-server-actions";
 import { UpgradeModal } from "@/components/upgrade-modal";
 import { createZipArchive, downloadZipFile } from "@/lib/zip-exporter";
@@ -170,7 +171,7 @@ function Dashboard() {
           setSubState(res.state as any);
         }
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [user?.email]);
 
   const refreshSubState = useCallback(() => {
@@ -313,29 +314,24 @@ function Dashboard() {
   async function handleGenerate(roundToRun: number = 1) {
     if (!file) return;
 
-    // Server-Side Strict Entitlement Check & Count Enforcement
+    // 1. Server-Side Strict Entitlement Check
     try {
-      const serverCheck = await validateAndRecordGenerationFn({ data: { userEmail: user?.email } });
-      if (!serverCheck.allowed) {
-        toast.info(
-          "Free trial limit reached (10/10 used). Upgrade to Premium Plus for unlimited AI generations.",
-        );
-        if (serverCheck.state) {
-          setSubState(serverCheck.state as any);
+      const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
+      if (!entitlement.allowed) {
+        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        if (entitlement.state) {
+          setSubState(entitlement.state as any);
         }
         setShowUpgradeModal(true);
         return;
       }
-
-      if (serverCheck.state) {
-        setSubState(serverCheck.state as any);
+      if (entitlement.state) {
+        setSubState(entitlement.state as any);
       }
     } catch {
       // Local fallback check
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info(
-          "Free trial limit reached (10/10 used). Upgrade to Premium Plus for unlimited AI generations.",
-        );
+        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
         setShowUpgradeModal(true);
         return;
       }
@@ -370,9 +366,20 @@ function Dashboard() {
     }
 
     if (success && out.length > 0) {
+      // 2. Record Generation Success strictly AFTER successful execution
       if (!subState.isUnlimited) {
-        const nextSub = incrementFreeGenerations(user?.email);
-        setSubState(nextSub);
+        try {
+          const recRes = await recordGenerationSuccessFn({ data: { userEmail: user?.email } });
+          if (recRes.state) {
+            setSubState(recRes.state as any);
+          } else {
+            const nextSub = incrementFreeGenerations(user?.email);
+            setSubState(nextSub);
+          }
+        } catch {
+          const nextSub = incrementFreeGenerations(user?.email);
+          setSubState(nextSub);
+        }
       }
       setResults(out);
       toast.success(
@@ -407,7 +414,7 @@ function Dashboard() {
         console.warn("History save non-critical warning:", histErr);
       }
     } else {
-      toast.error("Failed to optimize image after retries. Please try another image.");
+      toast.error("Failed to optimize image after retries. Counter unchanged.");
     }
 
     setProcessing(false);
@@ -418,12 +425,22 @@ function Dashboard() {
   async function handleAutonomousAutoPilot() {
     if (!file) return;
 
-    if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-      toast.info(
-        "Free trial limit reached (10/10 used). Upgrade to Premium Plus for unlimited AI generations.",
-      );
-      setShowUpgradeModal(true);
-      return;
+    try {
+      const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
+      if (!entitlement.allowed) {
+        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        if (entitlement.state) {
+          setSubState(entitlement.state as any);
+        }
+        setShowUpgradeModal(true);
+        return;
+      }
+    } catch {
+      if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
+        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        setShowUpgradeModal(true);
+        return;
+      }
     }
 
     setProcessing(true);
@@ -476,8 +493,13 @@ function Dashboard() {
       );
 
       if (!subState.isUnlimited) {
-        const nextSub = incrementFreeGenerations(user?.email);
-        setSubState(nextSub);
+        try {
+          const recRes = await recordGenerationSuccessFn({ data: { userEmail: user?.email } });
+          if (recRes.state) setSubState(recRes.state as any);
+        } catch {
+          const nextSub = incrementFreeGenerations(user?.email);
+          setSubState(nextSub);
+        }
       }
 
       if (outcome.isRateReduced) {
@@ -586,17 +608,15 @@ function Dashboard() {
               </div>
             )}
 
-            {/* {!subState.isUnlimited && (
+            {!subState.isUnlimited && (
               <button
                 onClick={() => setShowUpgradeModal(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-3.5 py-2 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:opacity-95 transition-all"
               >
                 <Zap className="h-3.5 w-3.5" />{" "}
-                {subState.expiresAt !== null
-                  ? "Renew Premium Plus (₹999 / mo)"
-                  : "Upgrade to Premium Plus (₹999 / mo)"}
+                {subState.expiresAt !== null ? "Renew Premium Plus" : "Upgrade to Premium Plus"}
               </button>
-            )} */}
+            )}
 
             <button
               onClick={() => setShowAnalyticsModal(true)}
@@ -661,10 +681,11 @@ function Dashboard() {
                       setCategory(cat.id);
                       if (file) setResults([]);
                     }}
-                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${isSelected
-                      ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
-                      : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
-                      }`}
+                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${
+                      isSelected
+                        ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
+                        : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
+                    }`}
                   >
                     <IconComponent className="h-3.5 w-3.5" />
                     {cat.label}
@@ -929,10 +950,11 @@ function Dashboard() {
                 {results.map((r, idx) => (
                   <div
                     key={idx}
-                    className={`rounded-xl surface overflow-hidden group border transition-all ${r.recommendation?.isTopRecommendation
-                      ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
-                      : "border-border/70 hover:border-brand/50"
-                      }`}
+                    className={`rounded-xl surface overflow-hidden group border transition-all ${
+                      r.recommendation?.isTopRecommendation
+                        ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
+                        : "border-border/70 hover:border-brand/50"
+                    }`}
                   >
                     <div className="aspect-square bg-white relative">
                       <img
@@ -1024,6 +1046,17 @@ function Dashboard() {
             onClose={() => setShowStudioModal(false)}
             sourceCanvas={sourceCanvas}
             filename={file?.name ?? "Product Image"}
+          />
+
+          {/* One Click Content Studio Modal */}
+          <OneClickStudioModal
+            isOpen={showStudioModal}
+            onClose={() => setShowStudioModal(false)}
+            sourceCanvas={sourceCanvas}
+            filename={file?.name ?? "Product Image"}
+            userEmail={user?.email}
+            onRequireUpgrade={() => setShowUpgradeModal(true)}
+            onGenerationSuccess={() => refreshSubState()}
           />
 
           {/* Marketplace Winner Simulator Modal */}

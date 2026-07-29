@@ -2,12 +2,19 @@ import React, { useEffect, useState } from "react";
 import { X, Layers, Download, Archive, Sparkles, Image as ImageIcon, Loader2 } from "lucide-react";
 import { generateOneClickStudioPack, type StudioAssetResult } from "@/lib/one-click-content-studio";
 import { createZipArchive, downloadZipFile } from "@/lib/zip-exporter";
+import {
+  checkGenerationEntitlementFn,
+  recordGenerationSuccessFn,
+} from "@/lib/subscription-server-actions";
 
 interface OneClickStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
   sourceCanvas: HTMLCanvasElement | null;
   filename: string;
+  userEmail?: string | null;
+  onRequireUpgrade?: () => void;
+  onGenerationSuccess?: () => void;
 }
 
 export function OneClickStudioModal({
@@ -15,6 +22,9 @@ export function OneClickStudioModal({
   onClose,
   sourceCanvas,
   filename,
+  userEmail,
+  onRequireUpgrade,
+  onGenerationSuccess,
 }: OneClickStudioModalProps) {
   const [formats, setFormats] = useState<StudioAssetResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -24,29 +34,74 @@ export function OneClickStudioModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Clear old blob URLs to prevent caching previous image assets
+    // Clear old blob URLs immediately to prevent caching previous image assets
     setFormats((prev) => {
       prev.forEach((f) => URL.revokeObjectURL(f.url));
       return [];
     });
 
-    // Auto-generate fresh 10 formats for the CURRENT sourceCanvas
-    if (sourceCanvas) {
+    if (!sourceCanvas) return;
+
+    let isSubscribed = true;
+
+    async function runFormatGeneration() {
+      // 1. Validate Entitlement on Server
+      try {
+        const entitlement = await checkGenerationEntitlementFn({ data: { userEmail } });
+        if (!entitlement.allowed) {
+          onRequireUpgrade?.();
+          onClose();
+          return;
+        }
+      } catch {
+        // Fallback
+      }
+
       setIsGenerating(true);
-      generateOneClickStudioPack(sourceCanvas)
-        .then((generated) => {
+      try {
+        const generated = await generateOneClickStudioPack(sourceCanvas!);
+        if (isSubscribed && generated && generated.length > 0) {
           setFormats(generated);
-        })
-        .finally(() => {
+          // 2. Record Generation Success on Server strictly after successful generation
+          try {
+            await recordGenerationSuccessFn({ data: { userEmail } });
+            onGenerationSuccess?.();
+          } catch (recErr) {
+            console.warn("Failed to record One Click Studio generation success:", recErr);
+          }
+        }
+      } catch (err) {
+        console.error("One Click Studio format generation failed:", err);
+      } finally {
+        if (isSubscribed) {
           setIsGenerating(false);
-        });
+        }
+      }
     }
-  }, [sourceCanvas, filename, isOpen]);
+
+    runFormatGeneration();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [sourceCanvas, filename, isOpen, userEmail]);
 
   if (!isOpen) return null;
 
   const handleGenerateFormats = async () => {
     if (!sourceCanvas) return;
+
+    try {
+      const entitlement = await checkGenerationEntitlementFn({ data: { userEmail } });
+      if (!entitlement.allowed) {
+        onRequireUpgrade?.();
+        onClose();
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+
     setIsGenerating(true);
     try {
       setFormats((prev) => {
@@ -54,7 +109,11 @@ export function OneClickStudioModal({
         return [];
       });
       const generated = await generateOneClickStudioPack(sourceCanvas);
-      setFormats(generated);
+      if (generated && generated.length > 0) {
+        setFormats(generated);
+        await recordGenerationSuccessFn({ data: { userEmail } });
+        onGenerationSuccess?.();
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -101,103 +160,96 @@ export function OneClickStudioModal({
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-white">
-                One-Click Multi-Format Content Studio
+              <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                One-Click Content Studio (10 Formats)
               </h2>
               <p className="text-xs text-slate-400">
-                Auto-generate 10 marketing & marketplace canvas sizes for{" "}
-                <span className="text-[#00D4AA] font-bold">{filename}</span>
+                Auto-generate marketplace and social media assets directly from your uploaded image.
               </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#6C63FF]/30 bg-[#6C63FF]/10 p-4">
-          <div className="text-xs text-slate-200">
-            <strong>10 Formats Generated Live:</strong> Meesho Square, Amazon Main, Flipkart
-            Catalog, Instagram Post, Instagram Story, Facebook Marketplace, WhatsApp Product,
-            Product Banner, White Background Product, Premium HD Catalog.
+        {/* Action Bar */}
+        <div className="flex items-center justify-between bg-[#1A2235] p-4 rounded-xl border border-[#2A3658]">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+            <ImageIcon className="h-4 w-4 text-[#00D4AA]" /> Source Image:{" "}
+            <span className="text-white font-bold truncate max-w-[240px]">{filename}</span>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handleGenerateFormats}
               disabled={isGenerating || !sourceCanvas}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#6C63FF] px-5 py-2.5 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:bg-[#5b52e0] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#2A3658] px-4 py-2 text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors disabled:opacity-50"
             >
               {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
               )}
-              {isGenerating ? "Generating Fresh Formats..." : "Re-Generate 10 Formats"}
+              Regenerate All 10 Formats
             </button>
 
-            {formats.length > 0 && (
-              <button
-                onClick={handleDownloadAllZip}
-                disabled={downloadingZip}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#00D4AA] px-5 py-2.5 text-xs font-extrabold text-[#090B14] shadow-lg shadow-[#00D4AA]/30 hover:bg-[#00b894] disabled:opacity-50"
-              >
-                {downloadingZip ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Archive className="h-4 w-4" />
-                )}
-                Download All as ZIP Archive
-              </button>
-            )}
+            <button
+              onClick={handleDownloadAllZip}
+              disabled={downloadingZip || formats.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-4 py-2 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:opacity-95 disabled:opacity-50 transition-all"
+            >
+              {downloadingZip ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Archive className="h-3.5 w-3.5" />
+              )}
+              Download All 10 Formats (ZIP)
+            </button>
           </div>
         </div>
 
-        {/* Format Previews Grid */}
-        {isGenerating ? (
-          <div className="rounded-2xl border-2 border-dashed border-[#2A3658] p-12 text-center text-slate-400 bg-[#1A2235]/50 space-y-3">
-            <Loader2 className="mx-auto h-8 w-8 text-[#6C63FF] animate-spin" />
-            <p className="text-xs font-semibold text-slate-300">
-              Rendering 10 multi-format assets for {filename}...
-            </p>
-          </div>
-        ) : formats.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-[#2A3658] p-12 text-center text-slate-400 bg-[#1A2235]/50">
-            <ImageIcon className="mx-auto h-10 w-10 text-[#6C63FF] mb-2" />
-            <p className="text-xs font-semibold text-slate-300">
-              Click "Re-Generate 10 Formats" to render fresh marketplace layouts.
+        {/* Loading Spinner / Format Cards Grid */}
+        {isGenerating && formats.length === 0 ? (
+          <div className="py-20 text-center space-y-4">
+            <Loader2 className="h-10 w-10 animate-spin text-[#6C63FF] mx-auto" />
+            <p className="text-sm font-semibold text-slate-300">
+              Generating 10 multi-marketplace formats from latest uploaded image...
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {formats.map((f) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            {formats.map((item) => (
               <div
-                key={f.key}
-                className="rounded-xl border border-[#2A3658] bg-[#1A2235] overflow-hidden shadow-xl flex flex-col justify-between"
+                key={item.key}
+                className="rounded-xl border border-[#2A3658] bg-[#1A2235] p-3 flex flex-col justify-between space-y-3 group hover:border-[#6C63FF] transition-all"
               >
-                <div className="aspect-square bg-white relative border-b border-[#2A3658] p-2 flex items-center justify-center">
-                  <img src={f.url} alt={f.label} className="max-h-full max-w-full object-contain" />
-                </div>
-
-                <div className="p-3 space-y-2">
-                  <div>
-                    <div className="text-xs font-bold text-white">{f.label}</div>
-                    <div className="text-[10px] text-slate-400">
-                      {f.width}×{f.height}px · {f.aspectLabel}
-                    </div>
+                <div className="space-y-2">
+                  <div className="aspect-square bg-white rounded-lg overflow-hidden relative border border-[#2A3658]">
+                    <img src={item.url} alt={item.label} className="w-full h-full object-contain" />
+                    <span className="absolute top-1.5 left-1.5 rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">
+                      {item.aspectLabel}
+                    </span>
                   </div>
 
-                  <button
-                    onClick={() => handleDownloadSingle(f)}
-                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#2A3658] bg-white/5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Download
-                  </button>
+                  <div>
+                    <div className="text-xs font-bold text-white truncate">{item.label}</div>
+                    <div className="text-[10px] text-slate-400 font-medium truncate">
+                      {item.width} × {item.height}px · {item.description}
+                    </div>
+                  </div>
                 </div>
+
+                <button
+                  onClick={() => handleDownloadSingle(item)}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#2A3658] bg-[#121826] py-2 text-[11px] font-extrabold text-slate-200 hover:bg-[#6C63FF] hover:text-white transition-all"
+                >
+                  <Download className="h-3 w-3" /> Download
+                </button>
               </div>
             ))}
           </div>
