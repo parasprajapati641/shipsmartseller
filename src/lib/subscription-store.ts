@@ -2,7 +2,9 @@
 //
 // Plans:
 //  - Free Trial: 10 Lifetime Free Generations (never resets)
-//  - Premium Plus: ₹999 / month (1 Calendar Month cycle, auto-downgrade on expiry)
+//  - Premium Plus: ₹999 / month (30 Days Unlimited Access, auto-downgrade on expiry)
+
+import { getOrCreateGuestId } from "./guest-store";
 
 export type SubscriptionPlan = "free" | "premium_plus";
 export type SubscriptionStatus = "active" | "expired";
@@ -21,13 +23,20 @@ export type UserSubscriptionState = {
 
 const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v3";
 
-/** Computes 1 calendar month after the given date (e.g. July 29 -> August 29) */
+function getStorageKey(userEmail?: string | null): string {
+  if (userEmail && userEmail.trim().length > 0) {
+    return `${SUBSCRIPTION_STORAGE_KEY}_${userEmail.trim().toLowerCase()}`;
+  }
+  const guestId = getOrCreateGuestId();
+  return `${SUBSCRIPTION_STORAGE_KEY}_${guestId}`;
+}
+
+/** Computes 1 calendar month after the given date (e.g. July 30 -> August 30) */
 export function addOneCalendarMonth(startDate: Date): Date {
   const target = new Date(startDate.getTime());
   const currentMonth = target.getMonth();
   target.setMonth(currentMonth + 1);
 
-  // If the target month has fewer days (e.g., Jan 31 -> Feb 28), adjust to last valid day
   if (target.getMonth() !== (currentMonth + 1) % 12) {
     target.setDate(0);
   }
@@ -49,7 +58,7 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     };
   }
 
-  const key = userEmail ? `${SUBSCRIPTION_STORAGE_KEY}_${userEmail}` : SUBSCRIPTION_STORAGE_KEY;
+  const key = getStorageKey(userEmail);
 
   try {
     const raw = localStorage.getItem(key);
@@ -102,7 +111,7 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     // Fallback if JSON parse fails
   }
 
-  // Default state for NEW account (do NOT automatically save to localStorage until confirmed from DB)
+  // Default state for NEW account or guest (10 free generations)
   return {
     plan: "free",
     status: "expired",
@@ -122,7 +131,7 @@ export function saveSubscriptionState(
 ): void {
   if (typeof window === "undefined") return;
 
-  const key = userEmail ? `${SUBSCRIPTION_STORAGE_KEY}_${userEmail}` : SUBSCRIPTION_STORAGE_KEY;
+  const key = getStorageKey(userEmail);
   try {
     localStorage.setItem(
       key,
@@ -137,7 +146,7 @@ export function saveSubscriptionState(
       }),
     );
   } catch {
-    // LocalStorage quota error safeguard
+    // LocalStorage quota safeguard
   }
 }
 
@@ -156,7 +165,7 @@ export function incrementFreeGenerations(userEmail?: string | null): UserSubscri
   return newState;
 }
 
-/** Activates or renews Premium Plus subscription for exactly 30 days */
+/** Activates or renews Premium Plus subscription for exactly 30 days (₹999/month) */
 export function activateMonthlyPremiumPlus(userEmail?: string | null): UserSubscriptionState {
   const current = loadSubscriptionState(userEmail);
   const now = Date.now();

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { migrateGuestDataToUser } from "@/lib/guest-store";
 
 const callbackSearchSchema = z.object({
   code: z.string().optional(),
@@ -99,6 +100,10 @@ export function AuthCallbackPage() {
 
         if (!mounted) return;
         setStatus("success");
+
+        if (activeSession.user?.email) {
+          await migrateGuestDataToUser(activeSession.user.email);
+        }
 
         const isRecovery = search.type === "recovery" || search.next === "/reset-password";
         if (isRecovery) {

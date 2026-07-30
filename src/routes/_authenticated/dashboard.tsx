@@ -58,6 +58,7 @@ import { calculateAnalyticsSummary } from "@/lib/smart-analytics-engine";
 import { OneClickStudioModal } from "@/components/one-click-studio-modal";
 import { PhotoDirectorWidget } from "@/components/photo-director-widget";
 import { WinnerSimulatorModal } from "@/components/winner-simulator-modal";
+import { migrateGuestDataToUser } from "@/lib/guest-store";
 import {
   loadSubscriptionState,
   saveSubscriptionState,
@@ -163,7 +164,23 @@ function Dashboard() {
 
   useEffect(() => {
     if (user?.email) {
-      setSubState(loadSubscriptionState(user.email));
+      migrateGuestDataToUser(user.email)
+        .then(({ migratedHistoryCount }) => {
+          if (migratedHistoryCount > 0) {
+            toast.success(
+              `Migrated ${migratedHistoryCount} guest history item(s) to your account!`,
+            );
+          }
+          return loadHistoryFromStore(user.email);
+        })
+        .then((items) => {
+          setHistory(items);
+          setSubState(loadSubscriptionState(user.email));
+        })
+        .catch(() => {
+          loadHistoryFromStore(user.email).then((items) => setHistory(items));
+        });
+
       getSubscriptionServerStateFn({ data: { userEmail: user.email } })
         .then((res) => {
           if (res && res.success && res.state) {
@@ -173,7 +190,11 @@ function Dashboard() {
           }
         })
         .catch(() => {});
+    } else {
+      loadHistoryFromStore(null).then((items) => setHistory(items));
+      setSubState(loadSubscriptionState(null));
     }
+    setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
   const refreshSubState = useCallback(() => {
@@ -191,6 +212,8 @@ function Dashboard() {
         .catch(() => {
           setSubState(loadSubscriptionState(user.email));
         });
+    } else {
+      setSubState(loadSubscriptionState(null));
     }
   }, [user?.email]);
   const [simulatorData, setSimulatorData] = useState<{
@@ -367,20 +390,24 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         if (entitlement.state) {
-          setSubState(entitlement.state as any);
+          setSubState(entitlement.state as UserSubscriptionState);
         }
         setShowUpgradeModal(true);
         return;
       }
       if (entitlement.state) {
-        setSubState(entitlement.state as any);
+        setSubState(entitlement.state as UserSubscriptionState);
       }
     } catch {
       // Local fallback check
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         setShowUpgradeModal(true);
         return;
       }
@@ -461,16 +488,20 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         if (entitlement.state) {
-          setSubState(entitlement.state as any);
+          setSubState(entitlement.state as UserSubscriptionState);
         }
         setShowUpgradeModal(true);
         return;
       }
     } catch {
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         setShowUpgradeModal(true);
         return;
       }
@@ -503,10 +534,12 @@ function Dashboard() {
             })),
           );
 
-          let res: any = null;
+          let res: { success: boolean; variants: Array<{ shippingCharge: number }> } | null = null;
           try {
-            const { compareVariantsFn } = await import("@/lib/meesho-actions");
-            res = await compareVariantsFn({ data: { variants: inputs } });
+            res = (await compareVariantsFn({ data: { variants: inputs } })) as unknown as {
+              success: boolean;
+              variants: Array<{ shippingCharge: number }>;
+            };
           } catch (rpcErr) {
             console.warn(
               "[SHIP SMART] RPC compareVariantsFn fallback to dynamic calculator:",
@@ -516,7 +549,7 @@ function Dashboard() {
 
           const lowestCharge =
             res?.success && res?.variants?.length > 0
-              ? Math.min(...res.variants.map((v: any) => v.shippingCharge))
+              ? Math.min(...res.variants.map((v) => v.shippingCharge))
               : predictShippingCost(genVariants[0]?.targetKB ?? 20, category).estShippingCostINR;
 
           return { success: true, lowestCharge, variants: res?.variants ?? [] };

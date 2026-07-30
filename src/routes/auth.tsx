@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Mail, Lock, Sparkles, CheckCircle2, RefreshCw } fro
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { getAuthCallbackUrl, formatAuthError } from "@/lib/auth-helpers";
+import { migrateGuestDataToUser } from "@/lib/guest-store";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup", "forgot", "verify-pending"]).optional(),

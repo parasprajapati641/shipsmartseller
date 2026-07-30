@@ -177,10 +177,7 @@ function useAuthCTA() {
   return {
     isAuthed: !!session,
     loading,
-    goStart: () => {
-      if (session) navigate({ to: "/dashboard" });
-      else navigate({ to: "/auth", search: { mode: "signup" } });
-    },
+    goStart: () => navigate({ to: "/dashboard" }),
     goSignIn: () => {
       if (session) navigate({ to: "/dashboard" });
       else navigate({ to: "/auth", search: { mode: "login" } });

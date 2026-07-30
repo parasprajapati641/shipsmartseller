@@ -121,17 +121,23 @@ export async function fetchServerSubscriptionState(
     try {
       const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
       if (supabaseAdmin) {
-        await (supabaseAdmin as any).from("user_subscriptions").upsert(
-          {
-            user_email: normalized,
-            subscription_plan: "free",
-            subscription_status: "expired",
-            free_generations_used: 0,
-            free_generations_limit: 10,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_email" },
-        );
+        await (
+          supabaseAdmin as unknown as {
+            from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+          }
+        )
+          .from("user_subscriptions")
+          .upsert(
+            {
+              user_email: normalized,
+              subscription_plan: "free",
+              subscription_status: "expired",
+              free_generations_used: 0,
+              free_generations_limit: 10,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_email" },
+          );
       }
     } catch {
       // Ignored non-critical DB error
@@ -158,15 +164,21 @@ export async function fetchServerSubscriptionState(
     try {
       const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
       if (supabaseAdmin) {
-        await (supabaseAdmin as any).from("user_subscriptions").upsert(
-          {
-            user_email: normalized,
-            subscription_plan: "free",
-            subscription_status: "expired",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_email" },
-        );
+        await (
+          supabaseAdmin as unknown as {
+            from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+          }
+        )
+          .from("user_subscriptions")
+          .upsert(
+            {
+              user_email: normalized,
+              subscription_plan: "free",
+              subscription_status: "expired",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_email" },
+          );
       }
     } catch {
       // Ignored non-critical DB error
@@ -318,17 +330,23 @@ export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
       try {
         const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
         if (supabaseAdmin) {
-          await (supabaseAdmin as any).from("user_subscriptions").upsert(
-            {
-              user_email: normalized,
-              subscription_plan: "free",
-              subscription_status: current.status,
-              free_generations_used: newUsed,
-              free_generations_limit: 10,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_email" },
-          );
+          await (
+            supabaseAdmin as unknown as {
+              from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+            }
+          )
+            .from("user_subscriptions")
+            .upsert(
+              {
+                user_email: normalized,
+                subscription_plan: "free",
+                subscription_status: current.status,
+                free_generations_used: newUsed,
+                free_generations_limit: 10,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_email" },
+            );
         }
       } catch {
         // Ignored DB write exception
@@ -389,18 +407,24 @@ export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
       try {
         const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
         if (supabaseAdmin) {
-          await (supabaseAdmin as any).from("user_subscriptions").upsert(
-            {
-              user_email: normalized,
-              subscription_plan: "premium_plus",
-              subscription_status: "active",
-              subscription_started_at: now,
-              subscription_expires_at: expiresAt,
-              last_payment_id: data?.paymentId ?? null,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_email" },
-          );
+          await (
+            supabaseAdmin as unknown as {
+              from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+            }
+          )
+            .from("user_subscriptions")
+            .upsert(
+              {
+                user_email: normalized,
+                subscription_plan: "premium_plus",
+                subscription_status: "active",
+                subscription_started_at: now,
+                subscription_expires_at: expiresAt,
+                last_payment_id: data?.paymentId ?? null,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_email" },
+            );
         }
       } catch {
         // Ignored DB write exception

@@ -1,5 +1,7 @@
 // Production IndexedDB & User-Isolated Storage Engine for Optimization History — ShipSmart Seller
 
+import { getOrCreateGuestId } from "./guest-store";
+
 export type HistoryVariant = {
   targetKB: number;
   sizeKB: number;
@@ -43,15 +45,22 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+function resolveIdentity(userEmail?: string | null): string {
+  if (userEmail && userEmail.trim().length > 0) {
+    return userEmail.trim().toLowerCase();
+  }
+  return getOrCreateGuestId();
+}
+
 function getFallbackKey(userEmail?: string | null): string {
-  const norm = userEmail ? userEmail.trim().toLowerCase() : "anonymous";
+  const norm = resolveIdentity(userEmail);
   return `ship-smart:history:v2_${norm}`;
 }
 
-/** Asynchronously load saved history entries isolated by user account, newest first */
+/** Asynchronously load saved history entries isolated by user account or guest ID, newest first */
 export async function loadHistoryFromStore(userEmail?: string | null): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
-  const normEmail = userEmail ? userEmail.trim().toLowerCase() : undefined;
+  const normEmail = resolveIdentity(userEmail);
 
   try {
     const db = await openDB();
@@ -66,13 +75,13 @@ export async function loadHistoryFromStore(userEmail?: string | null): Promise<H
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
         if (cursor) {
           const val: HistoryEntry = cursor.value;
-          // User Isolation: match exact user email, or fallback if userEmail not stored
-          if (!normEmail || !val.userEmail || val.userEmail.trim().toLowerCase() === normEmail) {
+          // User/Guest Isolation: match exact identity or fallback
+          if (!val.userEmail || val.userEmail.trim().toLowerCase() === normEmail) {
             results.push(val);
           }
           cursor.continue();
         } else {
-          resolve(results);
+          resolve(results.length > 0 ? results : loadLocalStorageFallback(normEmail));
         }
       };
 
@@ -85,19 +94,17 @@ export async function loadHistoryFromStore(userEmail?: string | null): Promise<H
   }
 }
 
-/** Save a new history entry isolated by user email */
+/** Save a new history entry isolated by user email or guest ID */
 export async function saveHistoryEntryToStore(
   entry: HistoryEntry,
   userEmail?: string | null,
 ): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
 
-  const normEmail = userEmail
-    ? userEmail.trim().toLowerCase()
-    : entry.userEmail?.trim().toLowerCase();
+  const normEmail = resolveIdentity(userEmail || entry.userEmail);
   const entryWithUser: HistoryEntry = {
     ...entry,
-    userEmail: normEmail || entry.userEmail || "anonymous",
+    userEmail: normEmail,
   };
 
   try {
@@ -127,7 +134,7 @@ export async function removeHistoryEntryFromStore(
   userEmail?: string | null,
 ): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
-  const normEmail = userEmail ? userEmail.trim().toLowerCase() : undefined;
+  const normEmail = resolveIdentity(userEmail);
 
   try {
     const db = await openDB();
@@ -147,10 +154,10 @@ export async function removeHistoryEntryFromStore(
   return updated;
 }
 
-/** Clear history for specific user */
+/** Clear history for specific user or guest */
 export async function clearHistoryFromStore(userEmail?: string | null): Promise<void> {
   if (typeof window === "undefined") return;
-  const normEmail = userEmail ? userEmail.trim().toLowerCase() : undefined;
+  const normEmail = resolveIdentity(userEmail);
 
   try {
     const db = await openDB();
