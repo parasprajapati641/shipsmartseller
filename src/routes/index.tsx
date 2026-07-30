@@ -25,7 +25,7 @@ import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ShipSmart Seller — AI Product Image Generator & Meesho Optimization SaaS" },
+      { title: "ShipSmart Seller" },
       {
         name: "description",
         content:
