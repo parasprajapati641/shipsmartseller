@@ -92,7 +92,9 @@ export async function saveHistoryEntryToStore(
 ): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
 
-  const normEmail = userEmail ? userEmail.trim().toLowerCase() : entry.userEmail?.trim().toLowerCase();
+  const normEmail = userEmail
+    ? userEmail.trim().toLowerCase()
+    : entry.userEmail?.trim().toLowerCase();
   const entryWithUser: HistoryEntry = {
     ...entry,
     userEmail: normEmail || entry.userEmail || "anonymous",

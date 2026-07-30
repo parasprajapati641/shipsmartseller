@@ -20,8 +20,8 @@ function AuthGate() {
 
   if (loading || !session) {
     return (
-      <div className="min-h-screen grid place-items-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="min-h-screen flex items-center justify-center bg-[#090B14] text-white">
+        <Loader2 className="h-8 w-8 animate-spin text-[#6C63FF]" />
       </div>
     );
   }

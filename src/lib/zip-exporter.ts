@@ -10,7 +10,7 @@ export type ZipItemInput = {
 function crc32(buf: Uint8Array): number {
   let crc = -1;
   for (let i = 0; i < buf.length; i++) {
-    let byte = buf[i];
+    const byte = buf[i];
     crc = crc ^ byte;
     for (let j = 0; j < 8; j++) {
       const mask = -(crc & 1);

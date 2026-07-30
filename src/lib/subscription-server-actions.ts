@@ -46,31 +46,51 @@ export async function fetchServerSubscriptionState(
   try {
     const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
     if (supabaseAdmin) {
-      const { data: dbData } = await (supabaseAdmin as any)
+      type DbSubRecord = {
+        subscription_plan?: string;
+        subscription_status?: string;
+        free_generations_used?: number;
+        subscription_started_at?: number;
+        started_at?: number;
+        subscription_expires_at?: number;
+        expires_at?: number;
+        last_payment_id?: string;
+      };
+      const { data } = await (
+        supabaseAdmin as unknown as {
+          from: (table: string) => {
+            select: (cols: string) => {
+              eq: (
+                col: string,
+                val: string,
+              ) => { maybeSingle: () => Promise<{ data: DbSubRecord | null }> };
+            };
+          };
+        }
+      )
         .from("user_subscriptions")
         .select("*")
         .eq("user_email", normalized)
         .maybeSingle();
 
+      const dbData = data as DbSubRecord | null;
       if (dbData) {
         record = {
-          subscription_plan:
-            (dbData as any).subscription_plan === "premium_plus" ? "premium_plus" : "free",
-          subscription_status:
-            (dbData as any).subscription_status === "active" ? "active" : "expired",
-          free_generations_used: Math.max(0, Number((dbData as any).free_generations_used || 0)),
+          subscription_plan: dbData.subscription_plan === "premium_plus" ? "premium_plus" : "free",
+          subscription_status: dbData.subscription_status === "active" ? "active" : "expired",
+          free_generations_used: Math.max(0, Number(dbData.free_generations_used || 0)),
           free_generations_limit: 10,
-          subscription_started_at: (dbData as any).subscription_started_at
-            ? Number((dbData as any).subscription_started_at)
-            : (dbData as any).started_at
-              ? Number((dbData as any).started_at)
+          subscription_started_at: dbData.subscription_started_at
+            ? Number(dbData.subscription_started_at)
+            : dbData.started_at
+              ? Number(dbData.started_at)
               : null,
-          subscription_expires_at: (dbData as any).subscription_expires_at
-            ? Number((dbData as any).subscription_expires_at)
-            : (dbData as any).expires_at
-              ? Number((dbData as any).expires_at)
+          subscription_expires_at: dbData.subscription_expires_at
+            ? Number(dbData.subscription_expires_at)
+            : dbData.expires_at
+              ? Number(dbData.expires_at)
               : null,
-          last_payment_id: (dbData as any).last_payment_id ?? null,
+          last_payment_id: dbData.last_payment_id ?? null,
         };
         serverMemoryStore.set(normalized, record);
       }
@@ -184,7 +204,10 @@ export async function fetchServerSubscriptionState(
 /** TanStack Server Function: Fetch server-validated subscription state */
 export const getSubscriptionServerStateFn = createServerFn({ method: "POST" })
   .validator((data?: { userEmail?: string | null }) =>
-    z.object({ userEmail: z.string().nullable().optional() }).optional().parse(data || {}),
+    z
+      .object({ userEmail: z.string().nullable().optional() })
+      .optional()
+      .parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
@@ -200,7 +223,10 @@ export const getSubscriptionServerStateFn = createServerFn({ method: "POST" })
 /** TanStack Server Function: Check generation entitlement before image generation */
 export const checkGenerationEntitlementFn = createServerFn({ method: "POST" })
   .validator((data?: { userEmail?: string | null }) =>
-    z.object({ userEmail: z.string().nullable().optional() }).optional().parse(data || {}),
+    z
+      .object({ userEmail: z.string().nullable().optional() })
+      .optional()
+      .parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {

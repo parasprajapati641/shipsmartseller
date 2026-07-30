@@ -1,9 +1,20 @@
 // Centralized Generation Lifecycle Pipeline — ShipSmart Seller
 // Single Source of Truth for Credit Decrements, Isolated History Persistence, and Debug Logging.
 
-import { checkGenerationEntitlementFn, recordGenerationSuccessFn } from "./subscription-server-actions.js";
-import { incrementFreeGenerations, loadSubscriptionState, type UserSubscriptionState } from "./subscription-store.js";
-import { saveHistoryEntryToStore, type HistoryEntry, type HistoryVariant } from "./history-store.js";
+import {
+  checkGenerationEntitlementFn,
+  recordGenerationSuccessFn,
+} from "./subscription-server-actions.js";
+import {
+  incrementFreeGenerations,
+  loadSubscriptionState,
+  type UserSubscriptionState,
+} from "./subscription-store.js";
+import {
+  saveHistoryEntryToStore,
+  type HistoryEntry,
+  type HistoryVariant,
+} from "./history-store.js";
 
 export type CentralizedGenerationPayload = {
   userEmail?: string | null;
