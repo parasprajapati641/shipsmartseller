@@ -70,7 +70,7 @@ export async function runAutonomousOptimizationPipeline(
   maxRounds: number = 3,
   compareFn: (
     variants: OptimizedResult[],
-  ) => Promise<{ success: boolean; lowestCharge: number; variants: unknown[] }>,
+  ) => Promise<{ success: boolean; lowestCharge: number; variants: { shippingCharge?: number }[] }>,
   onProgressStep?: (step: string, progressPct: number) => void,
 ): Promise<AutonomousOptimizationResult> {
   const logs: string[] = [];

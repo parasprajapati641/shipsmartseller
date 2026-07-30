@@ -1,18 +1,6 @@
 import { toast } from "sonner";
 import { createRazorpayOrderFn, verifyRazorpayPaymentFn } from "./razorpay-actions.js";
 
-declare global {
-  interface Window {
-    Razorpay: new (options: unknown) => {
-      open: () => void;
-      on: (
-        event: string,
-        callback: (res: { error?: { description?: string; reason?: string } }) => void,
-      ) => void;
-    };
-  }
-}
-
 /** Inject official Razorpay Checkout SDK script dynamically. */
 export async function loadRazorpayScript(): Promise<boolean> {
   if (typeof window === "undefined") return false;
@@ -130,7 +118,8 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
 
           toast.dismiss(verifyToastId);
 
-          if (verifyRes.success) {
+          const typedVerify = verifyRes as { success: boolean; message?: string; error?: string };
+          if (typedVerify.success) {
             try {
               const { activatePremiumPlusServerFn } =
                 await import("./subscription-server-actions.js");
@@ -144,7 +133,6 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
               console.error("Failed to update subscription store:", err);
             }
 
-            const typedVerify = verifyRes as { success: boolean; message?: string; error?: string };
             toast.success(typedVerify.message || `Welcome to ${planLabel}! Payment successful.`);
             options.onSuccess?.(response.razorpay_payment_id);
           } else {
