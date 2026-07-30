@@ -177,12 +177,13 @@ export async function fetchServerSubscriptionState(
 
 /** TanStack Server Function: Fetch server-validated subscription state */
 export const getSubscriptionServerStateFn = createServerFn({ method: "POST" })
-  .validator((data: { userEmail?: string | null }) =>
-    z.object({ userEmail: z.string().nullable().optional() }).parse(data),
+  .validator((data?: { userEmail?: string | null }) =>
+    z.object({ userEmail: z.string().nullable().optional() }).optional().parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
-      const state = await fetchServerSubscriptionState(data.userEmail);
+      const email = data?.userEmail;
+      const state = await fetchServerSubscriptionState(email);
       return { success: true, state };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -192,12 +193,13 @@ export const getSubscriptionServerStateFn = createServerFn({ method: "POST" })
 
 /** TanStack Server Function: Check generation entitlement before image generation */
 export const checkGenerationEntitlementFn = createServerFn({ method: "POST" })
-  .validator((data: { userEmail?: string | null }) =>
-    z.object({ userEmail: z.string().nullable().optional() }).parse(data),
+  .validator((data?: { userEmail?: string | null }) =>
+    z.object({ userEmail: z.string().nullable().optional() }).optional().parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
-      const state = await fetchServerSubscriptionState(data.userEmail);
+      const email = data?.userEmail;
+      const state = await fetchServerSubscriptionState(email);
 
       if (state.isUnlimited) {
         return {
@@ -238,18 +240,20 @@ export const checkGenerationEntitlementFn = createServerFn({ method: "POST" })
 
 /** TanStack Server Function: Atomically record successful generation AFTER execution succeeds */
 export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
-  .validator((data: { userEmail?: string | null; incrementCount?: number }) =>
+  .validator((data?: { userEmail?: string | null; incrementCount?: number }) =>
     z
       .object({
         userEmail: z.string().nullable().optional(),
         incrementCount: z.number().optional().default(1),
       })
-      .parse(data),
+      .optional()
+      .parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
-      const current = await fetchServerSubscriptionState(data.userEmail);
-      const normalized = getNormalizedEmail(data.userEmail);
+      const email = data?.userEmail;
+      const current = await fetchServerSubscriptionState(email);
+      const normalized = getNormalizedEmail(email);
 
       // Premium Plus users have unlimited generation
       if (current.isUnlimited) {
@@ -263,7 +267,7 @@ export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
         };
       }
 
-      const countToAdd = Math.max(1, data.incrementCount ?? 1);
+      const countToAdd = Math.max(1, data?.incrementCount ?? 1);
       const newUsed = current.freeGenerationsUsed + countToAdd;
 
       const record: ServerStoreRecord = {
@@ -320,17 +324,18 @@ export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
 
 /** TanStack Server Function: Permanently activate Premium Plus for 30 days upon Razorpay payment */
 export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
-  .validator((data: { userEmail?: string | null; paymentId?: string | null }) =>
+  .validator((data?: { userEmail?: string | null; paymentId?: string | null }) =>
     z
       .object({
         userEmail: z.string().nullable().optional(),
         paymentId: z.string().nullable().optional(),
       })
-      .parse(data),
+      .optional()
+      .parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
-      const normalized = getNormalizedEmail(data.userEmail);
+      const normalized = getNormalizedEmail(data?.userEmail);
       const now = Date.now();
       // Exactly 30 days duration (30 * 24 * 60 * 60 * 1000 ms)
       const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
@@ -343,7 +348,7 @@ export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
         free_generations_limit: 10,
         subscription_started_at: now,
         subscription_expires_at: expiresAt,
-        last_payment_id: data.paymentId ?? existing?.last_payment_id ?? null,
+        last_payment_id: data?.paymentId ?? existing?.last_payment_id ?? null,
       };
 
       serverMemoryStore.set(normalized, record);

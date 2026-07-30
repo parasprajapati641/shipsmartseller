@@ -80,6 +80,14 @@ import {
   calculateDynamicEpsilon,
 } from "@/lib/autonomous-optimizer";
 
+import {
+  type HistoryEntry,
+  loadHistoryFromStore,
+  saveHistoryEntryToStore,
+  removeHistoryEntryFromStore,
+  clearHistoryFromStore,
+} from "@/lib/history-store";
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
@@ -93,14 +101,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   }),
   component: Dashboard,
 });
-
-import {
-  type HistoryEntry,
-  loadHistoryFromStore,
-  saveHistoryEntryToStore,
-  removeHistoryEntryFromStore,
-  clearHistoryFromStore,
-} from "@/lib/history-store";
 
 const ICON_MAP = {
   Shirt,
