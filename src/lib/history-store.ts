@@ -1,4 +1,4 @@
-// Production IndexedDB & Persistent Storage Engine for Optimization History — ShipSmart Seller
+// Production IndexedDB & User-Isolated Storage Engine for Optimization History — ShipSmart Seller
 
 export type HistoryVariant = {
   targetKB: number;
@@ -15,12 +15,13 @@ export type HistoryEntry = {
   thumb: string; // Base64 or Blob Data URL
   originalUrl?: string;
   variants: HistoryVariant[];
+  userEmail?: string;
+  generationType?: "KB Generator" | "AI Auto Pilot" | "One Click Studio" | string;
 };
 
 const DB_NAME = "ShipSmartSellerDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "optimization_history";
-const LOCAL_STORAGE_FALLBACK_KEY = "ship-smart:history:v2";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -34,6 +35,7 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
         store.createIndex("createdAt", "createdAt", { unique: false });
+        store.createIndex("userEmail", "userEmail", { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -41,9 +43,15 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-/** Asynchronously load all saved history entries sorted by newest first */
-export async function loadHistoryFromStore(): Promise<HistoryEntry[]> {
+function getFallbackKey(userEmail?: string | null): string {
+  const norm = userEmail ? userEmail.trim().toLowerCase() : "anonymous";
+  return `ship-smart:history:v2_${norm}`;
+}
+
+/** Asynchronously load saved history entries isolated by user account, newest first */
+export async function loadHistoryFromStore(userEmail?: string | null): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
+  const normEmail = userEmail ? userEmail.trim().toLowerCase() : undefined;
 
   try {
     const db = await openDB();
@@ -57,7 +65,11 @@ export async function loadHistoryFromStore(): Promise<HistoryEntry[]> {
       request.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
         if (cursor) {
-          results.push(cursor.value);
+          const val: HistoryEntry = cursor.value;
+          // User Isolation: match exact user email, or fallback if userEmail not stored
+          if (!normEmail || !val.userEmail || val.userEmail.trim().toLowerCase() === normEmail) {
+            results.push(val);
+          }
           cursor.continue();
         } else {
           resolve(results);
@@ -65,49 +77,55 @@ export async function loadHistoryFromStore(): Promise<HistoryEntry[]> {
       };
 
       request.onerror = () => {
-        resolve(loadLocalStorageFallback());
+        resolve(loadLocalStorageFallback(normEmail));
       };
     });
   } catch {
-    return loadLocalStorageFallback();
+    return loadLocalStorageFallback(normEmail);
   }
 }
 
-/** Save a new history entry permanently */
-export async function saveHistoryEntryToStore(entry: HistoryEntry): Promise<HistoryEntry[]> {
+/** Save a new history entry isolated by user email */
+export async function saveHistoryEntryToStore(
+  entry: HistoryEntry,
+  userEmail?: string | null,
+): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
+
+  const normEmail = userEmail ? userEmail.trim().toLowerCase() : entry.userEmail?.trim().toLowerCase();
+  const entryWithUser: HistoryEntry = {
+    ...entry,
+    userEmail: normEmail || entry.userEmail || "anonymous",
+  };
 
   try {
     const db = await openDB();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
-      const req = store.put(entry);
+      const req = store.put(entryWithUser);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
 
-    // Also trim entries older than top 50 in IndexedDB
-    const all = await loadHistoryFromStore();
-    if (all.length > 50) {
-      const toRemove = all.slice(50);
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      toRemove.forEach((item) => store.delete(item.id));
-    }
-
-    saveLocalStorageFallback(all.slice(0, 10)); // sync lightweight fallback
-    return all;
+    const userHistory = await loadHistoryFromStore(normEmail);
+    saveLocalStorageFallback(userHistory.slice(0, 10), normEmail);
+    return userHistory;
   } catch {
-    const fallback = [entry, ...loadLocalStorageFallback()].slice(0, 20);
-    saveLocalStorageFallback(fallback);
+    const current = loadLocalStorageFallback(normEmail);
+    const fallback = [entryWithUser, ...current].slice(0, 20);
+    saveLocalStorageFallback(fallback, normEmail);
     return fallback;
   }
 }
 
 /** Remove a single entry by ID */
-export async function removeHistoryEntryFromStore(id: string): Promise<HistoryEntry[]> {
+export async function removeHistoryEntryFromStore(
+  id: string,
+  userEmail?: string | null,
+): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
+  const normEmail = userEmail ? userEmail.trim().toLowerCase() : undefined;
 
   try {
     const db = await openDB();
@@ -122,48 +140,53 @@ export async function removeHistoryEntryFromStore(id: string): Promise<HistoryEn
     // ignore
   }
 
-  const updated = (await loadHistoryFromStore()).filter((item) => item.id !== id);
-  saveLocalStorageFallback(updated.slice(0, 10));
+  const updated = (await loadHistoryFromStore(normEmail)).filter((item) => item.id !== id);
+  saveLocalStorageFallback(updated.slice(0, 10), normEmail);
   return updated;
 }
 
-/** Clear all history */
-export async function clearHistoryFromStore(): Promise<void> {
+/** Clear history for specific user */
+export async function clearHistoryFromStore(userEmail?: string | null): Promise<void> {
   if (typeof window === "undefined") return;
+  const normEmail = userEmail ? userEmail.trim().toLowerCase() : undefined;
 
   try {
     const db = await openDB();
+    const userEntries = await loadHistoryFromStore(normEmail);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
-      const req = store.clear();
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      userEntries.forEach((e) => store.delete(e.id));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   } catch {
     // ignore
   }
-  localStorage.removeItem(LOCAL_STORAGE_FALLBACK_KEY);
+  localStorage.removeItem(getFallbackKey(normEmail));
 }
 
-function loadLocalStorageFallback(): HistoryEntry[] {
+function loadLocalStorageFallback(userEmail?: string | null): HistoryEntry[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_FALLBACK_KEY);
+    const key = getFallbackKey(userEmail);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveLocalStorageFallback(entries: HistoryEntry[]) {
+function saveLocalStorageFallback(entries: HistoryEntry[], userEmail?: string | null) {
   try {
-    // Save lightweight versions without heavy originalUrl
+    const key = getFallbackKey(userEmail);
     const lightweight = entries.map((e) => ({
       id: e.id,
       filename: e.filename,
       category: e.category,
       createdAt: e.createdAt,
       thumb: e.thumb.length > 50000 ? "" : e.thumb,
+      userEmail: e.userEmail,
+      generationType: e.generationType,
       variants: e.variants.map((v) => ({
         targetKB: v.targetKB,
         sizeKB: v.sizeKB,
@@ -171,7 +194,7 @@ function saveLocalStorageFallback(entries: HistoryEntry[]) {
         url: v.url.length > 100000 ? "" : v.url,
       })),
     }));
-    localStorage.setItem(LOCAL_STORAGE_FALLBACK_KEY, JSON.stringify(lightweight));
+    localStorage.setItem(key, JSON.stringify(lightweight));
   } catch {
     // Quota catch
   }

@@ -123,6 +123,15 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+function formatExpiryDate(expiresAt: number | null): string {
+  if (!expiresAt) return "30 Days";
+  return new Date(expiresAt).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -210,9 +219,9 @@ function Dashboard() {
   }
 
   useEffect(() => {
-    loadHistoryFromStore().then((items) => setHistory(items)).catch(() => {});
+    loadHistoryFromStore(user?.email).then((items) => setHistory(items)).catch(() => {});
     setCategoryStats(loadAllCategoryStats());
-  }, []);
+  }, [user?.email]);
 
   useEffect(() => {
     return () => {
@@ -390,8 +399,10 @@ function Dashboard() {
           thumb,
           originalUrl,
           variants: variantData,
+          userEmail: user?.email ?? undefined,
+          generationType: "KB Generator",
         };
-        const updated = await saveHistoryEntryToStore(entry);
+        const updated = await saveHistoryEntryToStore(entry, user?.email);
         setHistory(updated);
         setCategoryStats(loadAllCategoryStats());
       } catch (histErr) {
@@ -506,8 +517,10 @@ function Dashboard() {
             thumb,
             originalUrl,
             variants: variantData,
+            userEmail: user?.email ?? undefined,
+            generationType: "AI Auto Pilot",
           };
-          const updated = await saveHistoryEntryToStore(entry);
+          const updated = await saveHistoryEntryToStore(entry, user?.email);
           setHistory(updated);
         } catch (histErr) {
           console.warn("History save non-critical warning:", histErr);
@@ -569,13 +582,13 @@ function Dashboard() {
   }
 
   async function clearHistory() {
-    await clearHistoryFromStore();
+    await clearHistoryFromStore(user?.email);
     setHistory([]);
     toast.success("History cleared");
   }
 
   async function removeHistoryEntry(id: string) {
-    const updated = await removeHistoryEntryFromStore(id);
+    const updated = await removeHistoryEntryFromStore(id, user?.email);
     setHistory(updated);
   }
 
@@ -598,23 +611,25 @@ function Dashboard() {
           <div className="flex items-center gap-3">
             {/* Free Trial, Premium Active, or Expired Status Badges */}
             {subState.isUnlimited ? (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-extrabold text-emerald-400">
-                <Zap className="h-3.5 w-3.5 fill-emerald-400" /> Premium Plus Active &bull;
-                Unlimited
+              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-extrabold text-emerald-400">
+                <Zap className="h-3.5 w-3.5 fill-emerald-400 shrink-0" />
+                <span>Premium Active</span>
+                {subState.expiresAt && (
+                  <span className="text-[11px] text-emerald-300 font-semibold border-l border-emerald-500/30 pl-2">
+                    Expires: {formatExpiryDate(subState.expiresAt)}
+                  </span>
+                )}
               </div>
-            ) : subState.expiresAt !== null ? (
+            ) : subState.expiresAt !== null && Date.now() >= subState.expiresAt ? (
               <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3.5 py-2 text-xs font-extrabold text-rose-400">
-                <X className="h-3.5 w-3.5" /> Premium Expired — Renew Now
-              </div>
-            ) : subState.remainingGenerations <= 0 ? (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-extrabold text-amber-400 animate-pulse">
-                <X className="h-3.5 w-3.5" /> ✨ Free Trial: 0 / 10 Images Remaining
+                <X className="h-3.5 w-3.5" /> Your Premium subscription has expired. Renew Premium.
               </div>
             ) : (
               <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3.5 py-2 text-xs font-extrabold text-[#6C63FF]">
-                <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" /> ✨ Free Trial:{" "}
-                <span className="text-white font-bold">
-                  {subState.remainingGenerations} / 10 Images Remaining
+                <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
+                <span className="text-slate-300 font-medium">Remaining Free Generations:</span>
+                <span className="text-white font-extrabold">
+                  {subState.remainingGenerations} / 10
                 </span>
               </div>
             )}
@@ -1059,7 +1074,10 @@ function Dashboard() {
             filename={file?.name ?? "Product Image"}
             userEmail={user?.email}
             onRequireUpgrade={() => setShowUpgradeModal(true)}
-            onGenerationSuccess={() => refreshSubState()}
+            onGenerationSuccess={() => {
+              refreshSubState();
+              loadHistoryFromStore(user?.email).then((items) => setHistory(items));
+            }}
           />
 
           {/* Marketplace Winner Simulator Modal */}
@@ -1127,7 +1145,7 @@ function Dashboard() {
                           {h.filename}
                         </div>
                         <div className="text-[10px] text-slate-500 font-medium">
-                          {h.category} · {new Date(h.createdAt).toLocaleTimeString()}
+                          {h.generationType ?? h.category} · {new Date(h.createdAt).toLocaleTimeString()}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {h.variants.map((v, i) => (

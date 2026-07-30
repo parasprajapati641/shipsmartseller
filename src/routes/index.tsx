@@ -341,7 +341,7 @@ function Hero() {
                 <Check className="h-3.5 w-3.5 text-brand" /> No credit card
               </span>
               <span className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-brand" /> 25 free generations
+                <Check className="h-3.5 w-3.5 text-brand" /> 10 free generations
               </span>
               <span className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-brand" /> Cancel anytime
