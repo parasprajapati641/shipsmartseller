@@ -536,6 +536,7 @@ function Dashboard() {
 
           let res: { success: boolean; variants: Array<{ shippingCharge: number }> } | null = null;
           try {
+            const { compareVariantsFn } = await import("@/lib/meesho-actions");
             res = (await compareVariantsFn({ data: { variants: inputs } })) as unknown as {
               success: boolean;
               variants: Array<{ shippingCharge: number }>;
