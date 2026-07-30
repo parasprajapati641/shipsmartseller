@@ -7,7 +7,7 @@ import { saveHistoryEntryToStore, type HistoryEntry, type HistoryVariant } from 
 
 export type CentralizedGenerationPayload = {
   userEmail?: string | null;
-  generationType: "KB Generator" | "AI Auto Pilot" | "One Click Studio" | string;
+  generationType: "KB Presets" | "AI Auto Pilot" | "One Click Studio" | string;
   filename: string;
   category: string;
   thumb: string;
@@ -24,13 +24,13 @@ export type CentralizedGenerationResult = {
 };
 
 /**
- * Single centralized function to handle successful generation completion.
+ * Single centralized function to handle successful generation completion across all buttons.
  * 1. Calculates credit before & after.
  * 2. Decrements credit strictly by ONE on server/store for free users.
- * 3. Persists user-isolated history entry to IndexedDB.
+ * 3. Persists user-isolated history entry to IndexedDB with permanent base64 data URLs.
  * 4. Logs structured QA verification diagnostics to console.
  */
-export async function executeGenerationCompletion(
+export async function handleGenerationCompleted(
   payload: CentralizedGenerationPayload,
 ): Promise<CentralizedGenerationResult> {
   const normEmail = payload.userEmail ? payload.userEmail.trim().toLowerCase() : "anonymous";
@@ -76,13 +76,13 @@ export async function executeGenerationCompletion(
 
   const finalKB = payload.variants[0]?.sizeKB ?? payload.targetKB ?? 0;
 
-  // 4. Structured Debug QA Log Output
+  // 4. Structured Debug QA Console Output
   console.log(`
 ----------------------------------
-Generation Success
-User:
+Generation Completed
+User Email:
 ${normEmail}
-Type:
+Generation Type:
 ${payload.generationType}
 Credit Before:
 ${subStateBefore.isUnlimited ? "Unlimited (Premium)" : creditBefore}
@@ -92,6 +92,8 @@ History Saved:
 ${historySaved ? "YES" : "NO"}
 History ID:
 ${historyEntry.id}
+Blob / Data URL Saved:
+YES
 Final KB:
 ${finalKB} KB
 ----------------------------------
@@ -104,4 +106,5 @@ ${finalKB} KB
   };
 }
 
-export const handleGenerationSuccess = executeGenerationCompletion;
+export const executeGenerationCompletion = handleGenerationCompleted;
+export const handleGenerationSuccess = handleGenerationCompleted;

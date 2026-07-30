@@ -415,7 +415,7 @@ function Dashboard() {
           })),
         );
 
-        await handleGenerationSuccess({
+        await handleGenerationCompleted({
           generationType: "KB Presets",
           filename: `${file.name} (R${roundToRun})`,
           category,
@@ -463,12 +463,14 @@ function Dashboard() {
     setStatusMessage("Initializing Autonomous Auto-Pilot Pass...");
     setResults([]);
 
+    let capturedVariants: OptimizedResult[] = [];
     try {
       const outcome = await runAutonomousOptimizationPipeline(
         file,
         category,
         3,
         async (genVariants) => {
+          capturedVariants = genVariants;
           setResults(genVariants);
           const inputs = await Promise.all(
             genVariants.map(async (v) => ({
@@ -506,12 +508,19 @@ function Dashboard() {
         },
       );
 
-      if (results.length > 0) {
+      const variantsToSave =
+        capturedVariants.length > 0
+          ? capturedVariants
+          : outcome.winningVariant
+            ? [outcome.winningVariant]
+            : [];
+
+      if (variantsToSave.length > 0) {
         try {
-          const thumb = await blobToDataUrl(results[results.length - 1].blob);
+          const thumb = await blobToDataUrl(variantsToSave[variantsToSave.length - 1].blob);
           const originalUrl = previewUrl ?? (await blobToDataUrl(file));
           const variantData = await Promise.all(
-            results.map(async (r) => ({
+            variantsToSave.map(async (r) => ({
               targetKB: r.targetKB,
               sizeKB: r.sizeKB,
               strategyName: r.strategy?.name ?? `${r.targetKB}KB Strategy`,
@@ -519,7 +528,7 @@ function Dashboard() {
             })),
           );
 
-          await handleGenerationSuccess({
+          await handleGenerationCompleted({
             generationType: "AI Auto Pilot",
             filename: `${file.name} (Auto-Pilot)`,
             category,
@@ -1077,7 +1086,7 @@ function Dashboard() {
             filename={file?.name ?? "Product Image"}
             userEmail={user?.email}
             onRequireUpgrade={() => setShowUpgradeModal(true)}
-            onSuccessfulGeneration={handleGenerationSuccess}
+            onSuccessfulGeneration={handleGenerationCompleted}
           />
 
           {/* Marketplace Winner Simulator Modal */}

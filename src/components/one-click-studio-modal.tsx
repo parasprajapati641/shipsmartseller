@@ -30,6 +30,14 @@ interface OneClickStudioModalProps {
   }) => Promise<any>;
 }
 
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function OneClickStudioModal({
   isOpen,
   onClose,
@@ -77,14 +85,16 @@ export function OneClickStudioModal({
         if (isSubscribed && generated && generated.length > 0) {
           setFormats(generated);
           try {
-            const variantsData = generated.map((g) => ({
-              targetKB: Math.round(g.blob.size / 1024),
-              sizeKB: Math.round(g.blob.size / 1024),
-              url: g.url,
-              strategyName: `${g.label} (${g.width}×${g.height}px)`,
-            }));
+            const variantsData = await Promise.all(
+              generated.map(async (g) => ({
+                targetKB: Math.round(g.blob.size / 1024),
+                sizeKB: Math.round(g.blob.size / 1024),
+                url: await blobToDataUrl(g.blob),
+                strategyName: `${g.label} (${g.width}×${g.height}px)`,
+              })),
+            );
 
-            const thumb = generated[0]?.url || "";
+            const thumb = variantsData[0]?.url || "";
             const originalUrl = sourceCanvas ? sourceCanvas.toDataURL("image/jpeg", 0.7) : "";
 
             const payload = {
@@ -99,8 +109,8 @@ export function OneClickStudioModal({
             if (onSuccessfulGeneration) {
               await onSuccessfulGeneration(payload);
             } else {
-              const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
-              await executeGenerationCompletion({
+              const { handleGenerationCompleted } = await import("@/lib/generation-lifecycle");
+              await handleGenerationCompleted({
                 userEmail,
                 ...payload,
               });
@@ -153,14 +163,16 @@ export function OneClickStudioModal({
       if (generated && generated.length > 0) {
         setFormats(generated);
         try {
-          const variantsData = generated.map((g) => ({
-            targetKB: Math.round(g.blob.size / 1024),
-            sizeKB: Math.round(g.blob.size / 1024),
-            url: g.url,
-            strategyName: `${g.label} (${g.width}×${g.height}px)`,
-          }));
+          const variantsData = await Promise.all(
+            generated.map(async (g) => ({
+              targetKB: Math.round(g.blob.size / 1024),
+              sizeKB: Math.round(g.blob.size / 1024),
+              url: await blobToDataUrl(g.blob),
+              strategyName: `${g.label} (${g.width}×${g.height}px)`,
+            })),
+          );
 
-          const thumb = generated[0]?.url || "";
+          const thumb = variantsData[0]?.url || "";
           const originalUrl = sourceCanvas ? sourceCanvas.toDataURL("image/jpeg", 0.7) : "";
 
           const payload = {
@@ -175,8 +187,8 @@ export function OneClickStudioModal({
           if (onSuccessfulGeneration) {
             await onSuccessfulGeneration(payload);
           } else {
-            const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
-            await executeGenerationCompletion({
+            const { handleGenerationCompleted } = await import("@/lib/generation-lifecycle");
+            await handleGenerationCompleted({
               userEmail,
               ...payload,
             });
