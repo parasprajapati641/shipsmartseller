@@ -501,7 +501,41 @@ async function encodeExactTargetKB(
     }
   }
 
-  // Fallback to closest match if exact range not hit
+  // Strict Guard: If closestBlob exceeds targetKB + 0.48 KB, perform resolution reduction pass
+  if (closestBlob && closestBlob.size > (targetKB + 0.48) * 1024) {
+    let currentW = closestW;
+    let currentH = closestH;
+    let currentQ = closestQ;
+    let currentBlob = closestBlob;
+
+    while (currentBlob.size > (targetKB + 0.48) * 1024 && currentW > 140) {
+      currentW = Math.round(currentW * 0.9);
+      currentH = Math.round(currentH * 0.9);
+      currentQ = Math.max(0.2, currentQ - 0.05);
+
+      const scaledCvs = makeCanvas(currentW, currentH);
+      const sctx = scaledCvs.getContext("2d")!;
+      sctx.fillStyle = "#ffffff";
+      sctx.fillRect(0, 0, currentW, currentH);
+      sctx.drawImage(strategyCanvas, 0, 0, currentW, currentH);
+
+      try {
+        currentBlob = await pica.toBlob(scaledCvs, "image/jpeg", currentQ);
+      } catch {
+        currentBlob = await new Promise<Blob>((resolve) =>
+          scaledCvs.toBlob((b) => resolve(b ?? new Blob()), "image/jpeg", currentQ),
+        );
+      }
+    }
+
+    return {
+      blob: currentBlob,
+      width: currentW,
+      height: currentH,
+      quality: Math.round(currentQ * 100) / 100,
+    };
+  }
+
   return {
     blob: closestBlob!,
     width: closestW,

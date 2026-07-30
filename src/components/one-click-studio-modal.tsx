@@ -62,17 +62,8 @@ export function OneClickStudioModal({
         const generated = await generateOneClickStudioPack(sourceCanvas!);
         if (isSubscribed && generated && generated.length > 0) {
           setFormats(generated);
-          // 2. Record Generation Success on Server strictly after successful generation
           try {
-            await recordGenerationSuccessFn({ data: { userEmail } });
-            onGenerationSuccess?.();
-          } catch (recErr) {
-            console.warn("Failed to record One Click Studio generation success:", recErr);
-          }
-
-          // 3. Save One-Click Studio History Entry
-          try {
-            const { saveHistoryEntryToStore } = await import("@/lib/history-store");
+            const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
             const variantsData = generated.map((g) => ({
               targetKB: Math.round(g.blob.size / 1024),
               sizeKB: Math.round(g.blob.size / 1024),
@@ -83,21 +74,19 @@ export function OneClickStudioModal({
             const thumb = generated[0]?.url || "";
             const originalUrl = sourceCanvas ? sourceCanvas.toDataURL("image/jpeg", 0.7) : "";
 
-            const historyEntry = {
-              id: crypto.randomUUID(),
+            await executeGenerationCompletion({
+              userEmail,
+              generationType: "One Click Studio",
               filename: `${filename} (One Click Studio)`,
               category: "One Click Studio",
-              createdAt: Date.now(),
               thumb,
               originalUrl,
               variants: variantsData,
-              userEmail: userEmail ?? undefined,
-              generationType: "One Click Studio" as const,
-            };
+            });
 
-            await saveHistoryEntryToStore(historyEntry, userEmail);
-          } catch (histErr) {
-            console.warn("Failed to save One-Click Studio history entry:", histErr);
+            onGenerationSuccess?.();
+          } catch (lifecycleErr) {
+            console.warn("One Click Studio generation completion pipeline warning:", lifecycleErr);
           }
         }
       } catch (err) {
@@ -141,11 +130,8 @@ export function OneClickStudioModal({
       const generated = await generateOneClickStudioPack(sourceCanvas);
       if (generated && generated.length > 0) {
         setFormats(generated);
-        await recordGenerationSuccessFn({ data: { userEmail } });
-        onGenerationSuccess?.();
-
         try {
-          const { saveHistoryEntryToStore } = await import("@/lib/history-store");
+          const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
           const variantsData = generated.map((g) => ({
             targetKB: Math.round(g.blob.size / 1024),
             sizeKB: Math.round(g.blob.size / 1024),
@@ -156,21 +142,19 @@ export function OneClickStudioModal({
           const thumb = generated[0]?.url || "";
           const originalUrl = sourceCanvas ? sourceCanvas.toDataURL("image/jpeg", 0.7) : "";
 
-          const historyEntry = {
-            id: crypto.randomUUID(),
+          await executeGenerationCompletion({
+            userEmail,
+            generationType: "One Click Studio",
             filename: `${filename} (One Click Studio)`,
             category: "One Click Studio",
-            createdAt: Date.now(),
             thumb,
             originalUrl,
             variants: variantsData,
-            userEmail: userEmail ?? undefined,
-            generationType: "One Click Studio" as const,
-          };
+          });
 
-          await saveHistoryEntryToStore(historyEntry, userEmail);
-        } catch (histErr) {
-          console.warn("Failed to save One-Click Studio history entry:", histErr);
+          onGenerationSuccess?.();
+        } catch (lifecycleErr) {
+          console.warn("One Click Studio manual refresh pipeline warning:", lifecycleErr);
         }
       }
     } finally {

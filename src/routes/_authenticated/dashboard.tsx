@@ -163,7 +163,7 @@ function Dashboard() {
           setSubState(res.state as any);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [user?.email]);
 
   const refreshSubState = useCallback(() => {
@@ -219,7 +219,7 @@ function Dashboard() {
   }
 
   useEffect(() => {
-    loadHistoryFromStore(user?.email).then((items) => setHistory(items)).catch(() => {});
+    loadHistoryFromStore(user?.email).then((items) => setHistory(items)).catch(() => { });
     setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
@@ -358,21 +358,6 @@ function Dashboard() {
     }
 
     if (success && out.length > 0) {
-      // 2. Record Generation Success strictly AFTER successful execution
-      if (!subState.isUnlimited) {
-        try {
-          const recRes = await recordGenerationSuccessFn({ data: { userEmail: user?.email } });
-          if (recRes.state) {
-            setSubState(recRes.state as any);
-          } else {
-            const nextSub = incrementFreeGenerations(user?.email);
-            setSubState(nextSub);
-          }
-        } catch {
-          const nextSub = incrementFreeGenerations(user?.email);
-          setSubState(nextSub);
-        }
-      }
       setResults(out);
       toast.success(
         roundToRun === 1
@@ -381,6 +366,7 @@ function Dashboard() {
       );
 
       try {
+        const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
         const thumb = await blobToDataUrl(out[out.length - 1].blob);
         const originalUrl = previewUrl ?? (await blobToDataUrl(file));
         const variantData = await Promise.all(
@@ -391,22 +377,24 @@ function Dashboard() {
             url: await blobToDataUrl(r.blob),
           })),
         );
-        const entry: HistoryEntry = {
-          id: crypto.randomUUID(),
+
+        const completionRes = await executeGenerationCompletion({
+          userEmail: user?.email,
+          generationType: "KB Generator",
           filename: `${file.name} (R${roundToRun})`,
           category,
-          createdAt: Date.now(),
           thumb,
           originalUrl,
           variants: variantData,
-          userEmail: user?.email ?? undefined,
-          generationType: "KB Generator",
-        };
-        const updated = await saveHistoryEntryToStore(entry, user?.email);
-        setHistory(updated);
+          targetKB: out[0]?.targetKB,
+        });
+
+        if (completionRes.subState) setSubState(completionRes.subState);
+        const updatedHistory = await loadHistoryFromStore(user?.email);
+        setHistory(updatedHistory);
         setCategoryStats(loadAllCategoryStats());
       } catch (histErr) {
-        console.warn("History save non-critical warning:", histErr);
+        console.warn("Generation completion warning:", histErr);
       }
     } else {
       toast.error("Failed to optimize image after retries. Counter unchanged.");
@@ -487,18 +475,9 @@ function Dashboard() {
         },
       );
 
-      if (!subState.isUnlimited) {
-        try {
-          const recRes = await recordGenerationSuccessFn({ data: { userEmail: user?.email } });
-          if (recRes.state) setSubState(recRes.state as any);
-        } catch {
-          const nextSub = incrementFreeGenerations(user?.email);
-          setSubState(nextSub);
-        }
-      }
-
       if (results.length > 0) {
         try {
+          const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
           const thumb = await blobToDataUrl(results[results.length - 1].blob);
           const originalUrl = previewUrl ?? (await blobToDataUrl(file));
           const variantData = await Promise.all(
@@ -509,21 +488,22 @@ function Dashboard() {
               url: await blobToDataUrl(r.blob),
             })),
           );
-          const entry: HistoryEntry = {
-            id: crypto.randomUUID(),
+
+          const completionRes = await executeGenerationCompletion({
+            userEmail: user?.email,
+            generationType: "AI Auto Pilot",
             filename: `${file.name} (Auto-Pilot)`,
             category,
-            createdAt: Date.now(),
             thumb,
             originalUrl,
             variants: variantData,
-            userEmail: user?.email ?? undefined,
-            generationType: "AI Auto Pilot",
-          };
-          const updated = await saveHistoryEntryToStore(entry, user?.email);
-          setHistory(updated);
+          });
+
+          if (completionRes.subState) setSubState(completionRes.subState);
+          const updatedHistory = await loadHistoryFromStore(user?.email);
+          setHistory(updatedHistory);
         } catch (histErr) {
-          console.warn("History save non-critical warning:", histErr);
+          console.warn("Auto-Pilot generation completion warning:", histErr);
         }
       }
 
@@ -707,11 +687,10 @@ function Dashboard() {
                       setCategory(cat.id);
                       if (file) setResults([]);
                     }}
-                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${
-                      isSelected
-                        ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
-                        : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
-                    }`}
+                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${isSelected
+                      ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
+                      : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
+                      }`}
                   >
                     <IconComponent className="h-3.5 w-3.5" />
                     {cat.label}
@@ -976,11 +955,10 @@ function Dashboard() {
                 {results.map((r, idx) => (
                   <div
                     key={idx}
-                    className={`rounded-xl surface overflow-hidden group border transition-all ${
-                      r.recommendation?.isTopRecommendation
-                        ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
-                        : "border-border/70 hover:border-brand/50"
-                    }`}
+                    className={`rounded-xl surface overflow-hidden group border transition-all ${r.recommendation?.isTopRecommendation
+                      ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
+                      : "border-border/70 hover:border-brand/50"
+                      }`}
                   >
                     <div className="aspect-square bg-white relative">
                       <img
@@ -1052,7 +1030,7 @@ function Dashboard() {
           />
 
           {/* AI Profit & Future-Proof Business Intelligence Suite */}
-          <AIBusinessSuite />
+          {/* <AIBusinessSuite /> */}
 
           {/* Conversion Simulator Modal */}
           {simulatorData && (
