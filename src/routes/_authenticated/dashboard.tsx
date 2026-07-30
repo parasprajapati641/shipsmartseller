@@ -89,6 +89,7 @@ import {
 } from "@/lib/history-store";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Dashboard — Autonomous AI Optimization Platform" },
@@ -124,12 +125,16 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 function formatExpiryDate(expiresAt: number | null): string {
-  if (!expiresAt) return "30 Days";
-  return new Date(expiresAt).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  if (!expiresAt || typeof expiresAt !== "number") return "30 Days";
+  try {
+    return new Date(expiresAt).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "30 Days";
+  }
 }
 
 function Dashboard() {
@@ -1125,7 +1130,7 @@ function Dashboard() {
             />
           )}
 
-          {history.length === 0 ? (
+          {(!Array.isArray(history) || history.length === 0) ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
               <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400">
                 <ImageIcon className="h-4 w-4" />
@@ -1136,33 +1141,33 @@ function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {history
-                .filter((h) => h.filename.toLowerCase().includes(historyQuery.toLowerCase()))
+              {(Array.isArray(history) ? history : [])
+                .filter((h) => h && typeof h.filename === "string" && h.filename.toLowerCase().includes((historyQuery || "").toLowerCase()))
                 .map((h) => (
                   <div
-                    key={h.id}
+                    key={h.id || Math.random()}
                     className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2"
                   >
                     <div className="flex items-start gap-3">
                       <img
-                        src={h.thumb}
-                        alt={h.filename}
+                        src={h.thumb || ""}
+                        alt={h.filename || "Product Image"}
                         className="h-14 w-14 rounded-xl object-cover border border-slate-200 bg-slate-50"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold text-slate-900 truncate">
-                          {h.filename}
+                          {h.filename || "Product Image"}
                         </div>
                         <div className="text-[10px] text-slate-500 font-medium">
-                          {h.generationType ?? h.category} · {new Date(h.createdAt).toLocaleTimeString()}
+                          {(h.generationType ?? h.category) || "Optimization"} · {h.createdAt ? new Date(h.createdAt).toLocaleTimeString() : ""}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {h.variants.map((v, i) => (
+                          {(Array.isArray(h.variants) ? h.variants : []).map((v, i) => (
                             <button
                               key={i}
-                              onClick={() => downloadResult(v.url, v.targetKB, h.filename)}
+                              onClick={() => downloadResult(v.url, v.targetKB, h.filename || "image")}
                               className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
-                              title={v.strategyName}
+                              title={v.strategyName || ""}
                             >
                               {v.targetKB} KB
                             </button>
