@@ -104,7 +104,7 @@ export async function fetchServerSubscriptionState(
     record = serverMemoryStore.get(normalized);
   }
 
-  // 3. Initial record creation for new user account
+  // 3. Initial record creation for new user account (Do NOT overwrite DB on fetch)
   if (!record) {
     record = {
       subscription_plan: "free",
@@ -116,32 +116,6 @@ export async function fetchServerSubscriptionState(
       last_payment_id: null,
     };
     serverMemoryStore.set(normalized, record);
-
-    // Upsert into Supabase DB
-    try {
-      const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
-      if (supabaseAdmin) {
-        await (
-          supabaseAdmin as unknown as {
-            from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
-          }
-        )
-          .from("user_subscriptions")
-          .upsert(
-            {
-              user_email: normalized,
-              subscription_plan: "free",
-              subscription_status: "expired",
-              free_generations_used: 0,
-              free_generations_limit: 10,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_email" },
-          );
-      }
-    } catch {
-      // Ignored non-critical DB error
-    }
   }
 
   // Check 30-Day Premium Expiry: Current Time >= subscription_expires_at
