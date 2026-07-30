@@ -90,6 +90,7 @@ import {
   removeHistoryEntryFromStore,
   clearHistoryFromStore,
 } from "@/lib/history-store";
+import { recordSuccessfulGeneration } from "@/lib/generation-lifecycle";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
@@ -424,15 +425,22 @@ function Dashboard() {
           })),
         );
 
-        await handleGenerationCompleted({
+        const recordRes = await recordSuccessfulGeneration({
+          userEmail: user?.email,
           generationType: "KB Presets",
-          filename: `${file.name} (R${roundToRun})`,
+          filename: file.name,
           category,
           thumb,
           originalUrl,
           variants: variantData,
           targetKB: out[0]?.targetKB,
         });
+
+        if (recordRes.success) {
+          if (recordRes.subState) setSubState(recordRes.subState);
+          const updatedHistory = await loadHistoryFromStore(user?.email);
+          setHistory(updatedHistory);
+        }
       } catch (histErr) {
         console.warn("Generation completion warning:", histErr);
       }
@@ -544,7 +552,8 @@ function Dashboard() {
             })),
           );
 
-          await handleGenerationCompleted({
+          const recordRes = await recordSuccessfulGeneration({
+            userEmail: user?.email,
             generationType: "AI Auto Pilot",
             filename: `${file.name} (Auto-Pilot)`,
             category,
@@ -552,6 +561,12 @@ function Dashboard() {
             originalUrl,
             variants: variantData,
           });
+
+          if (recordRes.success) {
+            if (recordRes.subState) setSubState(recordRes.subState);
+            const updatedHistory = await loadHistoryFromStore(user?.email);
+            setHistory(updatedHistory);
+          }
         } catch (histErr) {
           console.warn("Auto-Pilot generation completion warning:", histErr);
         }

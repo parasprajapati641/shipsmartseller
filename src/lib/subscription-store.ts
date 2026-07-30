@@ -22,7 +22,7 @@ export type UserSubscriptionState = {
   isUnlimited: boolean;
 };
 
-const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v4";
+const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v5";
 
 function getStorageKey(userEmail?: string | null): string {
   if (userEmail && userEmail.trim().length > 0) {
@@ -46,8 +46,8 @@ export function addOneCalendarMonth(startDate: Date): Date {
 
 /**
  * Asynchronously loads the subscription state directly from Supabase Database `user_subscriptions` table.
- * Single Source of Truth: The database record.
- * Never resets free_generations_used to 0 if a DB record already exists.
+ * Single Source of Truth: Database Row in `public.user_subscriptions`.
+ * Reads free_generations_used from Supabase and calculates remaining = limit - used.
  */
 export async function fetchSubscriptionStateFromDatabase(
   userEmail?: string | null,
@@ -58,6 +58,8 @@ export async function fetchSubscriptionStateFromDatabase(
     userEmail && userEmail.trim().length > 0
       ? userEmail.trim().toLowerCase()
       : getOrCreateGuestId();
+
+  console.log(`[SUBSCRIPTION STORE] Fetching ground truth for email: ${normEmail}`);
 
   try {
     const { data, error } = await (
@@ -79,8 +81,11 @@ export async function fetchSubscriptionStateFromDatabase(
       .eq("user_email", normEmail)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) {
+      console.error(`[SUBSCRIPTION DB ERROR] Table select error:`, error);
+    } else if (data) {
       const freeGenerationsUsed = Math.max(0, Number(data.free_generations_used || 0));
+      const freeGenerationLimit = Number(data.free_generations_limit || 10);
       const plan: SubscriptionPlan =
         data.subscription_plan === "premium_plus" ? "premium_plus" : "free";
       const status: SubscriptionStatus =
@@ -91,7 +96,9 @@ export async function fetchSubscriptionStateFromDatabase(
 
       const isUnlimited =
         plan === "premium_plus" && status === "active" && !!expiresAt && now < expiresAt;
-      const remainingGenerations = isUnlimited ? Infinity : Math.max(0, 10 - freeGenerationsUsed);
+      const remainingGenerations = isUnlimited
+        ? Infinity
+        : Math.max(0, freeGenerationLimit - freeGenerationsUsed);
       const daysRemaining =
         expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
 
@@ -99,7 +106,7 @@ export async function fetchSubscriptionStateFromDatabase(
         plan,
         status,
         freeGenerationsUsed,
-        freeGenerationLimit: 10,
+        freeGenerationLimit,
         remainingGenerations,
         startedAt,
         expiresAt,
@@ -107,11 +114,39 @@ export async function fetchSubscriptionStateFromDatabase(
         isUnlimited,
       };
 
+      console.log(
+        `[SUBSCRIPTION DB SUCCESS] Email: ${normEmail} | Used: ${freeGenerationsUsed} | Remaining: ${remainingGenerations}`,
+      );
       saveSubscriptionState(state, userEmail);
       return state;
+    } else {
+      console.log(
+        `[SUBSCRIPTION DB INIT] Creating initial subscription row in Supabase for ${normEmail}...`,
+      );
+      try {
+        await (
+          supabase as unknown as {
+            from: (t: string) => {
+              insert: (d: Record<string, unknown>) => Promise<{ error: unknown }>;
+            };
+          }
+        )
+          .from("user_subscriptions")
+          .insert({
+            user_email: normEmail,
+            subscription_plan: "free",
+            subscription_status: "expired",
+            free_generations_used: 0,
+            free_generations_limit: 10,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+      } catch (insErr) {
+        console.warn("[SUBSCRIPTION DB INIT WARNING]", insErr);
+      }
     }
   } catch (err) {
-    console.warn("[SUBSCRIPTION STORE] Supabase DB fetch exception:", err);
+    console.error("[SUBSCRIPTION DB EXCEPTION]:", err);
   }
 
   return loadSubscriptionState(userEmail);
@@ -173,14 +208,10 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
         isUnlimited,
       };
 
-      if (plan === "free" && parsed.plan === "premium_plus") {
-        saveSubscriptionState(state, userEmail);
-      }
-
       return state;
     }
   } catch {
-    // Fallback if JSON parse fails
+    // Fallback
   }
 
   return {
@@ -217,7 +248,7 @@ export function saveSubscriptionState(
       }),
     );
   } catch {
-    // Quota safeguard
+    // LocalStorage quota safeguard
   }
 }
 
@@ -234,7 +265,6 @@ export function incrementFreeGenerations(userEmail?: string | null): UserSubscri
 
   saveSubscriptionState(newState, userEmail);
 
-  // Sync with Supabase DB
   if (typeof window !== "undefined") {
     const normEmail =
       userEmail && userEmail.trim().length > 0
