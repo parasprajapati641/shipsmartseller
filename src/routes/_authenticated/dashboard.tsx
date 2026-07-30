@@ -223,6 +223,44 @@ function Dashboard() {
     setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
+  const handleSuccessfulGeneration = useCallback(
+    async (payload: {
+      generationType: string;
+      filename: string;
+      category: string;
+      thumb: string;
+      originalUrl?: string;
+      variants: Array<{
+        targetKB: number;
+        sizeKB: number;
+        url: string;
+        strategyName?: string;
+      }>;
+      targetKB?: number;
+    }) => {
+      const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
+      const completionRes = await executeGenerationCompletion({
+        userEmail: user?.email,
+        generationType: payload.generationType,
+        filename: payload.filename,
+        category: payload.category,
+        thumb: payload.thumb,
+        originalUrl: payload.originalUrl,
+        variants: payload.variants,
+        targetKB: payload.targetKB,
+      });
+
+      if (completionRes.subState) {
+        setSubState(completionRes.subState);
+      }
+      const updatedHistory = await loadHistoryFromStore(user?.email);
+      setHistory(updatedHistory);
+      setCategoryStats(loadAllCategoryStats());
+      return completionRes;
+    },
+    [user?.email],
+  );
+
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -366,7 +404,6 @@ function Dashboard() {
       );
 
       try {
-        const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
         const thumb = await blobToDataUrl(out[out.length - 1].blob);
         const originalUrl = previewUrl ?? (await blobToDataUrl(file));
         const variantData = await Promise.all(
@@ -378,9 +415,8 @@ function Dashboard() {
           })),
         );
 
-        const completionRes = await executeGenerationCompletion({
-          userEmail: user?.email,
-          generationType: "KB Generator",
+        await handleSuccessfulGeneration({
+          generationType: "KB Presets",
           filename: `${file.name} (R${roundToRun})`,
           category,
           thumb,
@@ -388,11 +424,6 @@ function Dashboard() {
           variants: variantData,
           targetKB: out[0]?.targetKB,
         });
-
-        if (completionRes.subState) setSubState(completionRes.subState);
-        const updatedHistory = await loadHistoryFromStore(user?.email);
-        setHistory(updatedHistory);
-        setCategoryStats(loadAllCategoryStats());
       } catch (histErr) {
         console.warn("Generation completion warning:", histErr);
       }
@@ -477,7 +508,6 @@ function Dashboard() {
 
       if (results.length > 0) {
         try {
-          const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
           const thumb = await blobToDataUrl(results[results.length - 1].blob);
           const originalUrl = previewUrl ?? (await blobToDataUrl(file));
           const variantData = await Promise.all(
@@ -489,8 +519,7 @@ function Dashboard() {
             })),
           );
 
-          const completionRes = await executeGenerationCompletion({
-            userEmail: user?.email,
+          await handleSuccessfulGeneration({
             generationType: "AI Auto Pilot",
             filename: `${file.name} (Auto-Pilot)`,
             category,
@@ -498,10 +527,6 @@ function Dashboard() {
             originalUrl,
             variants: variantData,
           });
-
-          if (completionRes.subState) setSubState(completionRes.subState);
-          const updatedHistory = await loadHistoryFromStore(user?.email);
-          setHistory(updatedHistory);
         } catch (histErr) {
           console.warn("Auto-Pilot generation completion warning:", histErr);
         }
@@ -1052,10 +1077,7 @@ function Dashboard() {
             filename={file?.name ?? "Product Image"}
             userEmail={user?.email}
             onRequireUpgrade={() => setShowUpgradeModal(true)}
-            onGenerationSuccess={() => {
-              refreshSubState();
-              loadHistoryFromStore(user?.email).then((items) => setHistory(items));
-            }}
+            onSuccessfulGeneration={handleSuccessfulGeneration}
           />
 
           {/* Marketplace Winner Simulator Modal */}

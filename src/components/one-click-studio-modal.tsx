@@ -15,6 +15,19 @@ interface OneClickStudioModalProps {
   userEmail?: string | null;
   onRequireUpgrade?: () => void;
   onGenerationSuccess?: () => void;
+  onSuccessfulGeneration?: (payload: {
+    generationType: string;
+    filename: string;
+    category: string;
+    thumb: string;
+    originalUrl?: string;
+    variants: Array<{
+      targetKB: number;
+      sizeKB: number;
+      url: string;
+      strategyName?: string;
+    }>;
+  }) => Promise<any>;
 }
 
 export function OneClickStudioModal({
@@ -25,6 +38,7 @@ export function OneClickStudioModal({
   userEmail,
   onRequireUpgrade,
   onGenerationSuccess,
+  onSuccessfulGeneration,
 }: OneClickStudioModalProps) {
   const [formats, setFormats] = useState<StudioAssetResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -63,7 +77,6 @@ export function OneClickStudioModal({
         if (isSubscribed && generated && generated.length > 0) {
           setFormats(generated);
           try {
-            const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
             const variantsData = generated.map((g) => ({
               targetKB: Math.round(g.blob.size / 1024),
               sizeKB: Math.round(g.blob.size / 1024),
@@ -74,15 +87,24 @@ export function OneClickStudioModal({
             const thumb = generated[0]?.url || "";
             const originalUrl = sourceCanvas ? sourceCanvas.toDataURL("image/jpeg", 0.7) : "";
 
-            await executeGenerationCompletion({
-              userEmail,
+            const payload = {
               generationType: "One Click Studio",
               filename: `${filename} (One Click Studio)`,
               category: "One Click Studio",
               thumb,
               originalUrl,
               variants: variantsData,
-            });
+            };
+
+            if (onSuccessfulGeneration) {
+              await onSuccessfulGeneration(payload);
+            } else {
+              const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
+              await executeGenerationCompletion({
+                userEmail,
+                ...payload,
+              });
+            }
 
             onGenerationSuccess?.();
           } catch (lifecycleErr) {
@@ -131,7 +153,6 @@ export function OneClickStudioModal({
       if (generated && generated.length > 0) {
         setFormats(generated);
         try {
-          const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
           const variantsData = generated.map((g) => ({
             targetKB: Math.round(g.blob.size / 1024),
             sizeKB: Math.round(g.blob.size / 1024),
@@ -142,15 +163,24 @@ export function OneClickStudioModal({
           const thumb = generated[0]?.url || "";
           const originalUrl = sourceCanvas ? sourceCanvas.toDataURL("image/jpeg", 0.7) : "";
 
-          await executeGenerationCompletion({
-            userEmail,
+          const payload = {
             generationType: "One Click Studio",
             filename: `${filename} (One Click Studio)`,
             category: "One Click Studio",
             thumb,
             originalUrl,
             variants: variantsData,
-          });
+          };
+
+          if (onSuccessfulGeneration) {
+            await onSuccessfulGeneration(payload);
+          } else {
+            const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
+            await executeGenerationCompletion({
+              userEmail,
+              ...payload,
+            });
+          }
 
           onGenerationSuccess?.();
         } catch (lifecycleErr) {
