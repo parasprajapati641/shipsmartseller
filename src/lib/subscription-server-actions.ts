@@ -364,7 +364,7 @@ export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
               subscription_status: "active",
               subscription_started_at: now,
               subscription_expires_at: expiresAt,
-              last_payment_id: data.paymentId ?? null,
+              last_payment_id: data?.paymentId ?? null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "user_email" },

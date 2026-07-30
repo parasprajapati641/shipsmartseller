@@ -126,6 +126,7 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
 
           if (verifyRes.success) {
             try {
+              const { activatePremiumPlusServerFn } = await import("./subscription-server-actions.js");
               await activatePremiumPlusServerFn({
                 data: { userEmail: emailToPass, paymentId: response.razorpay_payment_id },
               });

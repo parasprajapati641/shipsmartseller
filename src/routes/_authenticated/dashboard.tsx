@@ -228,7 +228,7 @@ function Dashboard() {
     setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
-  const handleGenerationSuccess = useCallback(
+  const handleGenerationCompleted = useCallback(
     async (payload: {
       generationType: string;
       filename: string;
@@ -243,7 +243,7 @@ function Dashboard() {
       }>;
       targetKB?: number;
     }) => {
-      const { handleGenerationSuccess: runLifecycle } = await import("@/lib/generation-lifecycle");
+      const { handleGenerationCompleted: runLifecycle } = await import("@/lib/generation-lifecycle");
       const completionRes = await runLifecycle({
         userEmail: user?.email,
         generationType: payload.generationType,
@@ -265,6 +265,8 @@ function Dashboard() {
     },
     [user?.email],
   );
+
+  const handleGenerationSuccess = handleGenerationCompleted;
 
   useEffect(() => {
     return () => {
