@@ -40,7 +40,7 @@ export type OptimizedResult = {
   };
 };
 
-export const TARGET_SIZES = [5, 10, 15, 20, 25, 30, 40, 50];
+export const TARGET_SIZES = [5, 10, 13, 15, 20, 25, 30, 40, 50];
 
 type SubjectBoundingBox = {
   minX: number;

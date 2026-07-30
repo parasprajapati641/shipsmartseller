@@ -94,16 +94,13 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-type HistoryEntry = {
-  id: string;
-  filename: string;
-  category: string;
-  createdAt: number;
-  thumb: string;
-  variants: { targetKB: number; sizeKB: number; url: string; strategyName?: string }[];
-};
-
-const HISTORY_KEY = "ship-smart:history";
+import {
+  type HistoryEntry,
+  loadHistoryFromStore,
+  saveHistoryEntryToStore,
+  removeHistoryEntryFromStore,
+  clearHistoryFromStore,
+} from "@/lib/history-store";
 
 const ICON_MAP = {
   Shirt,
@@ -117,20 +114,6 @@ const ICON_MAP = {
   Dumbbell,
   Package,
 };
-
-function loadHistory(): HistoryEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(items: HistoryEntry[]) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 20)));
-}
 
 async function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve) => {
@@ -227,7 +210,7 @@ function Dashboard() {
   }
 
   useEffect(() => {
-    setHistory(loadHistory());
+    loadHistoryFromStore().then((items) => setHistory(items)).catch(() => {});
     setCategoryStats(loadAllCategoryStats());
   }, []);
 
@@ -318,7 +301,7 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
         if (entitlement.state) {
           setSubState(entitlement.state as any);
         }
@@ -331,7 +314,7 @@ function Dashboard() {
     } catch {
       // Local fallback check
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
         setShowUpgradeModal(true);
         return;
       }
@@ -390,6 +373,7 @@ function Dashboard() {
 
       try {
         const thumb = await blobToDataUrl(out[out.length - 1].blob);
+        const originalUrl = previewUrl ?? (await blobToDataUrl(file));
         const variantData = await Promise.all(
           out.map(async (r) => ({
             targetKB: r.targetKB,
@@ -404,11 +388,11 @@ function Dashboard() {
           category,
           createdAt: Date.now(),
           thumb,
+          originalUrl,
           variants: variantData,
         };
-        const next = [entry, ...history];
-        setHistory(next);
-        saveHistory(next);
+        const updated = await saveHistoryEntryToStore(entry);
+        setHistory(updated);
         setCategoryStats(loadAllCategoryStats());
       } catch (histErr) {
         console.warn("History save non-critical warning:", histErr);
@@ -428,7 +412,7 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
         if (entitlement.state) {
           setSubState(entitlement.state as any);
         }
@@ -437,7 +421,7 @@ function Dashboard() {
       }
     } catch {
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info("Free trial limit reached (10/10 used). Upgrade to Premium Plus to continue.");
+        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
         setShowUpgradeModal(true);
         return;
       }
@@ -502,6 +486,34 @@ function Dashboard() {
         }
       }
 
+      if (results.length > 0) {
+        try {
+          const thumb = await blobToDataUrl(results[results.length - 1].blob);
+          const originalUrl = previewUrl ?? (await blobToDataUrl(file));
+          const variantData = await Promise.all(
+            results.map(async (r) => ({
+              targetKB: r.targetKB,
+              sizeKB: r.sizeKB,
+              strategyName: r.strategy?.name ?? `${r.targetKB}KB Strategy`,
+              url: await blobToDataUrl(r.blob),
+            })),
+          );
+          const entry: HistoryEntry = {
+            id: crypto.randomUUID(),
+            filename: `${file.name} (Auto-Pilot)`,
+            category,
+            createdAt: Date.now(),
+            thumb,
+            originalUrl,
+            variants: variantData,
+          };
+          const updated = await saveHistoryEntryToStore(entry);
+          setHistory(updated);
+        } catch (histErr) {
+          console.warn("History save non-critical warning:", histErr);
+        }
+      }
+
       if (outcome.isRateReduced) {
         toast.success(
           `Autonomous Auto-Pilot Complete! Achieved ₹${outcome.lowestShippingCharge} rate slab.`,
@@ -556,16 +568,15 @@ function Dashboard() {
     navigate({ to: "/", replace: true });
   }
 
-  function clearHistory() {
+  async function clearHistory() {
+    await clearHistoryFromStore();
     setHistory([]);
-    localStorage.removeItem(HISTORY_KEY);
     toast.success("History cleared");
   }
 
-  function removeHistoryEntry(id: string) {
-    const next = history.filter((h) => h.id !== id);
-    setHistory(next);
-    saveHistory(next);
+  async function removeHistoryEntry(id: string) {
+    const updated = await removeHistoryEntryFromStore(id);
+    setHistory(updated);
   }
 
   const currentCatStats = categoryStats[category];
@@ -1039,14 +1050,6 @@ function Dashboard() {
               simulation={simulatorData.result}
             />
           )}
-
-          {/* One Click Content Studio Modal */}
-          <OneClickStudioModal
-            isOpen={showStudioModal}
-            onClose={() => setShowStudioModal(false)}
-            sourceCanvas={sourceCanvas}
-            filename={file?.name ?? "Product Image"}
-          />
 
           {/* One Click Content Studio Modal */}
           <OneClickStudioModal

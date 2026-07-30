@@ -159,15 +159,13 @@ export function incrementFreeGenerations(userEmail?: string | null): UserSubscri
   return newState;
 }
 
-/** Activates or renews Premium Plus subscription for exactly 1 calendar month */
+/** Activates or renews Premium Plus subscription for exactly 30 days */
 export function activateMonthlyPremiumPlus(userEmail?: string | null): UserSubscriptionState {
   const current = loadSubscriptionState(userEmail);
-  const now = new Date();
-  const expiresDate = addOneCalendarMonth(now);
-
-  const startedAt = now.getTime();
-  const expiresAt = expiresDate.getTime();
-  const daysRemaining = Math.ceil((expiresAt - startedAt) / (1000 * 60 * 60 * 24));
+  const now = Date.now();
+  const startedAt = now;
+  const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // Exactly 30 days
+  const daysRemaining = 30;
 
   const newState: UserSubscriptionState = {
     ...current,

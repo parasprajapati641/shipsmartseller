@@ -149,22 +149,25 @@ export async function disconnectMeesho(): Promise<{
   }
 }
 
+import { calculateDynamicShipping } from "../lib/dynamic-shipping-engine.js";
+
 /** Compare shipping charges across supplier cards for a single image. */
 export async function compareSingleImage(imagePath: string): Promise<SingleImageComparisonResult> {
   if (!LIVE_LOGIN_ENABLED) {
+    const dyn = calculateDynamicShipping({ targetKB: 20 });
     return {
       success: true,
       imagePath,
-      lowestShippingCharge: 49,
+      lowestShippingCharge: dyn.optimizedShippingCostINR,
       bestSupplier: {
         supplierName: "Standard Meesho Logistics",
-        shippingCharge: 49,
+        shippingCharge: dyn.optimizedShippingCostINR,
         deliveryDays: "3 days",
       },
       suppliers: [
-        { supplierName: "Standard Meesho Logistics", shippingCharge: 49, deliveryDays: "3 days" },
-        { supplierName: "Express Meesho Logistics", shippingCharge: 54, deliveryDays: "2 days" },
-        { supplierName: "Priority Meesho Logistics", shippingCharge: 62, deliveryDays: "1 day" },
+        { supplierName: "Standard Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR, deliveryDays: "3 days" },
+        { supplierName: "Express Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR + 6, deliveryDays: "2 days" },
+        { supplierName: "Priority Meesho Logistics", shippingCharge: dyn.baselineShippingCostINR, deliveryDays: "1 day" },
       ],
       processingTimeMs: 1200,
     };
@@ -174,18 +177,19 @@ export async function compareSingleImage(imagePath: string): Promise<SingleImage
     const { compareImageSuppliers } = await loadAutomationModule();
     return await compareImageSuppliers(imagePath);
   } catch (error) {
+    const dyn = calculateDynamicShipping({ targetKB: 20 });
     return {
       success: true,
       imagePath,
-      lowestShippingCharge: 49,
+      lowestShippingCharge: dyn.optimizedShippingCostINR,
       bestSupplier: {
         supplierName: "Standard Meesho Logistics",
-        shippingCharge: 49,
+        shippingCharge: dyn.optimizedShippingCostINR,
         deliveryDays: "3 days",
       },
       suppliers: [
-        { supplierName: "Standard Meesho Logistics", shippingCharge: 49, deliveryDays: "3 days" },
-        { supplierName: "Express Meesho Logistics", shippingCharge: 54, deliveryDays: "2 days" },
+        { supplierName: "Standard Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR, deliveryDays: "3 days" },
+        { supplierName: "Express Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR + 6, deliveryDays: "2 days" },
       ],
       processingTimeMs: 1200,
     };
@@ -215,7 +219,9 @@ export async function compareImageVariants(
     const start = Date.now();
     const processedVariants: VariantShippingResult[] = variants.map((v, i) => {
       const sizeKB = v.sizeKB ?? 50;
-      const charge = sizeKB <= 25 ? 49 : sizeKB <= 40 ? 54 : 62;
+      const dyn = calculateDynamicShipping({ targetKB: sizeKB });
+      const charge = dyn.optimizedShippingCostINR;
+
       return {
         sizeKB,
         variantName: v.name ?? `${sizeKB}kb`,
@@ -232,7 +238,7 @@ export async function compareImageVariants(
           },
           {
             supplierName: "Express Meesho Logistics",
-            shippingCharge: charge + 5,
+            shippingCharge: charge + 6,
             deliveryDays: "2 days",
           },
         ],
@@ -273,7 +279,8 @@ export async function compareImageVariants(
     const start = Date.now();
     const processedVariants: VariantShippingResult[] = variants.map((v, i) => {
       const sizeKB = v.sizeKB ?? 50;
-      const charge = sizeKB <= 25 ? 49 : sizeKB <= 40 ? 54 : 62;
+      const dyn = calculateDynamicShipping({ targetKB: sizeKB });
+      const charge = dyn.optimizedShippingCostINR;
       return {
         sizeKB,
         variantName: v.name ?? `${sizeKB}kb`,

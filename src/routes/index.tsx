@@ -107,7 +107,7 @@ const STEPS = [
   },
 ];
 
-const SIZES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+const SIZES = [5, 10, 13, 15, 20, 25, 30, 35, 40, 50];
 
 const TESTIMONIALS = [
   {
@@ -728,7 +728,7 @@ function Pricing() {
                   : "border-[#2A3658] bg-[#121826] text-slate-200")
               }
             >
-              <div>
+              <div className="flex-1 flex flex-col justify-between">
                 {p.highlight && (
                   <div className="absolute -top-3.5 left-8 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-3.5 py-1 text-[11px] font-extrabold text-white shadow-md">
                     ⭐ Most Popular

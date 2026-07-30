@@ -61,12 +61,22 @@ export function UpgradeModal({
             </div>
             <div>
               <h2 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                {isExpired ? "Premium Expired" : "Free Trial Finished"}
+                {isExpired ? "Subscription Expired" : "Free Trial Limit Reached"}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {isExpired
-                  ? "Your monthly Premium Plus subscription has ended. Renew now to restore unlimited access."
-                  : "You have used all 10 complimentary AI image generations included with your ShipSmart Seller account. Upgrade to Premium Plus to continue."}
+              <p className="text-xs text-slate-300 font-semibold mt-1">
+                {isExpired ? (
+                  <>
+                    Your subscription has expired.
+                    <br />
+                    Renew Premium to continue.
+                  </>
+                ) : (
+                  <>
+                    You have used all 10 free generations.
+                    <br />
+                    Upgrade to Premium to continue.
+                  </>
+                )}
               </p>
             </div>
           </div>
