@@ -223,7 +223,7 @@ function Dashboard() {
     setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
-  const handleSuccessfulGeneration = useCallback(
+  const handleGenerationSuccess = useCallback(
     async (payload: {
       generationType: string;
       filename: string;
@@ -238,8 +238,8 @@ function Dashboard() {
       }>;
       targetKB?: number;
     }) => {
-      const { executeGenerationCompletion } = await import("@/lib/generation-lifecycle");
-      const completionRes = await executeGenerationCompletion({
+      const { handleGenerationSuccess: runLifecycle } = await import("@/lib/generation-lifecycle");
+      const completionRes = await runLifecycle({
         userEmail: user?.email,
         generationType: payload.generationType,
         filename: payload.filename,
@@ -415,7 +415,7 @@ function Dashboard() {
           })),
         );
 
-        await handleSuccessfulGeneration({
+        await handleGenerationSuccess({
           generationType: "KB Presets",
           filename: `${file.name} (R${roundToRun})`,
           category,
@@ -519,7 +519,7 @@ function Dashboard() {
             })),
           );
 
-          await handleSuccessfulGeneration({
+          await handleGenerationSuccess({
             generationType: "AI Auto Pilot",
             filename: `${file.name} (Auto-Pilot)`,
             category,
@@ -1077,7 +1077,7 @@ function Dashboard() {
             filename={file?.name ?? "Product Image"}
             userEmail={user?.email}
             onRequireUpgrade={() => setShowUpgradeModal(true)}
-            onSuccessfulGeneration={handleSuccessfulGeneration}
+            onSuccessfulGeneration={handleGenerationSuccess}
           />
 
           {/* Marketplace Winner Simulator Modal */}

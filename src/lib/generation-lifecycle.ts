@@ -103,3 +103,5 @@ ${finalKB} KB
     subState: subStateAfter,
   };
 }
+
+export const handleGenerationSuccess = executeGenerationCompletion;
