@@ -61,6 +61,7 @@ import { WinnerSimulatorModal } from "@/components/winner-simulator-modal";
 import { migrateGuestDataToUser } from "@/lib/guest-store";
 import {
   loadSubscriptionState,
+  fetchSubscriptionStateFromDatabase,
   saveSubscriptionState,
   incrementFreeGenerations,
   type UserSubscriptionState,
@@ -163,58 +164,20 @@ function Dashboard() {
   );
 
   useEffect(() => {
-    if (user?.email) {
-      migrateGuestDataToUser(user.email)
-        .then(({ migratedHistoryCount }) => {
-          if (migratedHistoryCount > 0) {
-            toast.success(
-              `Migrated ${migratedHistoryCount} guest history item(s) to your account!`,
-            );
-          }
-          return loadHistoryFromStore(user.email);
-        })
-        .then((items) => {
-          setHistory(items);
-          setSubState(loadSubscriptionState(user.email));
-        })
-        .catch(() => {
-          loadHistoryFromStore(user.email).then((items) => setHistory(items));
-        });
+    const targetEmail = user?.email ?? null;
 
-      getSubscriptionServerStateFn({ data: { userEmail: user.email } })
-        .then((res) => {
-          if (res && res.success && res.state) {
-            const serverState = res.state as UserSubscriptionState;
-            saveSubscriptionState(serverState, user.email);
-            setSubState(serverState);
-          }
-        })
-        .catch(() => {});
-    } else {
-      loadHistoryFromStore(null).then((items) => setHistory(items));
-      setSubState(loadSubscriptionState(null));
+    if (user?.email) {
+      migrateGuestDataToUser(user.email).catch(() => {});
     }
+
+    loadHistoryFromStore(targetEmail).then((items) => setHistory(items));
+    fetchSubscriptionStateFromDatabase(targetEmail).then((dbState) => setSubState(dbState));
     setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
   const refreshSubState = useCallback(() => {
-    if (user?.email) {
-      getSubscriptionServerStateFn({ data: { userEmail: user.email } })
-        .then((res) => {
-          if (res && res.success && res.state) {
-            const serverState = res.state as UserSubscriptionState;
-            saveSubscriptionState(serverState, user.email);
-            setSubState(serverState);
-          } else {
-            setSubState(loadSubscriptionState(user.email));
-          }
-        })
-        .catch(() => {
-          setSubState(loadSubscriptionState(user.email));
-        });
-    } else {
-      setSubState(loadSubscriptionState(null));
-    }
+    const targetEmail = user?.email ?? null;
+    fetchSubscriptionStateFromDatabase(targetEmail).then((dbState) => setSubState(dbState));
   }, [user?.email]);
   const [simulatorData, setSimulatorData] = useState<{
     url: string;

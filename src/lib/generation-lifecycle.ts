@@ -6,7 +6,11 @@ import {
   checkGenerationEntitlementFn,
   recordGenerationSuccessFn,
 } from "./subscription-server-actions.js";
-import { loadSubscriptionState, type UserSubscriptionState } from "./subscription-store.js";
+import {
+  loadSubscriptionState,
+  fetchSubscriptionStateFromDatabase,
+  type UserSubscriptionState,
+} from "./subscription-store.js";
 import {
   saveHistoryEntryToStore,
   type HistoryEntry,
@@ -61,7 +65,7 @@ export async function recordSuccessfulGeneration(
 
   try {
     // Step 1. Entitlement Check from Supabase DB
-    const subStateBefore = loadSubscriptionState(normEmail);
+    const subStateBefore = await fetchSubscriptionStateFromDatabase(normEmail);
     if (!subStateBefore.isUnlimited && subStateBefore.remainingGenerations <= 0) {
       return {
         success: false,
