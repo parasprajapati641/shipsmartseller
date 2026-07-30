@@ -102,8 +102,8 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     // Fallback if JSON parse fails
   }
 
-  // Default state for NEW account
-  const defaultState: UserSubscriptionState = {
+  // Default state for NEW account (do NOT automatically save to localStorage until confirmed from DB)
+  return {
     plan: "free",
     status: "expired",
     freeGenerationsUsed: 0,
@@ -114,9 +114,6 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     daysRemaining: 0,
     isUnlimited: false,
   };
-
-  saveSubscriptionState(defaultState, userEmail);
-  return defaultState;
 }
 
 export function saveSubscriptionState(

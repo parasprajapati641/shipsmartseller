@@ -60,6 +60,7 @@ import { PhotoDirectorWidget } from "@/components/photo-director-widget";
 import { WinnerSimulatorModal } from "@/components/winner-simulator-modal";
 import {
   loadSubscriptionState,
+  saveSubscriptionState,
   incrementFreeGenerations,
   type UserSubscriptionState,
 } from "@/lib/subscription-store";
@@ -161,28 +162,36 @@ function Dashboard() {
   );
 
   useEffect(() => {
-    setSubState(loadSubscriptionState(user?.email));
-    getSubscriptionServerStateFn({ data: { userEmail: user?.email } })
-      .then((res) => {
-        if (res.success && res.state) {
-          setSubState(res.state as any);
-        }
-      })
-      .catch(() => { });
+    if (user?.email) {
+      setSubState(loadSubscriptionState(user.email));
+      getSubscriptionServerStateFn({ data: { userEmail: user.email } })
+        .then((res) => {
+          if (res && res.success && res.state) {
+            const serverState = res.state as UserSubscriptionState;
+            saveSubscriptionState(serverState, user.email);
+            setSubState(serverState);
+          }
+        })
+        .catch(() => { });
+    }
   }, [user?.email]);
 
   const refreshSubState = useCallback(() => {
-    getSubscriptionServerStateFn({ data: { userEmail: user?.email } })
-      .then((res) => {
-        if (res.success && res.state) {
-          setSubState(res.state as any);
-        } else {
-          setSubState(loadSubscriptionState(user?.email));
-        }
-      })
-      .catch(() => {
-        setSubState(loadSubscriptionState(user?.email));
-      });
+    if (user?.email) {
+      getSubscriptionServerStateFn({ data: { userEmail: user.email } })
+        .then((res) => {
+          if (res && res.success && res.state) {
+            const serverState = res.state as UserSubscriptionState;
+            saveSubscriptionState(serverState, user.email);
+            setSubState(serverState);
+          } else {
+            setSubState(loadSubscriptionState(user.email));
+          }
+        })
+        .catch(() => {
+          setSubState(loadSubscriptionState(user.email));
+        });
+    }
   }, [user?.email]);
   const [simulatorData, setSimulatorData] = useState<{
     url: string;

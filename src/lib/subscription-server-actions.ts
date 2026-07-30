@@ -40,9 +40,9 @@ export async function fetchServerSubscriptionState(
   const now = Date.now();
   const freeGenerationLimit = 10;
 
-  let record = serverMemoryStore.get(normalized);
+  let record: ServerStoreRecord | undefined;
 
-  // Try fetching from Supabase DB user_subscriptions table if available
+  // 1. ALWAYS query Supabase DB user_subscriptions table FIRST (Authoritative Database Source of Truth)
   try {
     const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
     if (supabaseAdmin) {
@@ -75,10 +75,16 @@ export async function fetchServerSubscriptionState(
         serverMemoryStore.set(normalized, record);
       }
     }
-  } catch {
-    // If Supabase table query fails, fallback gracefully to server store
+  } catch (dbFetchErr) {
+    console.warn("[SERVER SUBSCRIPTION] DB fetch warning:", dbFetchErr);
   }
 
+  // 2. Fallback to memory cache if DB is temporarily unreachable
+  if (!record) {
+    record = serverMemoryStore.get(normalized);
+  }
+
+  // 3. Initial record creation for new user account
   if (!record) {
     record = {
       subscription_plan: "free",
@@ -91,7 +97,7 @@ export async function fetchServerSubscriptionState(
     };
     serverMemoryStore.set(normalized, record);
 
-    // Attempt upsert into Supabase DB
+    // Upsert into Supabase DB
     try {
       const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
       if (supabaseAdmin) {
