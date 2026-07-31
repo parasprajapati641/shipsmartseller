@@ -21,15 +21,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Synchronize auth state with Supabase events
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setLoading(false);
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    // Check stored session on initial mount
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[Auth] Initial session error:", error.message);
+        }
+        setSession(data.session);
+      })
+      .catch((err) => {
+        console.error("[Auth] Unexpected session error:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -39,7 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         loading,
         signOut: async () => {
-          await supabase.auth.signOut();
+          setSession(null);
+          try {
+            await supabase.auth.signOut();
+          } catch (err) {
+            console.error("[Auth] Sign-out error:", err);
+          }
         },
       }}
     >

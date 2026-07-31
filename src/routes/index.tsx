@@ -25,7 +25,7 @@ import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ShipSmart Seller — AI Product Image Generator & Meesho Optimization SaaS" },
+      { title: "ShipSmart Seller" },
       {
         name: "description",
         content:
@@ -177,10 +177,7 @@ function useAuthCTA() {
   return {
     isAuthed: !!session,
     loading,
-    goStart: () => {
-      if (session) navigate({ to: "/dashboard" });
-      else navigate({ to: "/auth", search: { mode: "signup" } });
-    },
+    goStart: () => navigate({ to: "/dashboard" }),
     goSignIn: () => {
       if (session) navigate({ to: "/dashboard" });
       else navigate({ to: "/auth", search: { mode: "login" } });

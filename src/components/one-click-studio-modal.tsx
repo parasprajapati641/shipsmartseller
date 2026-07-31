@@ -27,7 +27,7 @@ interface OneClickStudioModalProps {
       url: string;
       strategyName?: string;
     }>;
-  }) => Promise<any>;
+  }) => Promise<unknown>;
 }
 
 async function blobToDataUrl(blob: Blob): Promise<string> {

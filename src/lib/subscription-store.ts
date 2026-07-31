@@ -1,8 +1,11 @@
 // Production Subscription & Expiry Engine — ShipSmart Seller
-//
+// Single Source of Truth: Supabase Database `user_subscriptions` table.
 // Plans:
 //  - Free Trial: 10 Lifetime Free Generations (never resets)
-//  - Premium Plus: ₹999 / month (1 Calendar Month cycle, auto-downgrade on expiry)
+//  - Premium Plus: ₹999 / month (30 Days Unlimited Access, auto-downgrade on expiry)
+
+import { supabase } from "@/integrations/supabase/client";
+import { getOrCreateGuestId } from "./guest-store";
 
 export type SubscriptionPlan = "free" | "premium_plus";
 export type SubscriptionStatus = "active" | "expired";
@@ -19,19 +22,134 @@ export type UserSubscriptionState = {
   isUnlimited: boolean;
 };
 
-const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v3";
+const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v5";
 
-/** Computes 1 calendar month after the given date (e.g. July 29 -> August 29) */
+function getStorageKey(userEmail?: string | null): string {
+  if (userEmail && userEmail.trim().length > 0) {
+    return `${SUBSCRIPTION_STORAGE_KEY}_${userEmail.trim().toLowerCase()}`;
+  }
+  const guestId = getOrCreateGuestId();
+  return `${SUBSCRIPTION_STORAGE_KEY}_${guestId}`;
+}
+
+/** Computes 1 calendar month after the given date (e.g. July 30 -> August 30) */
 export function addOneCalendarMonth(startDate: Date): Date {
   const target = new Date(startDate.getTime());
   const currentMonth = target.getMonth();
   target.setMonth(currentMonth + 1);
 
-  // If the target month has fewer days (e.g., Jan 31 -> Feb 28), adjust to last valid day
   if (target.getMonth() !== (currentMonth + 1) % 12) {
     target.setDate(0);
   }
   return target;
+}
+
+/**
+ * Asynchronously loads the subscription state directly from Supabase Database `user_subscriptions` table.
+ * Single Source of Truth: Database Row in `public.user_subscriptions`.
+ * Reads free_generations_used from Supabase and calculates remaining = limit - used.
+ */
+export async function fetchSubscriptionStateFromDatabase(
+  userEmail?: string | null,
+): Promise<UserSubscriptionState> {
+  if (typeof window === "undefined") return loadSubscriptionState(userEmail);
+
+  const normEmail =
+    userEmail && userEmail.trim().length > 0
+      ? userEmail.trim().toLowerCase()
+      : getOrCreateGuestId();
+
+  console.log(`[SUBSCRIPTION STORE] Fetching ground truth for email: ${normEmail}`);
+
+  try {
+    const { data, error } = await (
+      supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            eq: (
+              col: string,
+              val: string,
+            ) => {
+              maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: unknown }>;
+            };
+          };
+        };
+      }
+    )
+      .from("user_subscriptions")
+      .select("*")
+      .eq("user_email", normEmail)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[SUBSCRIPTION DB ERROR] Table select error:`, error);
+    } else if (data) {
+      const freeGenerationsUsed = Math.max(0, Number(data.free_generations_used || 0));
+      const freeGenerationLimit = Number(data.free_generations_limit || 10);
+      const plan: SubscriptionPlan =
+        data.subscription_plan === "premium_plus" ? "premium_plus" : "free";
+      const status: SubscriptionStatus =
+        data.subscription_status === "active" ? "active" : "expired";
+      const startedAt = data.subscription_started_at ? Number(data.subscription_started_at) : null;
+      const expiresAt = data.subscription_expires_at ? Number(data.subscription_expires_at) : null;
+      const now = Date.now();
+
+      const isUnlimited =
+        plan === "premium_plus" && status === "active" && !!expiresAt && now < expiresAt;
+      const remainingGenerations = isUnlimited
+        ? Infinity
+        : Math.max(0, freeGenerationLimit - freeGenerationsUsed);
+      const daysRemaining =
+        expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
+
+      const state: UserSubscriptionState = {
+        plan,
+        status,
+        freeGenerationsUsed,
+        freeGenerationLimit,
+        remainingGenerations,
+        startedAt,
+        expiresAt,
+        daysRemaining,
+        isUnlimited,
+      };
+
+      console.log(
+        `[SUBSCRIPTION DB SUCCESS] Email: ${normEmail} | Used: ${freeGenerationsUsed} | Remaining: ${remainingGenerations}`,
+      );
+      saveSubscriptionState(state, userEmail);
+      return state;
+    } else {
+      console.log(
+        `[SUBSCRIPTION DB INIT] Creating initial subscription row in Supabase for ${normEmail}...`,
+      );
+      try {
+        await (
+          supabase as unknown as {
+            from: (t: string) => {
+              insert: (d: Record<string, unknown>) => Promise<{ error: unknown }>;
+            };
+          }
+        )
+          .from("user_subscriptions")
+          .insert({
+            user_email: normEmail,
+            subscription_plan: "free",
+            subscription_status: "expired",
+            free_generations_used: 0,
+            free_generations_limit: 10,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+      } catch (insErr) {
+        console.warn("[SUBSCRIPTION DB INIT WARNING]", insErr);
+      }
+    }
+  } catch (err) {
+    console.error("[SUBSCRIPTION DB EXCEPTION]:", err);
+  }
+
+  return loadSubscriptionState(userEmail);
 }
 
 export function loadSubscriptionState(userEmail?: string | null): UserSubscriptionState {
@@ -49,7 +167,7 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     };
   }
 
-  const key = userEmail ? `${SUBSCRIPTION_STORAGE_KEY}_${userEmail}` : SUBSCRIPTION_STORAGE_KEY;
+  const key = getStorageKey(userEmail);
 
   try {
     const raw = localStorage.getItem(key);
@@ -64,7 +182,6 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
 
       const now = Date.now();
 
-      // Check Expiry: If Premium Plus has passed its expiry date, automatically downgrade to free/expired
       if (plan === "premium_plus" && expiresAt && now >= expiresAt) {
         plan = "free";
         status = "expired";
@@ -91,19 +208,13 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
         isUnlimited,
       };
 
-      // Save synced state if auto-downgraded
-      if (plan === "free" && parsed.plan === "premium_plus") {
-        saveSubscriptionState(state, userEmail);
-      }
-
       return state;
     }
   } catch {
-    // Fallback if JSON parse fails
+    // Fallback
   }
 
-  // Default state for NEW account
-  const defaultState: UserSubscriptionState = {
+  return {
     plan: "free",
     status: "expired",
     freeGenerationsUsed: 0,
@@ -114,9 +225,6 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     daysRemaining: 0,
     isUnlimited: false,
   };
-
-  saveSubscriptionState(defaultState, userEmail);
-  return defaultState;
 }
 
 export function saveSubscriptionState(
@@ -125,7 +233,7 @@ export function saveSubscriptionState(
 ): void {
   if (typeof window === "undefined") return;
 
-  const key = userEmail ? `${SUBSCRIPTION_STORAGE_KEY}_${userEmail}` : SUBSCRIPTION_STORAGE_KEY;
+  const key = getStorageKey(userEmail);
   try {
     localStorage.setItem(
       key,
@@ -140,7 +248,7 @@ export function saveSubscriptionState(
       }),
     );
   } catch {
-    // LocalStorage quota error safeguard
+    // LocalStorage quota safeguard
   }
 }
 
@@ -156,15 +264,48 @@ export function incrementFreeGenerations(userEmail?: string | null): UserSubscri
   };
 
   saveSubscriptionState(newState, userEmail);
+
+  if (typeof window !== "undefined") {
+    const normEmail =
+      userEmail && userEmail.trim().length > 0
+        ? userEmail.trim().toLowerCase()
+        : getOrCreateGuestId();
+
+    try {
+      (
+        supabase as unknown as {
+          from: (t: string) => {
+            upsert: (r: Record<string, unknown>, o?: unknown) => Promise<unknown>;
+          };
+        }
+      )
+        .from("user_subscriptions")
+        .upsert(
+          {
+            user_email: normEmail,
+            subscription_plan: newState.plan,
+            subscription_status: newState.status,
+            free_generations_used: updatedUsed,
+            free_generations_limit: 10,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_email" },
+        )
+        .catch(() => {});
+    } catch {
+      // ignore
+    }
+  }
+
   return newState;
 }
 
-/** Activates or renews Premium Plus subscription for exactly 30 days */
+/** Activates or renews Premium Plus subscription for exactly 30 days (₹999/month) */
 export function activateMonthlyPremiumPlus(userEmail?: string | null): UserSubscriptionState {
   const current = loadSubscriptionState(userEmail);
   const now = Date.now();
   const startedAt = now;
-  const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // Exactly 30 days
+  const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
   const daysRemaining = 30;
 
   const newState: UserSubscriptionState = {

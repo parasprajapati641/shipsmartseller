@@ -9,7 +9,7 @@ function PricingPageRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate({ to: "/", search: { pricing: true } as any, replace: true });
+    navigate({ to: "/", search: { pricing: true }, replace: true });
   }, [navigate]);
 
   return null;

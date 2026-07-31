@@ -58,8 +58,11 @@ import { calculateAnalyticsSummary } from "@/lib/smart-analytics-engine";
 import { OneClickStudioModal } from "@/components/one-click-studio-modal";
 import { PhotoDirectorWidget } from "@/components/photo-director-widget";
 import { WinnerSimulatorModal } from "@/components/winner-simulator-modal";
+import { migrateGuestDataToUser } from "@/lib/guest-store";
 import {
   loadSubscriptionState,
+  fetchSubscriptionStateFromDatabase,
+  saveSubscriptionState,
   incrementFreeGenerations,
   type UserSubscriptionState,
 } from "@/lib/subscription-store";
@@ -87,6 +90,7 @@ import {
   removeHistoryEntryFromStore,
   clearHistoryFromStore,
 } from "@/lib/history-store";
+import { recordSuccessfulGeneration } from "@/lib/generation-lifecycle";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
@@ -161,28 +165,20 @@ function Dashboard() {
   );
 
   useEffect(() => {
-    setSubState(loadSubscriptionState(user?.email));
-    getSubscriptionServerStateFn({ data: { userEmail: user?.email } })
-      .then((res) => {
-        if (res.success && res.state) {
-          setSubState(res.state as any);
-        }
-      })
-      .catch(() => { });
+    const targetEmail = user?.email ?? null;
+
+    if (user?.email) {
+      migrateGuestDataToUser(user.email).catch(() => {});
+    }
+
+    loadHistoryFromStore(targetEmail).then((items) => setHistory(items));
+    fetchSubscriptionStateFromDatabase(targetEmail).then((dbState) => setSubState(dbState));
+    setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
   const refreshSubState = useCallback(() => {
-    getSubscriptionServerStateFn({ data: { userEmail: user?.email } })
-      .then((res) => {
-        if (res.success && res.state) {
-          setSubState(res.state as any);
-        } else {
-          setSubState(loadSubscriptionState(user?.email));
-        }
-      })
-      .catch(() => {
-        setSubState(loadSubscriptionState(user?.email));
-      });
+    const targetEmail = user?.email ?? null;
+    fetchSubscriptionStateFromDatabase(targetEmail).then((dbState) => setSubState(dbState));
   }, [user?.email]);
   const [simulatorData, setSimulatorData] = useState<{
     url: string;
@@ -224,7 +220,9 @@ function Dashboard() {
   }
 
   useEffect(() => {
-    loadHistoryFromStore(user?.email).then((items) => setHistory(items)).catch(() => { });
+    loadHistoryFromStore(user?.email)
+      .then((items) => setHistory(items))
+      .catch(() => {});
     setCategoryStats(loadAllCategoryStats());
   }, [user?.email]);
 
@@ -243,7 +241,8 @@ function Dashboard() {
       }>;
       targetKB?: number;
     }) => {
-      const { handleGenerationCompleted: runLifecycle } = await import("@/lib/generation-lifecycle");
+      const { handleGenerationCompleted: runLifecycle } =
+        await import("@/lib/generation-lifecycle");
       const completionRes = await runLifecycle({
         userEmail: user?.email,
         generationType: payload.generationType,
@@ -355,20 +354,24 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         if (entitlement.state) {
-          setSubState(entitlement.state as any);
+          setSubState(entitlement.state as UserSubscriptionState);
         }
         setShowUpgradeModal(true);
         return;
       }
       if (entitlement.state) {
-        setSubState(entitlement.state as any);
+        setSubState(entitlement.state as UserSubscriptionState);
       }
     } catch {
       // Local fallback check
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         setShowUpgradeModal(true);
         return;
       }
@@ -422,15 +425,22 @@ function Dashboard() {
           })),
         );
 
-        await handleGenerationCompleted({
+        const recordRes = await recordSuccessfulGeneration({
+          userEmail: user?.email,
           generationType: "KB Presets",
-          filename: `${file.name} (R${roundToRun})`,
+          filename: file.name,
           category,
           thumb,
           originalUrl,
           variants: variantData,
           targetKB: out[0]?.targetKB,
         });
+
+        if (recordRes.success) {
+          if (recordRes.subState) setSubState(recordRes.subState);
+          const updatedHistory = await loadHistoryFromStore(user?.email);
+          setHistory(updatedHistory);
+        }
       } catch (histErr) {
         console.warn("Generation completion warning:", histErr);
       }
@@ -449,16 +459,20 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         if (entitlement.state) {
-          setSubState(entitlement.state as any);
+          setSubState(entitlement.state as UserSubscriptionState);
         }
         setShowUpgradeModal(true);
         return;
       }
     } catch {
       if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info("You have used all 10 free generations. Upgrade to Premium to continue.");
+        toast.info(
+          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
+        );
         setShowUpgradeModal(true);
         return;
       }
@@ -491,10 +505,13 @@ function Dashboard() {
             })),
           );
 
-          let res: any = null;
+          let res: { success: boolean; variants: Array<{ shippingCharge: number }> } | null = null;
           try {
             const { compareVariantsFn } = await import("@/lib/meesho-actions");
-            res = await compareVariantsFn({ data: { variants: inputs } });
+            res = (await compareVariantsFn({ data: { variants: inputs } })) as unknown as {
+              success: boolean;
+              variants: Array<{ shippingCharge: number }>;
+            };
           } catch (rpcErr) {
             console.warn(
               "[SHIP SMART] RPC compareVariantsFn fallback to dynamic calculator:",
@@ -504,7 +521,7 @@ function Dashboard() {
 
           const lowestCharge =
             res?.success && res?.variants?.length > 0
-              ? Math.min(...res.variants.map((v: any) => v.shippingCharge))
+              ? Math.min(...res.variants.map((v) => v.shippingCharge))
               : predictShippingCost(genVariants[0]?.targetKB ?? 20, category).estShippingCostINR;
 
           return { success: true, lowestCharge, variants: res?.variants ?? [] };
@@ -535,7 +552,8 @@ function Dashboard() {
             })),
           );
 
-          await handleGenerationCompleted({
+          const recordRes = await recordSuccessfulGeneration({
+            userEmail: user?.email,
             generationType: "AI Auto Pilot",
             filename: `${file.name} (Auto-Pilot)`,
             category,
@@ -543,6 +561,12 @@ function Dashboard() {
             originalUrl,
             variants: variantData,
           });
+
+          if (recordRes.success) {
+            if (recordRes.subState) setSubState(recordRes.subState);
+            const updatedHistory = await loadHistoryFromStore(user?.email);
+            setHistory(updatedHistory);
+          }
         } catch (histErr) {
           console.warn("Auto-Pilot generation completion warning:", histErr);
         }
@@ -728,10 +752,11 @@ function Dashboard() {
                       setCategory(cat.id);
                       if (file) setResults([]);
                     }}
-                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${isSelected
-                      ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
-                      : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
-                      }`}
+                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all border ${
+                      isSelected
+                        ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30"
+                        : "border-[#2A3658] bg-[#121826] text-slate-300 hover:border-[#6C63FF]/50 hover:text-white"
+                    }`}
                   >
                     <IconComponent className="h-3.5 w-3.5" />
                     {cat.label}
@@ -996,10 +1021,11 @@ function Dashboard() {
                 {results.map((r, idx) => (
                   <div
                     key={idx}
-                    className={`rounded-xl surface overflow-hidden group border transition-all ${r.recommendation?.isTopRecommendation
-                      ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
-                      : "border-border/70 hover:border-brand/50"
-                      }`}
+                    className={`rounded-xl surface overflow-hidden group border transition-all ${
+                      r.recommendation?.isTopRecommendation
+                        ? "border-brand ring-1 ring-brand/50 shadow-lg shadow-brand/10"
+                        : "border-border/70 hover:border-brand/50"
+                    }`}
                   >
                     <div className="aspect-square bg-white relative">
                       <img
@@ -1132,7 +1158,7 @@ function Dashboard() {
             />
           )}
 
-          {(!Array.isArray(history) || history.length === 0) ? (
+          {!Array.isArray(history) || history.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
               <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400">
                 <ImageIcon className="h-4 w-4" />
@@ -1144,7 +1170,12 @@ function Dashboard() {
           ) : (
             <div className="space-y-3">
               {(Array.isArray(history) ? history : [])
-                .filter((h) => h && typeof h.filename === "string" && h.filename.toLowerCase().includes((historyQuery || "").toLowerCase()))
+                .filter(
+                  (h) =>
+                    h &&
+                    typeof h.filename === "string" &&
+                    h.filename.toLowerCase().includes((historyQuery || "").toLowerCase()),
+                )
                 .map((h) => (
                   <div
                     key={h.id || Math.random()}
@@ -1161,13 +1192,16 @@ function Dashboard() {
                           {h.filename || "Product Image"}
                         </div>
                         <div className="text-[10px] text-slate-500 font-medium">
-                          {(h.generationType ?? h.category) || "Optimization"} · {h.createdAt ? new Date(h.createdAt).toLocaleTimeString() : ""}
+                          {(h.generationType ?? h.category) || "Optimization"} ·{" "}
+                          {h.createdAt ? new Date(h.createdAt).toLocaleTimeString() : ""}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {(Array.isArray(h.variants) ? h.variants : []).map((v, i) => (
                             <button
                               key={i}
-                              onClick={() => downloadResult(v.url, v.targetKB, h.filename || "image")}
+                              onClick={() =>
+                                downloadResult(v.url, v.targetKB, h.filename || "image")
+                              }
                               className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
                               title={v.strategyName || ""}
                             >

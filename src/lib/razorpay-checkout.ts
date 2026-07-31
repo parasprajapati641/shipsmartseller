@@ -1,12 +1,6 @@
 import { toast } from "sonner";
 import { createRazorpayOrderFn, verifyRazorpayPaymentFn } from "./razorpay-actions.js";
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 /** Inject official Razorpay Checkout SDK script dynamically. */
 export async function loadRazorpayScript(): Promise<boolean> {
   if (typeof window === "undefined") return false;
@@ -124,9 +118,11 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
 
           toast.dismiss(verifyToastId);
 
-          if (verifyRes.success) {
+          const typedVerify = verifyRes as { success: boolean; message?: string; error?: string };
+          if (typedVerify.success) {
             try {
-              const { activatePremiumPlusServerFn } = await import("./subscription-server-actions.js");
+              const { activatePremiumPlusServerFn } =
+                await import("./subscription-server-actions.js");
               await activatePremiumPlusServerFn({
                 data: { userEmail: emailToPass, paymentId: response.razorpay_payment_id },
               });
@@ -137,16 +133,10 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
               console.error("Failed to update subscription store:", err);
             }
 
-            toast.success(
-              (verifyRes as any).message || `Welcome to ${planLabel}! Payment successful.`,
-            );
+            toast.success(typedVerify.message || `Welcome to ${planLabel}! Payment successful.`);
             options.onSuccess?.(response.razorpay_payment_id);
           } else {
-            toast.error(
-              (verifyRes as any).message ||
-                (verifyRes as any).error ||
-                "Payment verification failed.",
-            );
+            toast.error(typedVerify.message || typedVerify.error || "Payment verification failed.");
           }
         } catch (err) {
           toast.dismiss(verifyToastId);
@@ -162,11 +152,14 @@ export async function openRazorpayCheckout(options: CheckoutOptions): Promise<vo
     };
 
     const razorpayInstance = new window.Razorpay(rzpOptions);
-    razorpayInstance.on("payment.failed", function (response: any) {
-      toast.error(
-        `Payment failed: ${response.error?.description || response.error?.reason || "Transaction declined"}`,
-      );
-    });
+    razorpayInstance.on(
+      "payment.failed",
+      function (response: { error?: { description?: string; reason?: string } }) {
+        toast.error(
+          `Payment failed: ${response.error?.description || response.error?.reason || "Transaction declined"}`,
+        );
+      },
+    );
 
     razorpayInstance.open();
   } catch (error) {

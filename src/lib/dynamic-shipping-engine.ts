@@ -212,11 +212,15 @@ export function calculateDynamicShipping(
   const L = Math.max(2, opts.lengthCm ?? profile.defaultL);
   const W = Math.max(2, opts.widthCm ?? profile.defaultW);
   const H = Math.max(1, opts.heightCm ?? profile.defaultH);
-  const currentPackaging = opts.packaging || (profile.canPolybag ? "Standard Corrugated Box (3-Ply)" : "Padded Bubble Box (5-Ply)");
+  const currentPackaging =
+    opts.packaging ||
+    (profile.canPolybag ? "Standard Corrugated Box (3-Ply)" : "Padded Bubble Box (5-Ply)");
 
   // 2. Baseline Volumetric Weight calculation
   const baselineVolumetricCc = L * W * H;
-  const baselineVolumetricWeightGrams = Math.round((baselineVolumetricCc / COURIER_VOLUMETRIC_DIVISOR) * 1000);
+  const baselineVolumetricWeightGrams = Math.round(
+    (baselineVolumetricCc / COURIER_VOLUMETRIC_DIVISOR) * 1000,
+  );
   const baselineBillableWeightGrams = Math.max(actualWeightGrams, baselineVolumetricWeightGrams);
 
   // 3. Packaging & Dimension Optimization Pass
@@ -233,18 +237,23 @@ export function calculateDynamicShipping(
     optH = Math.min(2.5, Math.round(H * 0.25 * 10) / 10); // flyer thickness ~1.5 - 2.5 cm
   } else {
     recommendedPackaging = "Standard Corrugated Box (3-Ply)";
-    optL = Math.round(L * 0.90);
+    optL = Math.round(L * 0.9);
     optW = Math.round(W * 0.88);
-    optH = Math.round(H * 0.70);
+    optH = Math.round(H * 0.7);
   }
 
   const optimizedVolumetricCc = optL * optW * optH;
-  const optimizedVolumetricWeightGrams = Math.round((optimizedVolumetricCc / COURIER_VOLUMETRIC_DIVISOR) * 1000);
+  const optimizedVolumetricWeightGrams = Math.round(
+    (optimizedVolumetricCc / COURIER_VOLUMETRIC_DIVISOR) * 1000,
+  );
   const optimizedBillableWeightGrams = Math.max(actualWeightGrams, optimizedVolumetricWeightGrams);
 
   const deadSpaceReductionPct = Math.max(
     0,
-    Math.min(85, Math.round(((baselineVolumetricCc - optimizedVolumetricCc) / baselineVolumetricCc) * 100)),
+    Math.min(
+      85,
+      Math.round(((baselineVolumetricCc - optimizedVolumetricCc) / baselineVolumetricCc) * 100),
+    ),
   );
 
   // 4. Rate Slab & Cost Calculation
@@ -253,7 +262,8 @@ export function calculateDynamicShipping(
 
   // 5. Image Preset Quality Discount Bonus
   // High quality images matching 15-20KB presets get regional fulfillment hub routing (-₹3 to -₹7 per order)
-  const catalogQualityBonusINR = targetKB <= 20 ? (marketplace === "Meesho" ? 5 : 4) : targetKB <= 30 ? 2 : 0;
+  const catalogQualityBonusINR =
+    targetKB <= 20 ? (marketplace === "Meesho" ? 5 : 4) : targetKB <= 30 ? 2 : 0;
 
   const baselineCostINR = baselineSlabInfo.costINR;
   const rawOptimizedCostINR = optimizedSlabInfo.costINR - catalogQualityBonusINR;
@@ -264,9 +274,10 @@ export function calculateDynamicShipping(
 
   const isLowestSlab = finalOptimizedCostINR <= 42;
 
-  const adviceText = savingsPerOrderINR > 0
-    ? `Switching to ${recommendedPackaging} (${optL}×${optW}×${optH} cm) reduces volumetric weight by ${deadSpaceReductionPct}%, cutting shipping charge from ₹${baselineCostINR} to ₹${finalOptimizedCostINR} per order.`
-    : `Current packaging (${L}×${W}×${H} cm) is already optimized for ${optimizedSlabInfo.slabName}.`;
+  const adviceText =
+    savingsPerOrderINR > 0
+      ? `Switching to ${recommendedPackaging} (${optL}×${optW}×${optH} cm) reduces volumetric weight by ${deadSpaceReductionPct}%, cutting shipping charge from ₹${baselineCostINR} to ₹${finalOptimizedCostINR} per order.`
+      : `Current packaging (${L}×${W}×${H} cm) is already optimized for ${optimizedSlabInfo.slabName}.`;
 
   return {
     marketplace,

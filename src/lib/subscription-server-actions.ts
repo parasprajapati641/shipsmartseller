@@ -40,45 +40,71 @@ export async function fetchServerSubscriptionState(
   const now = Date.now();
   const freeGenerationLimit = 10;
 
-  let record = serverMemoryStore.get(normalized);
+  let record: ServerStoreRecord | undefined;
 
-  // Try fetching from Supabase DB user_subscriptions table if available
+  // 1. ALWAYS query Supabase DB user_subscriptions table FIRST (Authoritative Database Source of Truth)
   try {
     const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
     if (supabaseAdmin) {
-      const { data: dbData } = await (supabaseAdmin as any)
+      type DbSubRecord = {
+        subscription_plan?: string;
+        subscription_status?: string;
+        free_generations_used?: number;
+        subscription_started_at?: number;
+        started_at?: number;
+        subscription_expires_at?: number;
+        expires_at?: number;
+        last_payment_id?: string;
+      };
+      const { data } = await (
+        supabaseAdmin as unknown as {
+          from: (table: string) => {
+            select: (cols: string) => {
+              eq: (
+                col: string,
+                val: string,
+              ) => { maybeSingle: () => Promise<{ data: DbSubRecord | null }> };
+            };
+          };
+        }
+      )
         .from("user_subscriptions")
         .select("*")
         .eq("user_email", normalized)
         .maybeSingle();
 
+      const dbData = data as DbSubRecord | null;
       if (dbData) {
         record = {
-          subscription_plan:
-            (dbData as any).subscription_plan === "premium_plus" ? "premium_plus" : "free",
-          subscription_status:
-            (dbData as any).subscription_status === "active" ? "active" : "expired",
-          free_generations_used: Math.max(0, Number((dbData as any).free_generations_used || 0)),
+          subscription_plan: dbData.subscription_plan === "premium_plus" ? "premium_plus" : "free",
+          subscription_status: dbData.subscription_status === "active" ? "active" : "expired",
+          free_generations_used: Math.max(0, Number(dbData.free_generations_used || 0)),
           free_generations_limit: 10,
-          subscription_started_at: (dbData as any).subscription_started_at
-            ? Number((dbData as any).subscription_started_at)
-            : (dbData as any).started_at
-              ? Number((dbData as any).started_at)
+          subscription_started_at: dbData.subscription_started_at
+            ? Number(dbData.subscription_started_at)
+            : dbData.started_at
+              ? Number(dbData.started_at)
               : null,
-          subscription_expires_at: (dbData as any).subscription_expires_at
-            ? Number((dbData as any).subscription_expires_at)
-            : (dbData as any).expires_at
-              ? Number((dbData as any).expires_at)
+          subscription_expires_at: dbData.subscription_expires_at
+            ? Number(dbData.subscription_expires_at)
+            : dbData.expires_at
+              ? Number(dbData.expires_at)
               : null,
-          last_payment_id: (dbData as any).last_payment_id ?? null,
+          last_payment_id: dbData.last_payment_id ?? null,
         };
         serverMemoryStore.set(normalized, record);
       }
     }
-  } catch {
-    // If Supabase table query fails, fallback gracefully to server store
+  } catch (dbFetchErr) {
+    console.warn("[SERVER SUBSCRIPTION] DB fetch warning:", dbFetchErr);
   }
 
+  // 2. Fallback to memory cache if DB is temporarily unreachable
+  if (!record) {
+    record = serverMemoryStore.get(normalized);
+  }
+
+  // 3. Initial record creation for new user account (Do NOT overwrite DB on fetch)
   if (!record) {
     record = {
       subscription_plan: "free",
@@ -90,26 +116,6 @@ export async function fetchServerSubscriptionState(
       last_payment_id: null,
     };
     serverMemoryStore.set(normalized, record);
-
-    // Attempt upsert into Supabase DB
-    try {
-      const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
-      if (supabaseAdmin) {
-        await (supabaseAdmin as any).from("user_subscriptions").upsert(
-          {
-            user_email: normalized,
-            subscription_plan: "free",
-            subscription_status: "expired",
-            free_generations_used: 0,
-            free_generations_limit: 10,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_email" },
-        );
-      }
-    } catch {
-      // Ignored non-critical DB error
-    }
   }
 
   // Check 30-Day Premium Expiry: Current Time >= subscription_expires_at
@@ -132,15 +138,21 @@ export async function fetchServerSubscriptionState(
     try {
       const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
       if (supabaseAdmin) {
-        await (supabaseAdmin as any).from("user_subscriptions").upsert(
-          {
-            user_email: normalized,
-            subscription_plan: "free",
-            subscription_status: "expired",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_email" },
-        );
+        await (
+          supabaseAdmin as unknown as {
+            from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+          }
+        )
+          .from("user_subscriptions")
+          .upsert(
+            {
+              user_email: normalized,
+              subscription_plan: "free",
+              subscription_status: "expired",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_email" },
+          );
       }
     } catch {
       // Ignored non-critical DB error
@@ -178,7 +190,10 @@ export async function fetchServerSubscriptionState(
 /** TanStack Server Function: Fetch server-validated subscription state */
 export const getSubscriptionServerStateFn = createServerFn({ method: "POST" })
   .validator((data?: { userEmail?: string | null }) =>
-    z.object({ userEmail: z.string().nullable().optional() }).optional().parse(data || {}),
+    z
+      .object({ userEmail: z.string().nullable().optional() })
+      .optional()
+      .parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
@@ -194,7 +209,10 @@ export const getSubscriptionServerStateFn = createServerFn({ method: "POST" })
 /** TanStack Server Function: Check generation entitlement before image generation */
 export const checkGenerationEntitlementFn = createServerFn({ method: "POST" })
   .validator((data?: { userEmail?: string | null }) =>
-    z.object({ userEmail: z.string().nullable().optional() }).optional().parse(data || {}),
+    z
+      .object({ userEmail: z.string().nullable().optional() })
+      .optional()
+      .parse(data || {}),
   )
   .handler(async ({ data }) => {
     try {
@@ -286,17 +304,23 @@ export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
       try {
         const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
         if (supabaseAdmin) {
-          await (supabaseAdmin as any).from("user_subscriptions").upsert(
-            {
-              user_email: normalized,
-              subscription_plan: "free",
-              subscription_status: current.status,
-              free_generations_used: newUsed,
-              free_generations_limit: 10,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_email" },
-          );
+          await (
+            supabaseAdmin as unknown as {
+              from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+            }
+          )
+            .from("user_subscriptions")
+            .upsert(
+              {
+                user_email: normalized,
+                subscription_plan: "free",
+                subscription_status: current.status,
+                free_generations_used: newUsed,
+                free_generations_limit: 10,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_email" },
+            );
         }
       } catch {
         // Ignored DB write exception
@@ -357,18 +381,24 @@ export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
       try {
         const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
         if (supabaseAdmin) {
-          await (supabaseAdmin as any).from("user_subscriptions").upsert(
-            {
-              user_email: normalized,
-              subscription_plan: "premium_plus",
-              subscription_status: "active",
-              subscription_started_at: now,
-              subscription_expires_at: expiresAt,
-              last_payment_id: data?.paymentId ?? null,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_email" },
-          );
+          await (
+            supabaseAdmin as unknown as {
+              from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
+            }
+          )
+            .from("user_subscriptions")
+            .upsert(
+              {
+                user_email: normalized,
+                subscription_plan: "premium_plus",
+                subscription_status: "active",
+                subscription_started_at: now,
+                subscription_expires_at: expiresAt,
+                last_payment_id: data?.paymentId ?? null,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_email" },
+            );
         }
       } catch {
         // Ignored DB write exception

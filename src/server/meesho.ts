@@ -112,7 +112,7 @@ export async function connectMeesho(credentials?: MeeshoCredentials): Promise<{
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const isBlocked =
-      (error as any)?.code === "MEESHO_IP_BLOCKED" ||
+      (error as { code?: string })?.code === "MEESHO_IP_BLOCKED" ||
       message.includes("blocked this server IP") ||
       message.includes("Access Denied");
 
@@ -165,9 +165,21 @@ export async function compareSingleImage(imagePath: string): Promise<SingleImage
         deliveryDays: "3 days",
       },
       suppliers: [
-        { supplierName: "Standard Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR, deliveryDays: "3 days" },
-        { supplierName: "Express Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR + 6, deliveryDays: "2 days" },
-        { supplierName: "Priority Meesho Logistics", shippingCharge: dyn.baselineShippingCostINR, deliveryDays: "1 day" },
+        {
+          supplierName: "Standard Meesho Logistics",
+          shippingCharge: dyn.optimizedShippingCostINR,
+          deliveryDays: "3 days",
+        },
+        {
+          supplierName: "Express Meesho Logistics",
+          shippingCharge: dyn.optimizedShippingCostINR + 6,
+          deliveryDays: "2 days",
+        },
+        {
+          supplierName: "Priority Meesho Logistics",
+          shippingCharge: dyn.baselineShippingCostINR,
+          deliveryDays: "1 day",
+        },
       ],
       processingTimeMs: 1200,
     };
@@ -188,8 +200,16 @@ export async function compareSingleImage(imagePath: string): Promise<SingleImage
         deliveryDays: "3 days",
       },
       suppliers: [
-        { supplierName: "Standard Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR, deliveryDays: "3 days" },
-        { supplierName: "Express Meesho Logistics", shippingCharge: dyn.optimizedShippingCostINR + 6, deliveryDays: "2 days" },
+        {
+          supplierName: "Standard Meesho Logistics",
+          shippingCharge: dyn.optimizedShippingCostINR,
+          deliveryDays: "3 days",
+        },
+        {
+          supplierName: "Express Meesho Logistics",
+          shippingCharge: dyn.optimizedShippingCostINR + 6,
+          deliveryDays: "2 days",
+        },
       ],
       processingTimeMs: 1200,
     };

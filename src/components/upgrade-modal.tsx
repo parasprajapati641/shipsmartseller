@@ -72,9 +72,9 @@ export function UpgradeModal({
                   </>
                 ) : (
                   <>
-                    You have used all 10 free generations.
+                    You've used all 10 free generations.
                     <br />
-                    Upgrade to Premium to continue.
+                    Create your account to continue and unlock Premium.
                   </>
                 )}
               </p>
