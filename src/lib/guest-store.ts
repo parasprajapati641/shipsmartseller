@@ -1,6 +1,5 @@
 // Guest User & Persistence Engine — ShipSmart Seller
 // Generates and securely persists a unique Guest ID across localStorage, cookies, and IndexedDB.
-// Enables seamless guest trial mode with 10 lifetime free generations and data migration on account creation.
 
 const GUEST_ID_KEY = "shipsmart_guest_id_v1";
 
@@ -52,7 +51,7 @@ function ensureCookieSet(guestId: string) {
 }
 
 /**
- * Migrates all history entries and remaining free credits from Guest ID to a newly authenticated User Email.
+ * Migrates guest history entries to a newly authenticated User Email.
  */
 export async function migrateGuestDataToUser(
   userEmail: string,
@@ -67,34 +66,15 @@ export async function migrateGuestDataToUser(
   let migratedHistoryCount = 0;
 
   try {
-    // 1. Import stores dynamically
     const { loadHistoryFromStore, saveHistoryEntryToStore } = await import("./history-store");
-    const { loadSubscriptionState, saveSubscriptionState } = await import("./subscription-store");
 
-    // 2. Migrate Guest History
+    // Migrate Guest History
     const guestHistory = await loadHistoryFromStore(guestId);
     if (guestHistory.length > 0) {
       for (const entry of guestHistory) {
         await saveHistoryEntryToStore({ ...entry, userEmail: normalizedEmail }, normalizedEmail);
         migratedHistoryCount++;
       }
-    }
-
-    // 3. Migrate Guest Subscription / Credits State
-    const guestSub = loadSubscriptionState(guestId);
-    const userSub = loadSubscriptionState(normalizedEmail);
-
-    // If user is on free plan, ensure free generations used reflects the higher count or combined usage
-    if (userSub.plan === "free") {
-      const combinedUsed = Math.max(userSub.freeGenerationsUsed, guestSub.freeGenerationsUsed);
-      saveSubscriptionState(
-        {
-          ...userSub,
-          freeGenerationsUsed: combinedUsed,
-          remainingGenerations: Math.max(0, 10 - combinedUsed),
-        },
-        normalizedEmail,
-      );
     }
   } catch (err) {
     console.error("[Guest Migration] Error migrating guest data:", err);

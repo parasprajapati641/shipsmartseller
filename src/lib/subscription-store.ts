@@ -1,28 +1,22 @@
-// Production Subscription & Expiry Engine — ShipSmart Seller
-// Single Source of Truth: Supabase Database `user_subscriptions` table.
-// Plans:
-//  - Free Trial: 10 Lifetime Free Generations (never resets)
-//  - Premium Plus: ₹999 / month (30 Days Unlimited Access, auto-downgrade on expiry)
+// Production Subscription & Expiry Engine — ShipSmart Seller (Premium-Only Model)
+// Single Source of Truth: Premium Plus ₹999/month (30 Days Unlimited Access, auto-downgrade on expiry)
 
 import { supabase } from "@/integrations/supabase/client";
 import { getOrCreateGuestId } from "./guest-store";
 
-export type SubscriptionPlan = "free" | "premium_plus";
+export type SubscriptionPlan = "premium_plus" | "unsubscribed";
 export type SubscriptionStatus = "active" | "expired";
 
 export type UserSubscriptionState = {
   plan: SubscriptionPlan;
   status: SubscriptionStatus;
-  freeGenerationsUsed: number;
-  freeGenerationLimit: number;
-  remainingGenerations: number;
   startedAt: number | null;
   expiresAt: number | null;
   daysRemaining: number;
   isUnlimited: boolean;
 };
 
-const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v5";
+const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v6";
 
 function getStorageKey(userEmail?: string | null): string {
   if (userEmail && userEmail.trim().length > 0) {
@@ -45,9 +39,7 @@ export function addOneCalendarMonth(startDate: Date): Date {
 }
 
 /**
- * Asynchronously loads the subscription state directly from Supabase Database `user_subscriptions` table.
- * Single Source of Truth: Database Row in `public.user_subscriptions`.
- * Reads free_generations_used from Supabase and calculates remaining = limit - used.
+ * Asynchronously loads the subscription state directly from MongoDB Express API / Supabase DB.
  */
 export async function fetchSubscriptionStateFromDatabase(
   userEmail?: string | null,
@@ -59,8 +51,31 @@ export async function fetchSubscriptionStateFromDatabase(
       ? userEmail.trim().toLowerCase()
       : getOrCreateGuestId();
 
-  console.log(`[SUBSCRIPTION STORE] Fetching ground truth for email: ${normEmail}`);
+  console.log(`[SUBSCRIPTION STORE] Fetching subscription state for email: ${normEmail}`);
 
+  // 1. Try Express backend MongoDB endpoint first
+  try {
+    const res = await fetch(`http://localhost:5000/api/subscription?userEmail=${encodeURIComponent(normEmail)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.state) {
+        const state: UserSubscriptionState = {
+          plan: data.state.plan === "premium_plus" ? "premium_plus" : "unsubscribed",
+          status: data.state.status === "active" ? "active" : "expired",
+          startedAt: data.state.startedAt ? Number(data.state.startedAt) : null,
+          expiresAt: data.state.expiresAt ? Number(data.state.expiresAt) : null,
+          daysRemaining: Number(data.state.daysRemaining || 0),
+          isUnlimited: Boolean(data.state.isUnlimited),
+        };
+        saveSubscriptionState(state, userEmail);
+        return state;
+      }
+    }
+  } catch (backendErr) {
+    console.warn("[SUBSCRIPTION STORE] MongoDB backend fetch fallback:", backendErr);
+  }
+
+  // 2. Supabase fallback check
   try {
     const { data, error } = await (
       supabase as unknown as {
@@ -81,13 +96,9 @@ export async function fetchSubscriptionStateFromDatabase(
       .eq("user_email", normEmail)
       .maybeSingle();
 
-    if (error) {
-      console.error(`[SUBSCRIPTION DB ERROR] Table select error:`, error);
-    } else if (data) {
-      const freeGenerationsUsed = Math.max(0, Number(data.free_generations_used || 0));
-      const freeGenerationLimit = Number(data.free_generations_limit || 10);
+    if (!error && data) {
       const plan: SubscriptionPlan =
-        data.subscription_plan === "premium_plus" ? "premium_plus" : "free";
+        data.subscription_plan === "premium_plus" ? "premium_plus" : "unsubscribed";
       const status: SubscriptionStatus =
         data.subscription_status === "active" ? "active" : "expired";
       const startedAt = data.subscription_started_at ? Number(data.subscription_started_at) : null;
@@ -96,54 +107,20 @@ export async function fetchSubscriptionStateFromDatabase(
 
       const isUnlimited =
         plan === "premium_plus" && status === "active" && !!expiresAt && now < expiresAt;
-      const remainingGenerations = isUnlimited
-        ? Infinity
-        : Math.max(0, freeGenerationLimit - freeGenerationsUsed);
       const daysRemaining =
         expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
 
       const state: UserSubscriptionState = {
-        plan,
-        status,
-        freeGenerationsUsed,
-        freeGenerationLimit,
-        remainingGenerations,
+        plan: isUnlimited ? "premium_plus" : "unsubscribed",
+        status: isUnlimited ? "active" : "expired",
         startedAt,
         expiresAt,
         daysRemaining,
         isUnlimited,
       };
 
-      console.log(
-        `[SUBSCRIPTION DB SUCCESS] Email: ${normEmail} | Used: ${freeGenerationsUsed} | Remaining: ${remainingGenerations}`,
-      );
       saveSubscriptionState(state, userEmail);
       return state;
-    } else {
-      console.log(
-        `[SUBSCRIPTION DB INIT] Creating initial subscription row in Supabase for ${normEmail}...`,
-      );
-      try {
-        await (
-          supabase as unknown as {
-            from: (t: string) => {
-              insert: (d: Record<string, unknown>) => Promise<{ error: unknown }>;
-            };
-          }
-        )
-          .from("user_subscriptions")
-          .insert({
-            user_email: normEmail,
-            subscription_plan: "free",
-            subscription_status: "expired",
-            free_generations_used: 0,
-            free_generations_limit: 10,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-      } catch (insErr) {
-        console.warn("[SUBSCRIPTION DB INIT WARNING]", insErr);
-      }
     }
   } catch (err) {
     console.error("[SUBSCRIPTION DB EXCEPTION]:", err);
@@ -155,11 +132,8 @@ export async function fetchSubscriptionStateFromDatabase(
 export function loadSubscriptionState(userEmail?: string | null): UserSubscriptionState {
   if (typeof window === "undefined") {
     return {
-      plan: "free",
+      plan: "unsubscribed",
       status: "expired",
-      freeGenerationsUsed: 0,
-      freeGenerationLimit: 10,
-      remainingGenerations: 10,
       startedAt: null,
       expiresAt: null,
       daysRemaining: 0,
@@ -173,17 +147,15 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      let plan: SubscriptionPlan = parsed.plan === "premium_plus" ? "premium_plus" : "free";
+      let plan: SubscriptionPlan = parsed.plan === "premium_plus" ? "premium_plus" : "unsubscribed";
       let status: SubscriptionStatus = parsed.status === "active" ? "active" : "expired";
-      const freeGenerationsUsed = Math.max(0, Number(parsed.freeGenerationsUsed || 0));
-      const freeGenerationLimit = 10;
       const startedAt = parsed.startedAt ? Number(parsed.startedAt) : null;
       const expiresAt = parsed.expiresAt ? Number(parsed.expiresAt) : null;
 
       const now = Date.now();
 
       if (plan === "premium_plus" && expiresAt && now >= expiresAt) {
-        plan = "free";
+        plan = "unsubscribed";
         status = "expired";
       }
 
@@ -192,16 +164,9 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
       const daysRemaining =
         expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
 
-      const remainingGenerations = isUnlimited
-        ? Infinity
-        : Math.max(0, freeGenerationLimit - freeGenerationsUsed);
-
       const state: UserSubscriptionState = {
         plan,
         status,
-        freeGenerationsUsed,
-        freeGenerationLimit,
-        remainingGenerations,
         startedAt,
         expiresAt,
         daysRemaining,
@@ -215,11 +180,8 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
   }
 
   return {
-    plan: "free",
+    plan: "unsubscribed",
     status: "expired",
-    freeGenerationsUsed: 0,
-    freeGenerationLimit: 10,
-    remainingGenerations: 10,
     startedAt: null,
     expiresAt: null,
     daysRemaining: 0,
@@ -240,8 +202,6 @@ export function saveSubscriptionState(
       JSON.stringify({
         plan: state.plan,
         status: state.status,
-        freeGenerationsUsed: state.freeGenerationsUsed,
-        freeGenerationLimit: 10,
         startedAt: state.startedAt,
         expiresAt: state.expiresAt,
         updatedAt: Date.now(),
@@ -252,70 +212,19 @@ export function saveSubscriptionState(
   }
 }
 
-export function incrementFreeGenerations(userEmail?: string | null): UserSubscriptionState {
-  const current = loadSubscriptionState(userEmail);
-  if (current.isUnlimited) return current;
-
-  const updatedUsed = current.freeGenerationsUsed + 1;
-  const newState: UserSubscriptionState = {
-    ...current,
-    freeGenerationsUsed: updatedUsed,
-    remainingGenerations: Math.max(0, 10 - updatedUsed),
-  };
-
-  saveSubscriptionState(newState, userEmail);
-
-  if (typeof window !== "undefined") {
-    const normEmail =
-      userEmail && userEmail.trim().length > 0
-        ? userEmail.trim().toLowerCase()
-        : getOrCreateGuestId();
-
-    try {
-      (
-        supabase as unknown as {
-          from: (t: string) => {
-            upsert: (r: Record<string, unknown>, o?: unknown) => Promise<unknown>;
-          };
-        }
-      )
-        .from("user_subscriptions")
-        .upsert(
-          {
-            user_email: normEmail,
-            subscription_plan: newState.plan,
-            subscription_status: newState.status,
-            free_generations_used: updatedUsed,
-            free_generations_limit: 10,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_email" },
-        )
-        .catch(() => {});
-    } catch {
-      // ignore
-    }
-  }
-
-  return newState;
-}
-
 /** Activates or renews Premium Plus subscription for exactly 30 days (₹999/month) */
 export function activateMonthlyPremiumPlus(userEmail?: string | null): UserSubscriptionState {
-  const current = loadSubscriptionState(userEmail);
   const now = Date.now();
   const startedAt = now;
   const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
   const daysRemaining = 30;
 
   const newState: UserSubscriptionState = {
-    ...current,
     plan: "premium_plus",
     status: "active",
     startedAt,
     expiresAt,
     daysRemaining,
-    remainingGenerations: Infinity,
     isUnlimited: true,
   };
 

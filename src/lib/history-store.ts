@@ -1,6 +1,7 @@
 // Production Database-Backed Storage Engine for Optimization History — ShipSmart Seller
-// Single Source of Truth: Supabase Database `optimization_history` table.
-// Stores permanent image URLs (never temporary Blob URLs). Ground truth persists across refreshes, logouts, logins, and devices.
+// Primary Single Source of Truth: MongoDB Database via Express Server API (`/api/history`).
+// Secondary Fallback: Supabase Database `optimization_history` table & local IndexedDB cache.
+// Stores permanent image URLs. Ground truth persists across refreshes, logouts, logins, and devices.
 
 import { supabase } from "@/integrations/supabase/client";
 import { getOrCreateGuestId } from "./guest-store";
@@ -30,6 +31,7 @@ export type HistoryEntry = {
 const DB_NAME = "ShipSmartSellerDB";
 const DB_VERSION = 2;
 const STORE_NAME = "optimization_history";
+const BACKEND_URL = "http://localhost:5000";
 
 function resolveIdentity(userEmail?: string | null): string {
   if (userEmail && userEmail.trim().length > 0) {
@@ -97,14 +99,40 @@ function getFallbackKey(userEmail?: string | null): string {
 }
 
 /**
- * Loads history entries from Supabase Database `optimization_history` table (WHERE user_email = current_user).
- * Fallback to IndexedDB/localStorage if Supabase table is unreachable or uninitialized.
+ * Loads history entries permanently stored in MongoDB per logged-in user email.
+ * Fallbacks to Supabase DB & IndexedDB if offline or server is unavailable.
  */
 export async function loadHistoryFromStore(userEmail?: string | null): Promise<HistoryEntry[]> {
   if (typeof window === "undefined") return [];
   const normEmail = resolveIdentity(userEmail);
 
-  // 1. Primary Source of Truth: Supabase Database `optimization_history`
+  // 1. Primary Source of Truth: MongoDB Database via Express REST API
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/history?userEmail=${encodeURIComponent(normEmail)}`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.history) && json.history.length > 0) {
+        const mongoEntries: HistoryEntry[] = json.history.map((row: Record<string, unknown>) => ({
+          id: String(row.id || crypto.randomUUID()),
+          filename: String(row.filename || "Untitled Image"),
+          category: String(row.category || "apparel"),
+          createdAt: Number(row.createdAt || Date.now()),
+          thumb: String(row.thumb || row.thumb_url || ""),
+          originalUrl: row.originalUrl ? String(row.originalUrl) : undefined,
+          variants: Array.isArray(row.variants) ? (row.variants as HistoryVariant[]) : [],
+          userEmail: String(row.userEmail || normEmail),
+          generationType: String(row.generationType || "KB Presets"),
+        }));
+
+        saveIndexedDBFallback(mongoEntries, normEmail);
+        return mongoEntries;
+      }
+    }
+  } catch (mongoErr) {
+    console.warn("[HISTORY STORE] MongoDB fetch fallback:", mongoErr);
+  }
+
+  // 2. Secondary Source: Supabase Database `optimization_history`
   try {
     const dbClient = getSupabaseClient();
     const { data, error } = await dbClient
@@ -126,7 +154,6 @@ export async function loadHistoryFromStore(userEmail?: string | null): Promise<H
         generationType: String(row.generation_type || "KB Presets"),
       }));
 
-      // Cache locally
       saveIndexedDBFallback(dbEntries, normEmail);
       return dbEntries;
     }
@@ -134,12 +161,12 @@ export async function loadHistoryFromStore(userEmail?: string | null): Promise<H
     console.warn("[HISTORY STORE] Supabase DB fetch warning:", dbErr);
   }
 
-  // 2. Fallback: IndexedDB / Local Storage Cache
+  // 3. Local Fallback: IndexedDB / Local Storage Cache
   return loadIndexedDBFallback(normEmail);
 }
 
 /**
- * Saves a new history entry into Supabase Database `optimization_history` table.
+ * Saves a new history entry permanently into MongoDB per logged-in user.
  */
 export async function saveHistoryEntryToStore(
   entry: HistoryEntry,
@@ -153,10 +180,31 @@ export async function saveHistoryEntryToStore(
     userEmail: normEmail,
   };
 
-  // 1. Primary Action: Insert into Supabase Database `optimization_history`
+  // 1. Primary Action: Insert permanently into MongoDB
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/history`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entry: entryWithUser,
+        userEmail: normEmail,
+      }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.history)) {
+        await saveSingleIndexedDBEntry(entryWithUser);
+        return json.history;
+      }
+    }
+  } catch (mongoSaveErr) {
+    console.warn("[HISTORY STORE] MongoDB save warning:", mongoSaveErr);
+  }
+
+  // 2. Secondary Action: Insert into Supabase Database `optimization_history`
   try {
     const dbClient = getSupabaseClient();
-    const { error: dbErr } = await dbClient.from("optimization_history").upsert(
+    await dbClient.from("optimization_history").upsert(
       {
         id: entryWithUser.id,
         user_email: normEmail,
@@ -171,21 +219,17 @@ export async function saveHistoryEntryToStore(
       },
       { onConflict: "id" },
     );
-
-    if (dbErr) {
-      console.warn("[HISTORY STORE] Supabase DB upsert warning:", dbErr.message);
-    }
   } catch (err) {
     console.warn("[HISTORY STORE] Supabase DB exception:", err);
   }
 
-  // 2. Save to local IndexedDB/localStorage cache
+  // 3. Save to local IndexedDB/localStorage cache
   await saveSingleIndexedDBEntry(entryWithUser);
   const userHistory = await loadHistoryFromStore(normEmail);
   return userHistory;
 }
 
-/** Removes a single entry by ID from Supabase DB and local cache */
+/** Removes a single entry by ID from MongoDB, Supabase DB, and local cache */
 export async function removeHistoryEntryFromStore(
   id: string,
   userEmail?: string | null,
@@ -193,6 +237,16 @@ export async function removeHistoryEntryFromStore(
   if (typeof window === "undefined") return [];
   const normEmail = resolveIdentity(userEmail);
 
+  // MongoDB Delete
+  try {
+    await fetch(`${BACKEND_URL}/api/history/${encodeURIComponent(id)}?userEmail=${encodeURIComponent(normEmail)}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    console.warn("[HISTORY STORE] MongoDB delete warning:", err);
+  }
+
+  // Supabase Delete
   try {
     const dbClient = getSupabaseClient();
     await dbClient.from("optimization_history").delete().eq("id", id).eq("user_email", normEmail);
@@ -200,6 +254,7 @@ export async function removeHistoryEntryFromStore(
     console.warn("[HISTORY STORE] Supabase DB delete warning:", dbErr);
   }
 
+  // IndexedDB Delete
   try {
     const db = await openIndexedDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -212,11 +267,21 @@ export async function removeHistoryEntryFromStore(
   return updated;
 }
 
-/** Clears all history for specific user/guest from Supabase DB and local cache */
+/** Clears all history for specific user from MongoDB, Supabase DB, and local cache */
 export async function clearHistoryFromStore(userEmail?: string | null): Promise<void> {
   if (typeof window === "undefined") return;
   const normEmail = resolveIdentity(userEmail);
 
+  // MongoDB Clear
+  try {
+    await fetch(`${BACKEND_URL}/api/history/clear?userEmail=${encodeURIComponent(normEmail)}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    console.warn("[HISTORY STORE] MongoDB clear warning:", err);
+  }
+
+  // Supabase Clear
   try {
     const dbClient = getSupabaseClient();
     await dbClient.from("optimization_history").delete().eq("user_email", normEmail);

@@ -323,7 +323,7 @@ function Hero() {
                 onClick={goStart}
                 className="inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-5 py-3 text-sm font-medium text-brand-foreground transition-transform hover:scale-[1.02] glow"
               >
-                {isAuthed ? "Open dashboard" : "Start 14-day free trial"}{" "}
+                {isAuthed ? "Open dashboard" : "Explore Dashboard Free"}{" "}
                 <ArrowRight className="h-4 w-4" />
               </button>
               <a
@@ -335,10 +335,10 @@ function Hero() {
             </div>
             <div className="mt-10 flex flex-wrap gap-6 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-brand" /> No credit card
+                <Check className="h-3.5 w-3.5 text-brand" /> Free Signup & Uploads
               </span>
               <span className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-brand" /> 10 free generations
+                <Check className="h-3.5 w-3.5 text-brand" /> ₹999/mo Premium Plan
               </span>
               <span className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-brand" /> Cancel anytime
@@ -666,34 +666,35 @@ function Pricing() {
 
   const plans = [
     {
-      name: "Free Trial",
+      name: "Free Explorer Account",
       price: "₹0",
-      period: "10 lifetime generations",
-      tagline: "Included with every new account.",
+      period: "Free Forever",
+      tagline: "Free registration to browse and test catalog features.",
       features: [
-        "10 Lifetime AI Image Generations",
-        "Target KB Compression (5–50 KB)",
-        "Visual Heatmap & Scorecard",
-        "Standard Processing Speed",
+        "Free Account Sign Up & Login",
+        "Upload Product Images & Previews",
+        "AI Listing Quality Score & CTR Analysis",
+        "Visual Heatmap Inspection",
+        "Smart Shipping & Profit Calculator",
       ],
-      cta: isAuthed ? "Open Dashboard" : "Get Started Free",
+      cta: isAuthed ? "Open Dashboard" : "Sign Up Free",
       onClick: goStart,
       highlight: false,
     },
     {
-      name: "Premium Plus",
+      name: "Premium Plan",
       price: "₹999",
       period: "/ month",
-      tagline: "For high-volume marketplace sellers.",
+      tagline: "Full access to all AI image generation features.",
       features: [
-        "Unlimited AI Image Generations",
-        "Unlimited KB Compression & Presets",
-        "One-Click Multi-Format Content Studio",
-        "AI Shipping Intelligence Predictor",
-        "AI Profit Margin & Price Optimizer",
-        "Priority Support & Future Features",
+        "Unlimited Autonomous AI Auto-Pilot",
+        "Unlimited 5–50KB Presets & Compression",
+        "One-Click Studio (10 Multi-Format Assets)",
+        "Permanent Cloud History in MongoDB",
+        "30 Days Full Access from Payment Timestamp",
+        "Priority Support & Catalog Features",
       ],
-      cta: "Upgrade to Premium Plus (₹999 / mo)",
+      cta: "Upgrade to Premium Plan (₹999 / mo)",
       onClick: handlePayment,
       highlight: true,
     },
@@ -710,8 +711,7 @@ function Pricing() {
             Simple, honest pricing.
           </h2>
           <p className="mt-4 text-sm text-slate-400">
-            Start with 10 free lifetime generations. Upgrade to Premium Plus when you are ready to
-            scale.
+            Sign up for free to explore the interface and upload images. Upgrade to Premium for ₹999/month to unlock all image generation tools.
           </p>
         </div>
         <div className="mt-14 grid gap-8 md:grid-cols-2 max-w-4xl mx-auto items-stretch">

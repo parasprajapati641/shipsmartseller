@@ -29,6 +29,7 @@ import {
   BarChart3,
   Bot,
   Play,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -63,7 +64,6 @@ import {
   loadSubscriptionState,
   fetchSubscriptionStateFromDatabase,
   saveSubscriptionState,
-  incrementFreeGenerations,
   type UserSubscriptionState,
 } from "@/lib/subscription-store";
 import {
@@ -350,13 +350,11 @@ function Dashboard() {
   async function handleGenerate(roundToRun: number = 1) {
     if (!file) return;
 
-    // 1. Server-Side Strict Entitlement Check
+    // 1. Server-Side Strict Premium Entitlement Check
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info(
-          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
-        );
+        toast.info("Premium subscription required to generate images. Please upgrade.");
         if (entitlement.state) {
           setSubState(entitlement.state as UserSubscriptionState);
         }
@@ -368,10 +366,8 @@ function Dashboard() {
       }
     } catch {
       // Local fallback check
-      if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info(
-          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
-        );
+      if (!subState.isUnlimited) {
+        toast.info("Premium subscription required to generate images. Please upgrade.");
         setShowUpgradeModal(true);
         return;
       }
@@ -459,9 +455,7 @@ function Dashboard() {
     try {
       const entitlement = await checkGenerationEntitlementFn({ data: { userEmail: user?.email } });
       if (!entitlement.allowed) {
-        toast.info(
-          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
-        );
+        toast.info("Premium subscription required to run AI Auto-Pilot. Please upgrade.");
         if (entitlement.state) {
           setSubState(entitlement.state as UserSubscriptionState);
         }
@@ -469,10 +463,8 @@ function Dashboard() {
         return;
       }
     } catch {
-      if (!subState.isUnlimited && subState.remainingGenerations <= 0) {
-        toast.info(
-          "You've used all 10 free generations. Create your account to continue and unlock Premium.",
-        );
+      if (!subState.isUnlimited) {
+        toast.info("Premium subscription required to run AI Auto-Pilot. Please upgrade.");
         setShowUpgradeModal(true);
         return;
       }
@@ -665,18 +657,18 @@ function Dashboard() {
                   </span>
                 )}
               </div>
-            ) : subState.expiresAt !== null && Date.now() >= subState.expiresAt ? (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3.5 py-2 text-xs font-extrabold text-rose-400">
-                <X className="h-3.5 w-3.5" /> Your Premium subscription has expired. Renew Premium.
-              </div>
             ) : (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3.5 py-2 text-xs font-extrabold text-[#6C63FF]">
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3.5 py-2 text-xs font-extrabold text-[#6C63FF] hover:bg-[#6C63FF]/20 transition-all"
+              >
                 <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
-                <span className="text-slate-300 font-medium">Remaining Free Generations:</span>
                 <span className="text-white font-extrabold">
-                  {subState.remainingGenerations} / 10
+                  {subState.expiresAt !== null && Date.now() >= subState.expiresAt
+                    ? "Subscription Expired — Renew Premium"
+                    : "Subscription Inactive — Upgrade to Premium"}
                 </span>
-              </div>
+              </button>
             )}
 
             {!subState.isUnlimited && (
@@ -685,7 +677,7 @@ function Dashboard() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-3.5 py-2 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:opacity-95 transition-all"
               >
                 <Zap className="h-3.5 w-3.5" />{" "}
-                {subState.expiresAt !== null ? "Renew Premium Plus" : "Upgrade to Premium Plus"}
+                {subState.expiresAt !== null ? "Renew Premium Plan" : "Upgrade to Premium (₹999/mo)"}
               </button>
             )}
 
@@ -901,25 +893,42 @@ function Dashboard() {
                         </>
                       ) : (
                         <>
-                          <Bot className="h-4 w-4" /> Run Autonomous AI Auto-Pilot
+                          {subState.isUnlimited ? <Bot className="h-4 w-4" /> : <Lock className="h-4 w-4 text-amber-300" />}
+                          Run Autonomous AI Auto-Pilot
                         </>
                       )}
                     </button>
 
                     <button
-                      onClick={() => handleGenerate(1)}
+                      onClick={() => {
+                        if (!subState.isUnlimited) {
+                          toast.info("Premium subscription required to generate presets. Please upgrade.");
+                          setShowUpgradeModal(true);
+                          return;
+                        }
+                        handleGenerate(1);
+                      }}
                       disabled={processing}
                       className="inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground disabled:opacity-60"
                     >
-                      <Sparkles className="h-4 w-4" /> Generate 5-50KB Presets
+                      {subState.isUnlimited ? <Sparkles className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                      Generate 5-50KB Presets
                     </button>
 
                     <button
-                      onClick={() => setShowStudioModal(true)}
-                      disabled={processing || !sourceCanvas}
+                      onClick={() => {
+                        if (!subState.isUnlimited) {
+                          toast.info("Premium subscription required for One-Click Studio. Please upgrade.");
+                          setShowUpgradeModal(true);
+                          return;
+                        }
+                        setShowStudioModal(true);
+                      }}
+                      disabled={processing || (!subState.isUnlimited ? false : !sourceCanvas)}
                       className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 hover:bg-cyan-500/20"
                     >
-                      <Layers className="h-4 w-4" /> One-Click Studio (10 Formats)
+                      {subState.isUnlimited ? <Layers className="h-4 w-4" /> : <Lock className="h-4 w-4 text-amber-300" />}
+                      One-Click Studio (10 Formats)
                     </button>
 
                     <button

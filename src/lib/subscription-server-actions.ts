@@ -2,11 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 export type ServerSubscriptionState = {
-  plan: "free" | "premium_plus";
+  plan: "premium_plus" | "unsubscribed";
   status: "active" | "expired";
-  freeGenerationsUsed: number;
-  freeGenerationLimit: number;
-  remainingGenerations: number;
   startedAt: number | null;
   expiresAt: number | null;
   daysRemaining: number;
@@ -15,16 +12,14 @@ export type ServerSubscriptionState = {
 };
 
 type ServerStoreRecord = {
-  subscription_plan: "free" | "premium_plus";
+  subscription_plan: "premium_plus" | "unsubscribed";
   subscription_status: "active" | "expired";
-  free_generations_used: number;
-  free_generations_limit: number;
   subscription_started_at: number | null;
   subscription_expires_at: number | null;
   last_payment_id: string | null;
 };
 
-// Server-side persistent store memory cache for instant sub-millisecond validation
+// Server-side persistent store memory cache
 const serverMemoryStore = new Map<string, ServerStoreRecord>();
 
 function getNormalizedEmail(email?: string | null): string {
@@ -32,24 +27,22 @@ function getNormalizedEmail(email?: string | null): string {
   return email.trim().toLowerCase();
 }
 
-/** Fetch server-validated subscription state from Supabase DB or persistent store */
+/** Fetch server-validated subscription state */
 export async function fetchServerSubscriptionState(
   email?: string | null,
 ): Promise<ServerSubscriptionState> {
   const normalized = getNormalizedEmail(email);
   const now = Date.now();
-  const freeGenerationLimit = 10;
 
   let record: ServerStoreRecord | undefined;
 
-  // 1. ALWAYS query Supabase DB user_subscriptions table FIRST (Authoritative Database Source of Truth)
+  // 1. Check Supabase DB user_subscriptions
   try {
     const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
     if (supabaseAdmin) {
       type DbSubRecord = {
         subscription_plan?: string;
         subscription_status?: string;
-        free_generations_used?: number;
         subscription_started_at?: number;
         started_at?: number;
         subscription_expires_at?: number;
@@ -76,10 +69,8 @@ export async function fetchServerSubscriptionState(
       const dbData = data as DbSubRecord | null;
       if (dbData) {
         record = {
-          subscription_plan: dbData.subscription_plan === "premium_plus" ? "premium_plus" : "free",
+          subscription_plan: dbData.subscription_plan === "premium_plus" ? "premium_plus" : "unsubscribed",
           subscription_status: dbData.subscription_status === "active" ? "active" : "expired",
-          free_generations_used: Math.max(0, Number(dbData.free_generations_used || 0)),
-          free_generations_limit: 10,
           subscription_started_at: dbData.subscription_started_at
             ? Number(dbData.subscription_started_at)
             : dbData.started_at
@@ -99,18 +90,15 @@ export async function fetchServerSubscriptionState(
     console.warn("[SERVER SUBSCRIPTION] DB fetch warning:", dbFetchErr);
   }
 
-  // 2. Fallback to memory cache if DB is temporarily unreachable
+  // 2. Fallback to memory cache
   if (!record) {
     record = serverMemoryStore.get(normalized);
   }
 
-  // 3. Initial record creation for new user account (Do NOT overwrite DB on fetch)
   if (!record) {
     record = {
-      subscription_plan: "free",
+      subscription_plan: "unsubscribed",
       subscription_status: "expired",
-      free_generations_used: 0,
-      free_generations_limit: 10,
       subscription_started_at: null,
       subscription_expires_at: null,
       last_payment_id: null,
@@ -127,14 +115,12 @@ export async function fetchServerSubscriptionState(
     record.subscription_expires_at &&
     now >= record.subscription_expires_at
   ) {
-    // Automatically downgrade to expired free status. Do NOT reset free_generations_used!
-    plan = "free";
+    plan = "unsubscribed";
     status = "expired";
-    record.subscription_plan = "free";
+    record.subscription_plan = "unsubscribed";
     record.subscription_status = "expired";
     serverMemoryStore.set(normalized, record);
 
-    // Update Supabase DB
     try {
       const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
       if (supabaseAdmin) {
@@ -147,7 +133,7 @@ export async function fetchServerSubscriptionState(
           .upsert(
             {
               user_email: normalized,
-              subscription_plan: "free",
+              subscription_plan: "unsubscribed",
               subscription_status: "expired",
               updated_at: new Date().toISOString(),
             },
@@ -155,18 +141,14 @@ export async function fetchServerSubscriptionState(
           );
       }
     } catch {
-      // Ignored non-critical DB error
+      // Ignored
     }
   }
 
   const isUnlimited =
     plan === "premium_plus" &&
     status === "active" &&
-    (record.subscription_expires_at ? now < record.subscription_expires_at : true);
-
-  const remainingGenerations = isUnlimited
-    ? Infinity
-    : Math.max(0, freeGenerationLimit - record.free_generations_used);
+    (record.subscription_expires_at ? now < record.subscription_expires_at : false);
 
   const daysRemaining =
     record.subscription_expires_at && record.subscription_expires_at > now
@@ -176,9 +158,6 @@ export async function fetchServerSubscriptionState(
   return {
     plan,
     status,
-    freeGenerationsUsed: record.free_generations_used,
-    freeGenerationLimit,
-    remainingGenerations,
     startedAt: record.subscription_started_at,
     expiresAt: record.subscription_expires_at,
     daysRemaining,
@@ -224,30 +203,15 @@ export const checkGenerationEntitlementFn = createServerFn({ method: "POST" })
           allowed: true,
           plan: "premium_plus",
           isUnlimited: true,
-          remainingGenerations: Infinity,
-          freeGenerationsUsed: state.freeGenerationsUsed,
-          state,
-        };
-      }
-
-      if (state.freeGenerationsUsed >= 10) {
-        return {
-          allowed: false,
-          reason: "FREE_TRIAL_EXHAUSTED",
-          plan: "free",
-          isUnlimited: false,
-          remainingGenerations: 0,
-          freeGenerationsUsed: state.freeGenerationsUsed,
           state,
         };
       }
 
       return {
-        allowed: true,
-        plan: "free",
+        allowed: false,
+        reason: "PREMIUM_SUBSCRIPTION_REQUIRED",
+        plan: "unsubscribed",
         isUnlimited: false,
-        remainingGenerations: Math.max(0, 10 - state.freeGenerationsUsed),
-        freeGenerationsUsed: state.freeGenerationsUsed,
         state,
       };
     } catch (err) {
@@ -256,7 +220,7 @@ export const checkGenerationEntitlementFn = createServerFn({ method: "POST" })
     }
   });
 
-/** TanStack Server Function: Atomically record successful generation AFTER execution succeeds */
+/** TanStack Server Function: Record successful generation for active Premium user */
 export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
   .validator((data?: { userEmail?: string | null; incrementCount?: number }) =>
     z
@@ -271,74 +235,12 @@ export const recordGenerationSuccessFn = createServerFn({ method: "POST" })
     try {
       const email = data?.userEmail;
       const current = await fetchServerSubscriptionState(email);
-      const normalized = getNormalizedEmail(email);
-
-      // Premium Plus users have unlimited generation
-      if (current.isUnlimited) {
-        return {
-          success: true,
-          plan: "premium_plus",
-          isUnlimited: true,
-          remainingGenerations: Infinity,
-          freeGenerationsUsed: current.freeGenerationsUsed,
-          state: current,
-        };
-      }
-
-      const countToAdd = Math.max(1, data?.incrementCount ?? 1);
-      const newUsed = current.freeGenerationsUsed + countToAdd;
-
-      const record: ServerStoreRecord = {
-        subscription_plan: "free",
-        subscription_status: current.status,
-        free_generations_used: newUsed,
-        free_generations_limit: 10,
-        subscription_started_at: current.startedAt,
-        subscription_expires_at: current.expiresAt,
-        last_payment_id: current.lastPaymentId,
-      };
-
-      serverMemoryStore.set(normalized, record);
-
-      // Update Supabase DB user_subscriptions table
-      try {
-        const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
-        if (supabaseAdmin) {
-          await (
-            supabaseAdmin as unknown as {
-              from: (t: string) => { upsert: (d: unknown, o?: unknown) => Promise<unknown> };
-            }
-          )
-            .from("user_subscriptions")
-            .upsert(
-              {
-                user_email: normalized,
-                subscription_plan: "free",
-                subscription_status: current.status,
-                free_generations_used: newUsed,
-                free_generations_limit: 10,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: "user_email" },
-            );
-        }
-      } catch {
-        // Ignored DB write exception
-      }
-
-      const updatedState: ServerSubscriptionState = {
-        ...current,
-        freeGenerationsUsed: newUsed,
-        remainingGenerations: Math.max(0, 10 - newUsed),
-      };
 
       return {
         success: true,
-        plan: "free",
-        isUnlimited: false,
-        remainingGenerations: Math.max(0, 10 - newUsed),
-        freeGenerationsUsed: newUsed,
-        state: updatedState,
+        plan: current.plan,
+        isUnlimited: current.isUnlimited,
+        state: current,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -361,23 +263,19 @@ export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
     try {
       const normalized = getNormalizedEmail(data?.userEmail);
       const now = Date.now();
-      // Exactly 30 days duration (30 * 24 * 60 * 60 * 1000 ms)
+      // Exactly 30 days duration
       const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
 
-      const existing = serverMemoryStore.get(normalized);
       const record: ServerStoreRecord = {
         subscription_plan: "premium_plus",
         subscription_status: "active",
-        free_generations_used: existing?.free_generations_used || 0,
-        free_generations_limit: 10,
         subscription_started_at: now,
         subscription_expires_at: expiresAt,
-        last_payment_id: data?.paymentId ?? existing?.last_payment_id ?? null,
+        last_payment_id: data?.paymentId ?? null,
       };
 
       serverMemoryStore.set(normalized, record);
 
-      // Update Supabase DB user_subscriptions table permanently
       try {
         const { supabaseAdmin } = await import("../integrations/supabase/client.server.js");
         if (supabaseAdmin) {
@@ -401,15 +299,12 @@ export const activatePremiumPlusServerFn = createServerFn({ method: "POST" })
             );
         }
       } catch {
-        // Ignored DB write exception
+        // Ignored
       }
 
       const updatedState: ServerSubscriptionState = {
         plan: "premium_plus",
         status: "active",
-        freeGenerationsUsed: record.free_generations_used,
-        freeGenerationLimit: 10,
-        remainingGenerations: Infinity,
         startedAt: now,
         expiresAt,
         daysRemaining: 30,

@@ -61,20 +61,20 @@ export function UpgradeModal({
             </div>
             <div>
               <h2 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                {isExpired ? "Subscription Expired" : "Free Trial Limit Reached"}
+                {isExpired ? "Subscription Expired" : "Premium Subscription Required"}
               </h2>
               <p className="text-xs text-slate-300 font-semibold mt-1">
                 {isExpired ? (
                   <>
-                    Your subscription has expired.
+                    Your 30-day subscription has expired.
                     <br />
-                    Renew Premium to continue.
+                    Renew Premium to unlock all image generation tools.
                   </>
                 ) : (
                   <>
-                    You've used all 10 free generations.
+                    Image generation is exclusively available to Premium members.
                     <br />
-                    Create your account to continue and unlock Premium.
+                    Subscribe to Premium Plan (₹999/month) to start optimizing.
                   </>
                 )}
               </p>
