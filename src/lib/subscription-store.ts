@@ -1,22 +1,23 @@
-// Production Subscription & Expiry Engine — ShipSmart Seller (Premium-Only Model)
-// Single Source of Truth: Premium Plus ₹999/month (30 Days Unlimited Access, auto-downgrade on expiry)
+// Production Subscription & Expiry Engine — ShipSmart Seller
+// 30-Day Free Trial for every new user + Premium Plan ₹999/month (30 Days Unlimited Access)
 
 import { supabase } from "@/integrations/supabase/client";
 import { getOrCreateGuestId } from "./guest-store";
 
-export type SubscriptionPlan = "premium_plus" | "unsubscribed";
+export type SubscriptionPlan = "trial" | "premium_plus" | "expired" | "unsubscribed";
 export type SubscriptionStatus = "active" | "expired";
 
 export type UserSubscriptionState = {
   plan: SubscriptionPlan;
   status: SubscriptionStatus;
+  isTrial: boolean;
   startedAt: number | null;
   expiresAt: number | null;
   daysRemaining: number;
   isUnlimited: boolean;
 };
 
-const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v6";
+const SUBSCRIPTION_STORAGE_KEY = "shipsmart_user_subscription_v7";
 
 function getStorageKey(userEmail?: string | null): string {
   if (userEmail && userEmail.trim().length > 0) {
@@ -26,7 +27,7 @@ function getStorageKey(userEmail?: string | null): string {
   return `${SUBSCRIPTION_STORAGE_KEY}_${guestId}`;
 }
 
-/** Computes 1 calendar month after the given date (e.g. July 30 -> August 30) */
+/** Computes 1 calendar month after the given date */
 export function addOneCalendarMonth(startDate: Date): Date {
   const target = new Date(startDate.getTime());
   const currentMonth = target.getMonth();
@@ -38,8 +39,24 @@ export function addOneCalendarMonth(startDate: Date): Date {
   return target;
 }
 
+/** Creates default 30-Day Free Trial state for a new user */
+export function createDefaultTrialState(): UserSubscriptionState {
+  const now = Date.now();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  return {
+    plan: "trial",
+    status: "active",
+    isTrial: true,
+    startedAt: now,
+    expiresAt: now + thirtyDays,
+    daysRemaining: 30,
+    isUnlimited: true,
+  };
+}
+
 /**
- * Asynchronously loads the subscription state directly from MongoDB Express API / Supabase DB.
+ * Asynchronously loads subscription state from MongoDB Express API / Supabase DB.
+ * Automatically provisions a 30-Day Free Trial for new accounts.
  */
 export async function fetchSubscriptionStateFromDatabase(
   userEmail?: string | null,
@@ -59,13 +76,32 @@ export async function fetchSubscriptionStateFromDatabase(
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.state) {
+        const rawPlan = data.state.plan;
+        const now = Date.now();
+        const expiresAt = data.state.expiresAt ? Number(data.state.expiresAt) : null;
+        const isExpired = expiresAt ? now >= expiresAt : false;
+
+        const isTrial = Boolean(data.state.isTrial ?? (rawPlan === "trial"));
+        const plan: SubscriptionPlan = isExpired
+          ? "expired"
+          : rawPlan === "premium_plus"
+            ? "premium_plus"
+            : isTrial
+              ? "trial"
+              : "unsubscribed";
+
+        const status: SubscriptionStatus = isExpired ? "expired" : "active";
+        const daysRemaining = expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
+        const isUnlimited = !isExpired && (status === "active");
+
         const state: UserSubscriptionState = {
-          plan: data.state.plan === "premium_plus" ? "premium_plus" : "unsubscribed",
-          status: data.state.status === "active" ? "active" : "expired",
+          plan,
+          status,
+          isTrial,
           startedAt: data.state.startedAt ? Number(data.state.startedAt) : null,
-          expiresAt: data.state.expiresAt ? Number(data.state.expiresAt) : null,
-          daysRemaining: Number(data.state.daysRemaining || 0),
-          isUnlimited: Boolean(data.state.isUnlimited),
+          expiresAt,
+          daysRemaining,
+          isUnlimited,
         };
         saveSubscriptionState(state, userEmail);
         return state;
@@ -97,22 +133,28 @@ export async function fetchSubscriptionStateFromDatabase(
       .maybeSingle();
 
     if (!error && data) {
-      const plan: SubscriptionPlan =
-        data.subscription_plan === "premium_plus" ? "premium_plus" : "unsubscribed";
-      const status: SubscriptionStatus =
-        data.subscription_status === "active" ? "active" : "expired";
-      const startedAt = data.subscription_started_at ? Number(data.subscription_started_at) : null;
-      const expiresAt = data.subscription_expires_at ? Number(data.subscription_expires_at) : null;
       const now = Date.now();
+      const expiresAt = data.subscription_expires_at ? Number(data.subscription_expires_at) : null;
+      const isExpired = expiresAt ? now >= expiresAt : false;
+      const isTrial = Boolean(data.is_trial ?? (data.subscription_plan === "trial"));
 
-      const isUnlimited =
-        plan === "premium_plus" && status === "active" && !!expiresAt && now < expiresAt;
-      const daysRemaining =
-        expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
+      const plan: SubscriptionPlan = isExpired
+        ? "expired"
+        : data.subscription_plan === "premium_plus"
+          ? "premium_plus"
+          : isTrial
+            ? "trial"
+            : "unsubscribed";
+
+      const status: SubscriptionStatus = isExpired ? "expired" : "active";
+      const startedAt = data.subscription_started_at ? Number(data.subscription_started_at) : null;
+      const daysRemaining = expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
+      const isUnlimited = !isExpired && status === "active";
 
       const state: UserSubscriptionState = {
-        plan: isUnlimited ? "premium_plus" : "unsubscribed",
-        status: isUnlimited ? "active" : "expired",
+        plan,
+        status,
+        isTrial,
         startedAt,
         expiresAt,
         daysRemaining,
@@ -131,14 +173,7 @@ export async function fetchSubscriptionStateFromDatabase(
 
 export function loadSubscriptionState(userEmail?: string | null): UserSubscriptionState {
   if (typeof window === "undefined") {
-    return {
-      plan: "unsubscribed",
-      status: "expired",
-      startedAt: null,
-      expiresAt: null,
-      daysRemaining: 0,
-      isUnlimited: false,
-    };
+    return createDefaultTrialState();
   }
 
   const key = getStorageKey(userEmail);
@@ -147,46 +182,41 @@ export function loadSubscriptionState(userEmail?: string | null): UserSubscripti
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      let plan: SubscriptionPlan = parsed.plan === "premium_plus" ? "premium_plus" : "unsubscribed";
-      let status: SubscriptionStatus = parsed.status === "active" ? "active" : "expired";
-      const startedAt = parsed.startedAt ? Number(parsed.startedAt) : null;
-      const expiresAt = parsed.expiresAt ? Number(parsed.expiresAt) : null;
-
       const now = Date.now();
+      const startedAt = parsed.startedAt ? Number(parsed.startedAt) : now;
+      const expiresAt = parsed.expiresAt ? Number(parsed.expiresAt) : now + 30 * 24 * 60 * 60 * 1000;
+      const isExpired = now >= expiresAt;
 
-      if (plan === "premium_plus" && expiresAt && now >= expiresAt) {
-        plan = "unsubscribed";
-        status = "expired";
-      }
+      const isTrial = parsed.isTrial ?? (parsed.plan === "trial" || !parsed.plan || parsed.plan === "unsubscribed");
+      const plan: SubscriptionPlan = isExpired
+        ? "expired"
+        : parsed.plan === "premium_plus"
+          ? "premium_plus"
+          : isTrial
+            ? "trial"
+            : "unsubscribed";
 
-      const isUnlimited =
-        plan === "premium_plus" && status === "active" && !!expiresAt && now < expiresAt;
-      const daysRemaining =
-        expiresAt && expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
+      const status: SubscriptionStatus = isExpired ? "expired" : "active";
+      const isUnlimited = !isExpired && status === "active";
+      const daysRemaining = expiresAt > now ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : 0;
 
-      const state: UserSubscriptionState = {
+      return {
         plan,
         status,
+        isTrial,
         startedAt,
         expiresAt,
         daysRemaining,
         isUnlimited,
       };
-
-      return state;
     }
   } catch {
-    // Fallback
+    // LocalStorage fallback
   }
 
-  return {
-    plan: "unsubscribed",
-    status: "expired",
-    startedAt: null,
-    expiresAt: null,
-    daysRemaining: 0,
-    isUnlimited: false,
-  };
+  const defaultState = createDefaultTrialState();
+  saveSubscriptionState(defaultState, userEmail);
+  return defaultState;
 }
 
 export function saveSubscriptionState(
@@ -202,13 +232,14 @@ export function saveSubscriptionState(
       JSON.stringify({
         plan: state.plan,
         status: state.status,
+        isTrial: state.isTrial,
         startedAt: state.startedAt,
         expiresAt: state.expiresAt,
         updatedAt: Date.now(),
       }),
     );
   } catch {
-    // LocalStorage quota safeguard
+    // Safeguard
   }
 }
 
@@ -222,6 +253,7 @@ export function activateMonthlyPremiumPlus(userEmail?: string | null): UserSubsc
   const newState: UserSubscriptionState = {
     plan: "premium_plus",
     status: "active",
+    isTrial: false,
     startedAt,
     expiresAt,
     daysRemaining,
@@ -231,3 +263,4 @@ export function activateMonthlyPremiumPlus(userEmail?: string | null): UserSubsc
   saveSubscriptionState(newState, userEmail);
   return newState;
 }
+

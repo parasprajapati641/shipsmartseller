@@ -12,18 +12,23 @@ const subscriptionSchema = new mongoose.Schema(
     },
     plan: {
       type: String,
-      default: "premium_plus",
+      enum: ["trial", "premium_plus", "expired"],
+      default: "trial",
+    },
+    isTrial: {
+      type: Boolean,
+      default: true,
     },
     amount: {
       type: Number,
-      default: 999,
+      default: 0,
     },
     paymentId: String,
     orderId: String,
     signature: String,
     status: {
       type: String,
-      enum: ["active", "expired"],
+      enum: ["active", "expired", "cancelled"],
       default: "active",
     },
     startDate: {
@@ -32,7 +37,11 @@ const subscriptionSchema = new mongoose.Schema(
     },
     expiryDate: {
       type: Number,
-      required: true,
+      default: () => Date.now() + 30 * 24 * 60 * 60 * 1000,
+    },
+    remindersSent: {
+      type: [String],
+      default: [],
     },
   },
   {

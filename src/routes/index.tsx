@@ -305,9 +305,9 @@ function Hero() {
       <div className="mx-auto max-w-7xl px-6 pt-24 pb-20 md:pt-32 md:pb-28">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
           <div className="animate-fade-up">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-gradient-brand" />
-              Built for Meesho sellers
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#6C63FF]/40 bg-[#6C63FF]/15 px-3.5 py-1.5 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/20">
+              <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
+              <span>🎉 30-Day Free Trial</span>
             </div>
             <h1 className="mt-6 text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.05]">
               Cut shipping costs with{" "}
@@ -321,27 +321,27 @@ function Hero() {
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 onClick={goStart}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-5 py-3 text-sm font-medium text-brand-foreground transition-transform hover:scale-[1.02] glow"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-6 py-3.5 text-sm font-extrabold text-white transition-transform hover:scale-[1.02] shadow-xl shadow-[#6C63FF]/30 glow"
               >
-                {isAuthed ? "Open dashboard" : "Explore Dashboard Free"}{" "}
+                {isAuthed ? "Open Dashboard" : "Start Free for 30 Days"}{" "}
                 <ArrowRight className="h-4 w-4" />
               </button>
               <a
                 href="#how"
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/60 px-5 py-3 text-sm font-medium hover:bg-accent"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card/60 px-5 py-3.5 text-sm font-medium hover:bg-accent"
               >
                 See how it works
               </a>
             </div>
             <div className="mt-10 flex flex-wrap gap-6 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-brand" /> Free Signup & Uploads
+                <Check className="h-3.5 w-3.5 text-brand" /> 🎉 30-Day Free Trial
               </span>
               <span className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-brand" /> ₹999/mo Premium Plan
+                <Check className="h-3.5 w-3.5 text-brand" /> ₹999/mo After Trial
               </span>
               <span className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-brand" /> Cancel anytime
+                <Check className="h-3.5 w-3.5 text-brand" /> No Credit Card Required
               </span>
             </div>
           </div>
@@ -666,35 +666,33 @@ function Pricing() {
 
   const plans = [
     {
-      name: "Free Explorer Account",
+      name: "FREE TRIAL",
       price: "₹0",
-      period: "Free Forever",
-      tagline: "Free registration to browse and test catalog features.",
+      period: "30 Days",
+      tagline: "🎉 30-Day Free Trial for every new user.",
       features: [
-        "Free Account Sign Up & Login",
-        "Upload Product Images & Previews",
-        "AI Listing Quality Score & CTR Analysis",
-        "Visual Heatmap Inspection",
-        "Smart Shipping & Profit Calculator",
+        "Unlimited Access",
+        "All Premium Features",
+        "No Credit Card Required",
+        "Cancel Anytime",
       ],
-      cta: isAuthed ? "Open Dashboard" : "Sign Up Free",
+      cta: isAuthed ? "Open Dashboard" : "Start Free for 30 Days",
       onClick: goStart,
       highlight: false,
     },
     {
       name: "Premium Plan",
       price: "₹999",
-      period: "/ month",
-      tagline: "Full access to all AI image generation features.",
+      period: "/ month (After Trial)",
+      tagline: "Continued full access to all AI image generation features.",
       features: [
+        "Unlimited Access to All Features",
         "Unlimited Autonomous AI Auto-Pilot",
         "Unlimited 5–50KB Presets & Compression",
-        "One-Click Studio (10 Multi-Format Assets)",
-        "Permanent Cloud History in MongoDB",
-        "30 Days Full Access from Payment Timestamp",
-        "Priority Support & Catalog Features",
+        "Permanent Cloud History & Backup",
+        "Priority Support & Catalog Tools",
       ],
-      cta: "Upgrade to Premium Plan (₹999 / mo)",
+      cta: "Upgrade to Premium Plan (₹999/mo)",
       onClick: handlePayment,
       highlight: true,
     },

@@ -130,4 +130,96 @@ const sendEmail = async (email, paymentId, amount, plan) => {
   }
 };
 
-module.exports = sendEmail;
+const sendTrialReminderEmail = async (email, reminderType, daysRemaining) => {
+  try {
+    console.log(`Sending ${reminderType} trial reminder email to:`, email);
+    
+    let subject = "🎉 Your ShipSmart 30-Day Free Trial";
+    let heading = "30-Day Free Trial";
+    let bodyText = "";
+
+    if (reminderType === "7_days") {
+      subject = "⏰ 7 Days Remaining on Your ShipSmart Free Trial";
+      heading = "7 Days Left on Your Free Trial";
+      bodyText = "You have <strong>7 days remaining</strong> on your 30-day Free Trial. Upgrade now to ensure uninterrupted access to all Premium AI product image tools.";
+    } else if (reminderType === "3_days") {
+      subject = "⚠️ Only 3 Days Left on Your Free Trial!";
+      heading = "3 Days Left on Your Free Trial";
+      bodyText = "Your 30-day Free Trial expires in <strong>3 days</strong>. Don't lose access to unlimited AI image generation and high-conversion presets.";
+    } else if (reminderType === "1_day") {
+      subject = "🔴 Last Day! Your Free Trial Expires Tomorrow";
+      heading = "1 Day Remaining — Trial Ending Soon";
+      bodyText = "This is a quick reminder that your Free Trial expires in <strong>24 hours</strong>. Upgrade to Premium for ₹999/month to keep optimizing your listings.";
+    } else if (reminderType === "expired") {
+      subject = "Your ShipSmart Free Trial Has Expired";
+      heading = "Free Trial Expired";
+      bodyText = "Your 30-day Free Trial has ended. Upgrade to Premium for <strong>₹999/month</strong> to continue generating marketplace-optimized product images.";
+    }
+
+    const info = await transporter.sendMail({
+      from: `"ShipSmart Seller" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject,
+      html: `
+<div style="background:#090B14;padding:40px 20px;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
+  <div style="max-width:600px;margin:auto;background:#121826;border-radius:16px;border:1px solid #2A3658;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,0.5);">
+    
+    <div style="background:linear-gradient(135deg,#6C63FF,#00D4AA);padding:32px;text-align:center;color:#ffffff;">
+      <h1 style="margin:0;font-size:28px;font-weight:800;">🚀 ShipSmart Seller</h1>
+      <div style="margin-top:8px;display:inline-block;background:rgba(0,0,0,0.2);padding:6px 14px;border-radius:20px;font-weight:700;font-size:14px;">
+        🎉 30-Day Free Trial Notification
+      </div>
+    </div>
+
+    <div style="padding:36px;color:#E2E8F0;">
+      <h2 style="margin-top:0;color:#ffffff;font-size:22px;font-weight:700;">${heading}</h2>
+      <p style="font-size:15px;color:#94A3B8;line-height:1.7;">
+        Hello,
+      </p>
+      <p style="font-size:15px;color:#CBD5E1;line-height:1.7;">
+        ${bodyText}
+      </p>
+
+      <div style="margin:30px 0;background:#1A2235;border-radius:12px;padding:20px;border:1px solid #2A3658;text-align:center;">
+        <span style="font-size:13px;color:#94A3B8;display:block;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Status</span>
+        <span style="font-size:22px;font-weight:800;color:#00D4AA;display:block;margin-top:4px;">${reminderType === 'expired' ? 'Trial Expired' : `${daysRemaining} Days Remaining`}</span>
+      </div>
+
+      <div style="text-align:center;margin-top:30px;">
+        <a href="https://shipsmartseller.vercel.app/dashboard"
+          style="background:linear-gradient(135deg,#6C63FF,#00D4AA);
+                 color:#ffffff;
+                 text-decoration:none;
+                 padding:14px 32px;
+                 border-radius:10px;
+                 display:inline-block;
+                 font-weight:800;
+                 font-size:15px;
+                 box-shadow:0 4px 15px rgba(108,99,255,0.4);">
+          Upgrade to Premium (₹999/mo)
+        </a>
+      </div>
+
+      <hr style="margin:30px 0;border:none;border-top:1px solid #2A3658;">
+
+      <p style="font-size:13px;color:#64748B;line-height:1.6;margin:0;">
+        You are receiving this automated email regarding your ShipSmart Seller subscription.
+      </p>
+    </div>
+  </div>
+</div>
+`,
+    });
+
+    console.log(`✅ Trial Reminder Email (${reminderType}) Sent:`, info.messageId);
+    return true;
+  } catch (error) {
+    console.error(`❌ Trial Reminder Email Error (${reminderType}):`, error);
+    return false;
+  }
+};
+
+module.exports = {
+  sendEmail,
+  sendTrialReminderEmail,
+};

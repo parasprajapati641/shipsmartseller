@@ -4,12 +4,14 @@
 -- 1. Create user_subscriptions table (Ground Truth for User Credits & Subscriptions)
 CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   user_email TEXT PRIMARY KEY,
-  subscription_plan TEXT NOT NULL DEFAULT 'free',
-  subscription_status TEXT NOT NULL DEFAULT 'expired',
+  subscription_plan TEXT NOT NULL DEFAULT 'trial',
+  subscription_status TEXT NOT NULL DEFAULT 'active',
+  is_trial BOOLEAN NOT NULL DEFAULT true,
   free_generations_used INTEGER NOT NULL DEFAULT 0,
-  free_generations_limit INTEGER NOT NULL DEFAULT 10,
+  free_generations_limit INTEGER NOT NULL DEFAULT 999999,
   subscription_started_at BIGINT,
   subscription_expires_at BIGINT,
+  trial_reminders_sent JSONB NOT NULL DEFAULT '[]'::jsonb,
   last_payment_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

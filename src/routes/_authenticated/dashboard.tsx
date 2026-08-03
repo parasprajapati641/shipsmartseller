@@ -647,27 +647,23 @@ function Dashboard() {
           </Link>
           <div className="flex items-center gap-3">
             {/* Free Trial, Premium Active, or Expired Status Badges */}
-            {subState.isUnlimited ? (
-              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-extrabold text-emerald-400">
+            {subState.isTrial && subState.isUnlimited ? (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-[#6C63FF]/40 bg-[#6C63FF]/15 px-3.5 py-1.5 text-xs font-extrabold text-white shadow-md shadow-[#6C63FF]/20">
+                <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
+                <span>🎉 30-Day Free Trial</span>
+              </div>
+            ) : subState.isUnlimited ? (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-extrabold text-emerald-400">
                 <Zap className="h-3.5 w-3.5 fill-emerald-400 shrink-0" />
                 <span>Premium Active</span>
-                {subState.expiresAt && (
-                  <span className="text-[11px] text-emerald-300 font-semibold border-l border-emerald-500/30 pl-2">
-                    Expires: {formatExpiryDate(subState.expiresAt)}
-                  </span>
-                )}
               </div>
             ) : (
               <button
                 onClick={() => setShowUpgradeModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#6C63FF]/40 bg-[#6C63FF]/10 px-3.5 py-2 text-xs font-extrabold text-[#6C63FF] hover:bg-[#6C63FF]/20 transition-all"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#FF5C7C]/40 bg-[#FF5C7C]/10 px-3.5 py-1.5 text-xs font-extrabold text-[#FF5C7C] hover:bg-[#FF5C7C]/20 transition-all"
               >
-                <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
-                <span className="text-white font-extrabold">
-                  {subState.expiresAt !== null && Date.now() >= subState.expiresAt
-                    ? "Subscription Expired — Renew Premium"
-                    : "Subscription Inactive — Upgrade to Premium"}
-                </span>
+                <Sparkles className="h-3.5 w-3.5 text-[#FF5C7C]" />
+                <span>Trial Expired — Upgrade to Premium</span>
               </button>
             )}
 
@@ -676,23 +672,24 @@ function Dashboard() {
                 onClick={() => setShowUpgradeModal(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] px-3.5 py-2 text-xs font-extrabold text-white shadow-lg shadow-[#6C63FF]/30 hover:opacity-95 transition-all"
               >
-                <Zap className="h-3.5 w-3.5" />{" "}
-                {subState.expiresAt !== null ? "Renew Premium Plan" : "Upgrade to Premium (₹999/mo)"}
+                <Zap className="h-3.5 w-3.5" /> Renew Premium (₹999/mo)
               </button>
             )}
 
-            <button
-              onClick={() => setShowAnalyticsModal(true)}
+            <Link
+              to="/settings"
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#2A3658] bg-[#1A2235] px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-white/10 transition-colors"
             >
-              <BarChart3 className="h-3.5 w-3.5 text-[#00D4AA]" /> AI Intelligence
-            </button>
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#2A3658] bg-[#1A2235] px-3 py-1.5 text-slate-200">
-              <div className="grid h-6 w-6 place-items-center rounded-full bg-[#6C63FF] text-white font-bold">
-                <UserIcon className="h-3 w-3" />
-              </div>
-              <span className="text-xs font-semibold max-w-[180px] truncate">{user?.email}</span>
-            </div>
+              <UserIcon className="h-3.5 w-3.5 text-[#6C63FF]" /> Profile
+            </Link>
+
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#2A3658] bg-[#1A2235] px-3.5 py-2 text-xs font-bold text-amber-400 hover:bg-white/10 transition-colors"
+            >
+              <Lock className="h-3.5 w-3.5" /> Admin
+            </Link>
+
             <button
               onClick={handleSignOut}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#2A3658] bg-[#1A2235] px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10"
@@ -712,6 +709,51 @@ function Dashboard() {
       <main className="mx-auto max-w-7xl px-6 py-10 grid lg:grid-cols-[1fr_360px] gap-8">
         {/* Main column */}
         <div className="space-y-8">
+          {/* Trial Progress Banner (Requirement 7 & 12) */}
+          <div className="relative overflow-hidden rounded-2xl border border-[#6C63FF]/40 bg-gradient-to-r from-[#121826] via-[#1A2235] to-[#121826] p-6 shadow-2xl shadow-[#6C63FF]/10">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#6C63FF]/20 px-3 py-1 text-xs font-extrabold text-[#6C63FF] border border-[#6C63FF]/40">
+                  <Sparkles className="h-3.5 w-3.5 text-[#00D4AA]" />
+                  <span>🎉 30-Day Free Trial</span>
+                </div>
+                <h2 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                  Free Trial
+                </h2>
+                <p className="text-xs text-slate-400 font-medium">
+                  Enjoy unlimited access to all AI image generation features during your free trial.
+                </p>
+              </div>
+
+              <div className="text-right">
+                <div className="text-2xl font-extrabold text-[#00D4AA]">
+                  {subState.isUnlimited
+                    ? `${subState.daysRemaining} Days Remaining`
+                    : "Trial Expired"}
+                </div>
+                <div className="text-xs text-slate-400 font-semibold">
+                  {subState.expiresAt ? `Expires: ${formatExpiryDate(subState.expiresAt)}` : "30 Days Trial"}
+                </div>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-5 space-y-1.5">
+              <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                <span>Trial Progress</span>
+                <span>{subState.daysRemaining} / 30 Days Left</span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-[#090B14] p-0.5 border border-[#2A3658]">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#6C63FF] to-[#00D4AA] transition-all duration-500 shadow-md shadow-[#00D4AA]/20"
+                  style={{
+                    width: `${Math.max(5, Math.min(100, Math.round((subState.daysRemaining / 30) * 100)))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-[#6C63FF]/15 px-3 py-1 text-xs font-bold text-[#6C63FF] border border-[#6C63FF]/30 mb-2">
               <Bot className="h-3.5 w-3.5 text-[#00D4AA]" /> Autonomous Multi-Pass Optimization
