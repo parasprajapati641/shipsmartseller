@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import heroVisual from "@/assets/hero-visual.jpg";
 import { useAuth } from "@/lib/auth-context";
+import { Header } from "@/components/Header";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,12 +49,13 @@ export const Route = createFileRoute("/")({
 });
 
 const NAV = [
-  { label: "Home", href: "#top" },
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Contact", href: "#contact" },
+  { label: "Home", href: "/#top" },
+  { label: "Features", href: "/#features" },
+  { label: "OMS", href: "/oms" },
+  { label: "How it works", href: "/#how" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "FAQ", href: "/#faq" },
+  { label: "Contact", href: "/#contact" },
 ];
 
 const FEATURES = [
@@ -184,114 +186,6 @@ function useAuthCTA() {
     },
     goDashboard: () => navigate({ to: "/dashboard" }),
   };
-}
-
-function Header() {
-  const [open, setOpen] = useState(false);
-  const { isAuthed, goStart, goSignIn, goDashboard } = useAuthCTA();
-  return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0A1726]/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <a href="#top" className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-xl bg-cyan-400 text-slate-950 font-bold shadow-lg shadow-cyan-500/25">
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-white">ShipSmart Seller</span>
-        </a>
-        <nav className="hidden md:flex items-center gap-8">
-          {NAV.map((n) => (
-            <a
-              key={n.href}
-              href={n.href}
-              className="text-sm text-slate-400 transition-colors hover:text-white font-medium"
-            >
-              {n.label}
-            </a>
-          ))}
-        </nav>
-        <div className="hidden md:flex items-center gap-3">
-          {isAuthed ? (
-            <button
-              onClick={goDashboard}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-extrabold text-slate-950 shadow-lg shadow-cyan-500/25 hover:bg-cyan-300"
-            >
-              Dashboard <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={goSignIn}
-                className="text-sm text-slate-400 hover:text-white font-semibold px-2"
-              >
-                Sign in
-              </button>
-              <button
-                onClick={goStart}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-extrabold text-slate-950 shadow-lg shadow-cyan-500/25 transition-transform hover:scale-[1.02] hover:bg-cyan-300"
-              >
-                Get started <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </>
-          )}
-        </div>
-        <button
-          className="md:hidden rounded-lg p-2 hover:bg-accent"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-      </div>
-      {open && (
-        <div className="md:hidden border-t border-border/60 bg-background/95">
-          <div className="mx-auto max-w-7xl px-6 py-4 flex flex-col gap-3">
-            {NAV.map((n) => (
-              <a
-                key={n.href}
-                href={n.href}
-                onClick={() => setOpen(false)}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                {n.label}
-              </a>
-            ))}
-            {isAuthed ? (
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  goDashboard();
-                }}
-                className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground"
-              >
-                Go to Dashboard
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    goSignIn();
-                  }}
-                  className="text-sm text-left text-muted-foreground hover:text-foreground"
-                >
-                  Sign in
-                </button>
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    goStart();
-                  }}
-                  className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-brand px-4 py-2 text-sm font-medium text-brand-foreground"
-                >
-                  Get started
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </header>
-  );
 }
 
 function Hero() {
@@ -929,7 +823,13 @@ function Footer() {
               <div className="text-xs uppercase tracking-widest text-muted-foreground">Product</div>
               <ul className="mt-3 space-y-2">
                 <li>
-                  <a href="#features" className="hover:text-foreground text-muted-foreground">
+                  <a href="/oms" className="hover:text-foreground text-muted-foreground font-medium flex items-center gap-1.5">
+                    OMS System
+                    <span className="rounded bg-cyan-400/10 text-cyan-400 text-[10px] font-bold px-1.5 py-0.5 border border-cyan-400/20">NEW</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/#features" className="hover:text-foreground text-muted-foreground">
                     Features
                   </a>
                 </li>
